@@ -16,7 +16,6 @@
 //
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //############################################################################
-`define C2Q 0
 module SNN(
     //Input Port
 
@@ -71,8 +70,7 @@ localparam  P_PROCESSING = 3'b100;
 localparam  MM_IDLE = 8'b0000_0001;
 localparam  MM_MAX_POOLING = 8'b0000_0010;
 localparam  MM_FC = 8'b0000_0100;
-localparam  MM_NORM = 8'b0000_1000;
-localparam  MM_ACT = 8'b0001_0000;
+localparam  MM_NORM_ACT = 8'b0000_1000;
 localparam  MM_WAIT_IMG1 = 8'b0010_0000;
 localparam  MM_L1_DISTANCE = 8'b0100_0000;
 localparam  MM_DONE = 8'b1000_0000;
@@ -84,36 +82,34 @@ wire ST_P_PROCESSING = p_cur_st[2];
 wire ST_MM_IDLE   = mm_cur_st[0];
 wire ST_MM_MAX_POOLING   = mm_cur_st[1];
 wire ST_MM_FC   = mm_cur_st[2];
-wire ST_MM_NORM   = mm_cur_st[3];
-wire ST_MM_ACT   = mm_cur_st[4];
+wire ST_MM_NORM_ACT   = mm_cur_st[3];
 wire ST_MM_WAIT_IMG1   = mm_cur_st[5];
 wire ST_MM_L1_DISTANCE   = mm_cur_st[6];
 wire ST_MM_DONE   = mm_cur_st[7];
 
-reg[8:0] rd_cnt;
-reg[4:0] mm_cnt,pixel_cnt;
+reg[6:0] rd_cnt;
+reg[2:0] mm_cnt,pixel_cnt;
 reg  processing_f_ff;
-reg  valid_d1,valid_d2,valid_d3;
+reg  valid_d1,valid_d2,valid_d3,valid_d4;
 
-reg[1:0] img_num_cnt,img_num_cnt_d1,img_num_cnt_d2,img_num_cnt_d3;
+reg img_num_cnt,img_num_cnt_d1,img_num_cnt_d2,img_num_cnt_d3,img_num_cnt_d4;
 reg[DATA_WIDTH-1:0] x_min_ff,x_max_ff;
 
-reg[2:0] kernal_num_cnt,kernal_num_cnt_d1,kernal_num_cnt_d2,kernal_num_cnt_d3;
+reg[1:0] kernal_num_cnt,kernal_num_cnt_d1,kernal_num_cnt_d2,kernal_num_cnt_d3,kernal_num_cnt_d4;
 
-reg[5:0] process_xptr, process_yptr,process_xptr_d1, process_yptr_d1,process_xptr_d2,process_yptr_d2,process_xptr_d3,
-process_yptr_d3;
+reg[3:0] process_xptr, process_yptr,process_xptr_d1, process_yptr_d1,process_xptr_d2,process_yptr_d2,process_xptr_d3,
+process_yptr_d3,process_xptr_d4,process_yptr_d4;
 
-reg[5:0] wr_img_xptr,wr_img_yptr;
+reg[3:0] wr_img_xptr,wr_img_yptr;
 reg mm_img_cnt;
-reg[4:0] mm_cnt_d1,mm_cnt_d2;
+reg[2:0] mm_cnt_d1,mm_cnt_d2,mm_cnt_d3,mm_cnt_d4;
 reg norm_valid_d1;
-reg[DATA_WIDTH-1:0] exp_pos_result_d1, exp_neg_result_d1, fp_sub0_act_d2,
-fp_add_act_d2;
+reg[DATA_WIDTH-1:0] exp_pos_result_d3, exp_neg_result_d3, fp_sub2_act_d4,
+fp_add3_act_d4;
 reg[DATA_WIDTH-1:0] fp_mult_fc_d1[0:1];
 
-
 reg[DATA_WIDTH-1:0] abs_in;
-reg[DATA_WIDTH-1:0] abs_out_d1;
+reg[DATA_WIDTH-1:0] abs_out_0_d1,abs_out_1_d1,abs_out_2_d1,abs_out_3_d1;
 
 reg[DATA_WIDTH-1:0] negation_in;
 reg[DATA_WIDTH-1:0] pos_exp_in;
@@ -128,9 +124,9 @@ reg[DATA_WIDTH-1:0] fp_add0_in_b;
 reg[DATA_WIDTH-1:0] fp_mult_fc_in_a[0:1];
 reg[DATA_WIDTH-1:0] fp_mult_fc_in_b[0:1];
 
-reg[DATA_WIDTH-1:0] fp_div_in_a;
-reg[DATA_WIDTH-1:0] fp_div_in_b;
-wire[DATA_WIDTH-1:0] fp_div_out;
+reg[DATA_WIDTH-1:0] fp_div0_in_a;
+reg[DATA_WIDTH-1:0] fp_div0_in_b;
+wire[DATA_WIDTH-1:0] fp_div0_out;
 
 reg[DATA_WIDTH-1:0] fp_sub0_in_a;
 reg[DATA_WIDTH-1:0] fp_sub0_in_b;
@@ -150,23 +146,47 @@ reg[DATA_WIDTH-1:0] l1_distance_ff;
 wire[DATA_WIDTH-1:0] negation = {~negation_in[31],negation_in[30:0]};
 wire[DATA_WIDTH-1:0] exp_neg_result;
 wire[DATA_WIDTH-1:0] exp_pos_result;
+reg[DATA_WIDTH-1:0]  fp_div0_out_d2;
+
+reg[DATA_WIDTH-1:0] fp_div1_in_a;
+reg[DATA_WIDTH-1:0] fp_div1_in_b;
+wire[DATA_WIDTH-1:0] fp_div1_out;
 
 wire fp_cmp_results[0:1][0:1];
 
 reg[DATA_WIDTH-1:0] min_max_diff_ff;
 reg[DATA_WIDTH-1:0] kernal_rf[0:2][0:2][0:2];
-reg[DATA_WIDTH-1:0] img_rf[0:5][0:5][0:2][0:1];
+reg[DATA_WIDTH-1:0] img_rf[0:5][0:5];
 reg[DATA_WIDTH-1:0] weight_rf[0:1][0:1];
 wire start_processing_f = rd_cnt == 8;
 
-reg[2:0]  wr_kernal_num_cnt,wr_img_channel_cnt;
+reg[1:0]  wr_kernal_num_cnt,wr_img_channel_cnt;
 reg       wr_img_num_cnt;
 reg[1:0] opt_ff;
-reg[2:0] wr_kernal_yptr,wr_kernal_xptr;
+reg[1:0] wr_kernal_yptr,wr_kernal_xptr;
+reg l1_valid_d1;
+
+reg norm_act_d1,norm_act_d2,norm_act_d3,norm_act_d4;
+
 
 localparam IMG_SIZE = 4;
 
 integer i,j,k,c;
+
+reg[DATA_WIDTH-1:0] convolution_result_rf[0:3][0:3][0:1];
+wire[DATA_WIDTH-1:0] fp_accumulation_result;
+
+genvar idx,jdx;
+//---------------------------------------------------------------------
+//      Shared 4 SUM MAC
+//---------------------------------------------------------------------
+reg[DATA_WIDTH-1:0] pixels[0:8];
+reg[DATA_WIDTH-1:0] kernals[0:8];
+wire[DATA_WIDTH-1:0] mults_result[0:8];
+wire[DATA_WIDTH-1:0] partial_sum[0:2];
+wire[DATA_WIDTH-1:0] mac_result;
+reg[DATA_WIDTH-1:0]  mults_result_pipe[0:8];
+reg[DATA_WIDTH-1:0] partial_sum_pipe[0:2];
 
 //---------------------------------------------------------------------
 //      flags
@@ -176,19 +196,28 @@ wire all_convolution_done_f = img_num_cnt == 1 && kernal_num_cnt == 2 && process
 wire channel_processed_f = process_xptr == 3 && process_yptr == 3;
 wire convolution_done_f     = kernal_num_cnt == 2 && channel_processed_f;
 wire max_pooling_done_f     = mm_cnt == 2 && ST_MM_MAX_POOLING;
-wire fc_done_f              = mm_cnt_d2 == 3 && ST_MM_FC;
-wire norm_processed_f       = mm_cnt_d1 == 3 && ST_MM_NORM;
-wire activation_done_f      = mm_cnt_d2 == 3 && ST_MM_ACT;
-wire l1_distance_cal_f      = mm_cnt_d1 == 3 && ST_MM_L1_DISTANCE;
-reg convolution_done_f_d1,convolution_done_f_d2,convolution_done_f_d3;
-reg pixel_valid,pixel_valid_d1,pixel_valid_d2,pixel_valid_d3;
+wire fc_done_f              = mm_cnt_d1 == 3 && ST_MM_FC;
+wire activation_done_f      = mm_cnt_d4 == 3 && ST_MM_NORM_ACT;
+wire l1_distance_cal_f      = l1_valid_d1 && ST_MM_L1_DISTANCE;
+reg convolution_done_f_d1,convolution_done_f_d2,convolution_done_f_d3,convolution_done_f_d4;
 
 //---------------------------------------------------------------------
 //      2X DW_ADD_SUB
 //---------------------------------------------------------------------
 reg[DATA_WIDTH-1:0]  fp_addsub0_in_a,fp_addsub0_in_b,fp_addsub1_in_a,fp_addsub1_in_b;
+reg[DATA_WIDTH-1:0]  fp_addsub2_in_a,fp_addsub2_in_b,fp_addsub3_in_a,fp_addsub3_in_b;
 wire[DATA_WIDTH-1:0] fp_addsub0_out,fp_addsub1_out;
+wire[DATA_WIDTH-1:0] fp_addsub2_out,fp_addsub3_out;
 reg fp_addsub0_mode, fp_addsub1_mode;
+reg fp_addsub2_mode, fp_addsub3_mode;
+
+reg[DATA_WIDTH-1:0] fp_sum4_in_a,fp_sum4_in_b,fp_sum4_in_c,fp_sum4_in_d;
+reg[DATA_WIDTH-1:0] fp_sum4_out;
+
+reg[DATA_WIDTH-1:0] fp_add_tree_in_a[0:2];
+reg[DATA_WIDTH-1:0] fp_add_tree_in_b[0:2];
+wire[DATA_WIDTH-1:0] fp_add_tree_out[0:2];
+reg[DATA_WIDTH-1:0]  fp_add_tree_d3[0:1];
 
 always @(*)
 begin
@@ -202,6 +231,65 @@ begin
     fp_addsub0_mode = 0;
     fp_addsub1_mode = 0;
 
+    fp_addsub2_in_a = 0;
+    fp_addsub2_in_b = 0;
+
+    fp_addsub3_in_a = 0;
+    fp_addsub3_in_b = 0;
+
+    fp_addsub2_mode = 0;
+    fp_addsub3_mode = 0;
+
+    fp_sum4_in_a    = 0;
+    fp_sum4_in_b    = 0;
+    fp_sum4_in_c    = 0;
+    fp_sum4_in_d    = 0;
+
+    fp_add_tree_in_a[0] = 0;
+    fp_add_tree_in_b[0] = 0;
+
+    fp_add_tree_in_a[1] = 0;
+    fp_add_tree_in_b[1] = 0;
+
+    fp_add_tree_in_a[2] = 0;
+    fp_add_tree_in_b[2] = 0;
+
+
+    fp_add_tree_in_a[0] = partial_sum_pipe[0];
+    fp_add_tree_in_b[0] = partial_sum_pipe[1];
+    fp_add_tree_in_a[1] = partial_sum_pipe[2];
+    fp_add_tree_in_b[1] = convolution_result_rf[process_xptr_d2][process_yptr_d2][img_num_cnt_d2];
+    fp_add_tree_in_a[2] = fp_add_tree_d3[0];
+    fp_add_tree_in_b[2] = fp_add_tree_d3[1];
+
+    if(ST_MM_L1_DISTANCE && ST_P_IDLE)
+    begin
+
+        fp_addsub0_mode = 1;
+        fp_addsub0_in_a = activation_result_rf[0][0];
+        fp_addsub0_in_b = activation_result_rf[0][1];
+
+        fp_addsub1_mode = 1;
+        fp_addsub1_in_a = activation_result_rf[1][0];
+        fp_addsub1_in_b = activation_result_rf[1][1];
+
+        fp_addsub2_mode = 1;
+        fp_addsub2_in_a = activation_result_rf[2][0];
+        fp_addsub2_in_b = activation_result_rf[2][1];
+
+        fp_addsub3_mode = 1;
+        fp_addsub3_in_a = activation_result_rf[3][0];
+        fp_addsub3_in_b = activation_result_rf[3][1];
+
+        fp_add_tree_in_a[0] = abs_out_0_d1;
+        fp_add_tree_in_b[0] = abs_out_1_d1;
+        fp_add_tree_in_a[1] = abs_out_2_d1;
+        fp_add_tree_in_b[1] = abs_out_3_d1;
+
+        fp_add_tree_in_a[2] = fp_add_tree_out[0];
+        fp_add_tree_in_b[2] = fp_add_tree_out[1];
+    end
+
     if(ST_MM_FC)
     begin
         fp_addsub0_mode = 0 ;
@@ -209,74 +297,39 @@ begin
         fp_addsub0_in_b = fp_mult_fc_d1[1];
     end
 
-    if(ST_MM_NORM)
+    if(ST_MM_NORM_ACT)
     begin
         fp_addsub0_mode = 1;
-        case(mm_cnt)
-        'd0:  fp_addsub0_in_a = fc_result_rf[0];
-        'd1:  fp_addsub0_in_a = fc_result_rf[1];
-        'd2:  fp_addsub0_in_a = fc_result_rf[2];
-        'd3:  fp_addsub0_in_a = fc_result_rf[3];
-        endcase
+        fp_addsub0_in_a = fc_result_rf[0];
         fp_addsub0_in_b = x_min_ff;
 
         fp_addsub1_mode = 1;
         fp_addsub1_in_a = x_max_ff;
         fp_addsub1_in_b = x_min_ff;
-    end
 
-    if(ST_MM_ACT)
-    begin
-        fp_addsub0_mode = 1;
-
+        fp_addsub2_mode = 1;
         if(opt_ff == 2 || opt_ff == 3)
         begin
-            fp_addsub0_in_a = exp_pos_result_d1;
-            fp_addsub0_in_b = exp_neg_result_d1;
+            fp_addsub2_in_a = exp_pos_result_d3;
+            fp_addsub2_in_b = exp_neg_result_d3;
         end
 
-        fp_addsub1_mode = 0;
-
+        fp_addsub3_mode = 0;
         if(opt_ff == 2 || opt_ff == 3)
         begin
             // tanh
-            fp_addsub1_in_a = exp_pos_result_d1;
-            fp_addsub1_in_b = exp_neg_result_d1;
+            fp_addsub3_in_a = exp_pos_result_d3;
+            fp_addsub3_in_b = exp_neg_result_d3;
         end
         else
         begin
             // sigmoid
-            fp_addsub1_in_a = FP_ONE;
-            fp_addsub1_in_b = exp_neg_result_d1;
+            fp_addsub3_in_a = FP_ONE;
+            fp_addsub3_in_b = exp_neg_result_d3;
         end
     end
 
-    if(ST_MM_L1_DISTANCE)
-    begin
-        fp_addsub0_mode = 1;
-        case(mm_cnt)
-        'd0:begin
-            fp_addsub0_in_a = activation_result_rf[0][0];
-            fp_addsub0_in_b = activation_result_rf[0][1];
-        end
-        'd1:begin
-            fp_addsub0_in_a = activation_result_rf[1][0];
-            fp_addsub0_in_b = activation_result_rf[1][1];
-        end
-        'd2:begin
-            fp_addsub0_in_a = activation_result_rf[2][0];
-            fp_addsub0_in_b = activation_result_rf[2][1];
-        end
-        'd3:begin
-            fp_addsub0_in_a = activation_result_rf[3][0];
-            fp_addsub0_in_b = activation_result_rf[3][1];
-        end
-        endcase
 
-        fp_addsub1_mode = 0;
-        fp_addsub1_in_a = abs_out_d1;
-        fp_addsub1_in_b = l1_distance_ff;
-    end
 end
 
 // Instance of DW_fp_addsub
@@ -288,12 +341,160 @@ fp_addsub0_inst ( .a(fp_addsub0_in_a), .b(fp_addsub0_in_b), .rnd(3'b000),
 DW_fp_addsub #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 fp_addsub1_inst( .a(fp_addsub1_in_a), .b(fp_addsub1_in_b), .rnd(3'b000),
 .op(fp_addsub1_mode), .z(fp_addsub1_out), .status() );
+
+// Instance of DW_fp_addsub
+DW_fp_addsub #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+fp_addsub2_inst( .a(fp_addsub2_in_a), .b(fp_addsub2_in_b), .rnd(3'b000),
+.op(fp_addsub2_mode), .z(fp_addsub2_out), .status() );
+
+// Instance of DW_fp_addsub
+DW_fp_addsub #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+fp_addsub3_inst( .a(fp_addsub3_in_a), .b(fp_addsub3_in_b), .rnd(3'b000),
+.op(fp_addsub3_mode), .z(fp_addsub3_out), .status() );
+
+// DW_sum4
+DW_fp_sum4 #(inst_sig_width, inst_exp_width, inst_ieee_compliance, inst_arch_type)
+fp_sun4_inst (
+.a(fp_sum4_in_a),
+.b(fp_sum4_in_b),
+.c(fp_sum4_in_c),
+.d(fp_sum4_in_d),
+.rnd(3'b000),
+.z(fp_sum4_out),
+.status() );
+
+//---------------------------------------------------------------------
+//      PIPELINE DATAPATH
+//---------------------------------------------------------------------
+wire[4:0] row_00 = process_xptr;
+wire[4:0] row_01 = process_xptr;
+wire[4:0] row_02 = process_xptr;
+wire[4:0] row_10 = process_xptr + 1;
+wire[4:0] row_11 = process_xptr + 1;
+wire[4:0] row_12 = process_xptr + 1;
+wire[4:0] row_20 = process_xptr + 2;
+wire[4:0] row_21 = process_xptr + 2;
+wire[4:0] row_22 = process_xptr + 2;
+
+wire[4:0] col_00 = process_yptr;
+wire[4:0] col_01 = process_yptr+1;
+wire[4:0] col_02 = process_yptr+2;
+wire[4:0] col_10 = process_yptr;
+wire[4:0] col_11 = process_yptr + 1;
+wire[4:0] col_12 = process_yptr + 2;
+wire[4:0] col_20 = process_yptr;
+wire[4:0] col_21 = process_yptr + 1;
+wire[4:0] col_22 = process_yptr + 2;
+
+always @(*) begin
+    pixels[0] = img_rf[row_00][col_00];
+    pixels[1] = img_rf[row_01][col_01];
+    pixels[2] = img_rf[row_02][col_02];
+    pixels[3] = img_rf[row_10][col_10];
+    pixels[4] = img_rf[row_11][col_11];
+    pixels[5] = img_rf[row_12][col_12];
+    pixels[6] = img_rf[row_20][col_20];
+    pixels[7] = img_rf[row_21][col_21];
+    pixels[8] = img_rf[row_22][col_22];
+
+    kernals[0] = kernal_rf[0][0][kernal_num_cnt];
+    kernals[1] = kernal_rf[0][1][kernal_num_cnt];
+    kernals[2] = kernal_rf[0][2][kernal_num_cnt];
+    kernals[3] = kernal_rf[1][0][kernal_num_cnt];
+    kernals[4] = kernal_rf[1][1][kernal_num_cnt];
+    kernals[5] = kernal_rf[1][2][kernal_num_cnt];
+    kernals[6] = kernal_rf[2][0][kernal_num_cnt];
+    kernals[7] = kernal_rf[2][1][kernal_num_cnt];
+    kernals[8] = kernal_rf[2][2][kernal_num_cnt];
+end
+
+generate
+    for(idx = 0; idx < 9 ; idx = idx+1)
+    begin:PARRALLEL_MULTS
+        DW_fp_mult_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,en_ubr_flag)
+                        u_DW_fp_mult_inst(
+                            .inst_a   ( pixels[idx]         ),
+                            .inst_b   ( kernals[idx]        ),
+                            .inst_rnd ( 3'b000              ),
+                            .z_inst   ( mults_result[idx]   ),
+                            .status_inst  (   )
+                        );
+    end
+endgenerate
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        for(i=0;i<9;i=i+1)
+        begin
+            mults_result_pipe[i] <= 0;
+        end
+    end
+    else
+    begin
+        for(i=0;i<9;i=i+1)
+        begin
+            mults_result_pipe[i] <= mults_result[i];
+        end
+    end
+end
+
+// 3x 3 inputs fp adders
+DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+                u_DW_fp_sum3_inst1(
+                    .inst_a   ( mults_result_pipe[0]),
+                    .inst_b   ( mults_result_pipe[1]),
+                    .inst_c   ( mults_result_pipe[2]   ),
+                    .inst_rnd ( 3'b000 ),
+                    .z_inst   ( partial_sum[0]   ),
+                    .status_inst  (   )
+                );
+
+DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+                u_DW_fp_sum3_inst2(
+                    .inst_a   ( mults_result_pipe[3]),
+                    .inst_b   ( mults_result_pipe[4]),
+                    .inst_c   ( mults_result_pipe[5]   ),
+                    .inst_rnd ( 3'b000 ),
+                    .z_inst   ( partial_sum[1]),
+                    .status_inst  (   )
+                );
+
+DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+                u_DW_fp_sum3_inst3(
+                    .inst_a   ( mults_result_pipe[6]),
+                    .inst_b   ( mults_result_pipe[7]),
+                    .inst_c   ( mults_result_pipe[8]   ),
+                    .inst_rnd ( 3'b000 ),
+                    .z_inst   ( partial_sum[2]),
+                    .status_inst  (   )
+                );
+
+always @(posedge clk or negedge rst_n) begin
+    if(~rst_n)
+    begin
+        for(i=0;i<3;i=i+1)
+        begin
+           partial_sum_pipe[i] <= 0;
+        end
+    end
+    else
+    begin
+        for(i=0;i<3;i=i+1)
+        begin
+            partial_sum_pipe[i]<=partial_sum[i];
+        end
+    end
+end
+
+// Lastly Replace with 4 SUM
+
 //---------------------------------------------------------------------
 //      CTRs
 //---------------------------------------------------------------------
 always @(posedge clk or negedge rst_n)
 begin
-    # `C2Q;
     if(~rst_n)
     begin
         p_cur_st <= P_IDLE;
@@ -308,16 +509,17 @@ end
 
 always @(posedge clk or negedge rst_n)
 begin
-    # `C2Q;
     if(~rst_n)
     begin
         img_num_cnt_d1 <= 0;
         img_num_cnt_d2 <= 0;
         img_num_cnt_d3 <= 0;
+        img_num_cnt_d4 <= 0;
 
         kernal_num_cnt_d1 <= 0;
         kernal_num_cnt_d2 <= 0;
         kernal_num_cnt_d3 <= 0;
+        kernal_num_cnt_d4 <= 0;
 
         process_xptr_d1 <= 0;
         process_yptr_d1 <= 0;
@@ -328,39 +530,50 @@ begin
         process_xptr_d3 <= 0;
         process_yptr_d3 <= 0;
 
+        process_xptr_d4 <= 0;
+        process_yptr_d4 <= 0;
+
         valid_d1 <= 0;
         valid_d2 <= 0;
         valid_d3 <= 0;
+        valid_d4 <= 0;
 
         convolution_done_f_d1 <= 0;
         convolution_done_f_d2 <= 0;
         convolution_done_f_d3 <= 0;
+        convolution_done_f_d4 <= 0;
     end
     else
     begin
         img_num_cnt_d1 <= img_num_cnt;
         img_num_cnt_d2 <= img_num_cnt_d1;
         img_num_cnt_d3 <= img_num_cnt_d2;
+        img_num_cnt_d4 <= img_num_cnt_d3;
 
         kernal_num_cnt_d1 <= kernal_num_cnt;
         kernal_num_cnt_d2 <= kernal_num_cnt_d1;
         kernal_num_cnt_d3 <= kernal_num_cnt_d2;
+        kernal_num_cnt_d4 <= kernal_num_cnt_d3;
 
         process_xptr_d1 <= process_xptr;
         process_xptr_d2 <= process_xptr_d1;
         process_xptr_d3 <= process_xptr_d2;
+        process_xptr_d4 <= process_xptr_d3;
 
         process_yptr_d1 <= process_yptr;
         process_yptr_d2 <= process_yptr_d1;
         process_yptr_d3 <= process_yptr_d2;
+        process_yptr_d4 <= process_yptr_d3;
 
         valid_d1 <= processing_f_ff;
         valid_d2 <= valid_d1;
         valid_d3 <= valid_d2;
+        valid_d4 <= valid_d3;
 
         convolution_done_f_d1 <= convolution_done_f;
         convolution_done_f_d2 <= convolution_done_f_d1;
         convolution_done_f_d3 <= convolution_done_f_d2;
+        convolution_done_f_d4 <= convolution_done_f_d3;
     end
 end
 
@@ -398,13 +611,9 @@ begin
     end
     MM_FC:
     begin
-        if(fc_done_f) mm_next_st = MM_NORM;
+        if(fc_done_f) mm_next_st = MM_NORM_ACT;
     end
-    MM_NORM:
-    begin
-        if(norm_processed_f) mm_next_st = MM_ACT;
-    end
-    MM_ACT:
+    MM_NORM_ACT:
     begin
         if(activation_done_f)
         begin
@@ -432,8 +641,6 @@ end
 //---------------------------------------------------------------------
 //      KERNALS, IMGS, WEIGHTS
 //---------------------------------------------------------------------
-
-
 wire wr_boundary_reach_f = wr_img_yptr == 3 && ST_P_RD_DATA;
 wire wr_channel_done_f   = wr_img_yptr == 3 && wr_img_xptr == 3 && ST_P_RD_DATA;
 wire wr_img_done_f       = wr_channel_done_f && wr_img_channel_cnt == 2 && ST_P_RD_DATA;
@@ -445,7 +652,6 @@ wire wr_all_kernal_done_f     = wr_kernal_done_f && wr_kernal_num_cnt == 2 && ST
 
 always @(posedge clk or negedge rst_n)
 begin
-    # `C2Q;
     if(~rst_n)
     begin
         for(i=0;i<3;i=i+1)
@@ -455,9 +661,7 @@ begin
 
         for(i=0;i<6;i=i+1)
             for(j=0;j<6;j=j+1)
-                for(k=0;k<3;k=k+1)
-                    for(c=0;c<2;c=c+1)
-                        img_rf[i][j][k][c] <= 0;
+                img_rf[i][j] <= 0;
 
         for(i=0;i<2;i=i+1)
             for(j=0;j<2;j=j+1)
@@ -485,14 +689,14 @@ begin
         begin
             if(Opt == 0 || Opt == 2)
             begin
-                img_rf[0][0][0][0] <= Img;
-                img_rf[0][1][0][0] <= Img;
-                img_rf[1][0][0][0] <= Img;
-                img_rf[1][1][0][0] <= Img;
+                img_rf[0][0] <= Img;
+                img_rf[0][1] <= Img;
+                img_rf[1][0] <= Img;
+                img_rf[1][1] <= Img;
             end
             else
             begin
-                img_rf[1][1][0][0] <= Img;
+                img_rf[1][1] <= Img;
             end
 
             kernal_rf[0][0][0] <= Kernel;
@@ -512,9 +716,7 @@ begin
 
             for(i=0;i<6;i=i+1)
                 for(j=0;j<6;j=j+1)
-                    for(k=0;k<3;k=k+1)
-                        for(c=0;c<2;c=c+1)
-                            img_rf[i][j][k][c] <= 0;
+                        img_rf[i][j] <= 0;
 
             for(i=0;i<2;i=i+1)
                 for(j=0;j<2;j=j+1)
@@ -555,63 +757,63 @@ begin
             if(wr_img_xptr == 0 && wr_img_yptr == 0)
             begin
                 // (x,y,channel,img)
-                img_rf[0][0][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[0][1][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[1][0][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[1][1][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
+                img_rf[0][0] <= Img;
+                img_rf[0][1] <= Img;
+                img_rf[1][0] <= Img;
+                img_rf[1][1] <= Img;
             end
             else if(wr_img_xptr == 0 && wr_img_yptr == IMG_SIZE-1)
             begin
                 // (x,y,channel,img)
-                img_rf[1][4][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[1][5][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[0][4][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[0][5][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
+                img_rf[1][4] <= Img;
+                img_rf[1][5] <= Img;
+                img_rf[0][4] <= Img;
+                img_rf[0][5] <= Img;
             end
             else if(wr_img_xptr == IMG_SIZE-1 && wr_img_yptr == 0)
             begin
                 // (x,y,channel,img)
-                img_rf[4][1][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[4][0][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[5][0][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[5][1][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
+                img_rf[4][1] <= Img;
+                img_rf[4][0] <= Img;
+                img_rf[5][0] <= Img;
+                img_rf[5][1] <= Img;
             end
             else if(wr_img_xptr == IMG_SIZE -1 && wr_img_yptr == IMG_SIZE-1)
             begin
                 // (x,y,channel,img)
-                img_rf[4][4][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[4][5][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[5][4][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[5][5][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
+                img_rf[4][4] <= Img;
+                img_rf[4][5] <= Img;
+                img_rf[5][4] <= Img;
+                img_rf[5][5] <= Img;
             end
             else if(wr_img_xptr == 0)
             begin
-                img_rf[0][wr_img_yptr+1][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[1][wr_img_yptr+1][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
+                img_rf[0][wr_img_yptr+1] <= Img;
+                img_rf[1][wr_img_yptr+1] <= Img;
             end
             else if(wr_img_yptr == 0)
             begin
-                img_rf[wr_img_xptr+1][0][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[wr_img_xptr+1][1][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
+                img_rf[wr_img_xptr+1][0] <= Img;
+                img_rf[wr_img_xptr+1][1] <= Img;
             end
             else if(wr_img_xptr == IMG_SIZE -1)
             begin
-                img_rf[4][wr_img_yptr+1][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[5][wr_img_yptr+1][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
+                img_rf[4][wr_img_yptr+1] <= Img;
+                img_rf[5][wr_img_yptr+1] <= Img;
             end
             else if(wr_img_yptr == IMG_SIZE-1)
             begin
-                img_rf[wr_img_xptr+1][4][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
-                img_rf[wr_img_xptr+1][5][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
+                img_rf[wr_img_xptr+1][4] <= Img;
+                img_rf[wr_img_xptr+1][5] <= Img;
             end
             else
             begin
-                img_rf[wr_img_xptr+1][wr_img_yptr+1][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
+                img_rf[wr_img_xptr+1][wr_img_yptr+1] <= Img;
             end
         end
         else
         begin
-            img_rf[wr_img_xptr+1][wr_img_yptr+1][wr_img_channel_cnt][wr_img_num_cnt] <= Img;
+            img_rf[wr_img_xptr+1][wr_img_yptr+1] <= Img;
         end
 
         // wr_ptrs
@@ -685,7 +887,6 @@ wire process_bound_reach_f = process_yptr == 3;
 
 always @(posedge clk or negedge rst_n)
 begin
-    # `C2Q;
     if(~rst_n)
     begin
         process_xptr <= 0;
@@ -732,79 +933,13 @@ begin
     end
 end
 
-
-//---------------------------------------------------------------------
-//      PIPELINE DATAPATH
-//---------------------------------------------------------------------
-//==========================================
-//   MAC Stage  3 SUM stage
-//==========================================
-
-wire[DATA_WIDTH-1:0] mac_outputs;
-
-wire[4:0] row_00 = process_xptr;
-wire[4:0] row_01 = process_xptr;
-wire[4:0] row_02 = process_xptr;
-wire[4:0] row_10 = process_xptr + 1;
-wire[4:0] row_11 = process_xptr + 1;
-wire[4:0] row_12 = process_xptr + 1;
-wire[4:0] row_20 = process_xptr + 2;
-wire[4:0] row_21 = process_xptr + 2;
-wire[4:0] row_22 = process_xptr + 2;
-
-wire[4:0] col_00 = process_yptr;
-wire[4:0] col_01 = process_yptr+1;
-wire[4:0] col_02 = process_yptr+2;
-wire[4:0] col_10 = process_yptr;
-wire[4:0] col_11 = process_yptr + 1;
-wire[4:0] col_12 = process_yptr + 2;
-wire[4:0] col_20 = process_yptr;
-wire[4:0] col_21 = process_yptr + 1;
-wire[4:0] col_22 = process_yptr + 2;
-
-MAC#(
-       .DATA_WIDTH      (DATA_WIDTH      ),
-       .sig_width       (inst_sig_width       ),
-       .exp_width       (inst_exp_width       ),
-       .ieee_compliance (inst_ieee_compliance ),
-       .en_ubr_flag     (en_ubr_flag     ),
-       .inst_arch_type  (inst_arch  )
-   )
-   u_MAC1(
-       .clk(clk),
-       .rst_n(rst_n),
-       .pixel0       (img_rf[row_00][col_00][kernal_num_cnt][img_num_cnt]),
-       .pixel1       (img_rf[row_01][col_01][kernal_num_cnt][img_num_cnt]),
-       .pixel2       (img_rf[row_02][col_02][kernal_num_cnt][img_num_cnt]),
-       .pixel3       (img_rf[row_10][col_10][kernal_num_cnt][img_num_cnt]),
-       .pixel4       (img_rf[row_11][col_11][kernal_num_cnt][img_num_cnt]),
-       .pixel5       (img_rf[row_12][col_12][kernal_num_cnt][img_num_cnt]),
-       .pixel6       (img_rf[row_20][col_20][kernal_num_cnt][img_num_cnt]),
-       .pixel7       (img_rf[row_21][col_21][kernal_num_cnt][img_num_cnt]),
-       .pixel8       (img_rf[row_22][col_22][kernal_num_cnt][img_num_cnt]),
-
-       .kernal0      (kernal_rf[0][0][kernal_num_cnt]),
-       .kernal1      (kernal_rf[0][1][kernal_num_cnt]),
-       .kernal2      (kernal_rf[0][2][kernal_num_cnt]),
-       .kernal3      (kernal_rf[1][0][kernal_num_cnt]),
-       .kernal4      (kernal_rf[1][1][kernal_num_cnt]),
-       .kernal5      (kernal_rf[1][2][kernal_num_cnt]),
-       .kernal6      (kernal_rf[2][0][kernal_num_cnt]),
-       .kernal7      (kernal_rf[2][1][kernal_num_cnt]),
-       .kernal8      (kernal_rf[2][2][kernal_num_cnt]),
-       .macResult_ff (mac_outputs)
-   );
-
 //---------------------------------------------------------------------
 //      CONVOLUTION RESULTS
 //---------------------------------------------------------------------
-reg[DATA_WIDTH-1:0] convolution_result_rf[0:3][0:3][0:1];
-wire[DATA_WIDTH-1:0] fp_accumulation_result;
 
 
 always @(posedge clk or negedge rst_n)
 begin
-    # `C2Q;
     if(~rst_n)
     begin
         for(i=0;i<4;i=i+1)
@@ -821,32 +956,13 @@ begin
     end
     else if(valid_d3)
     begin
-       convolution_result_rf[process_xptr_d3][process_yptr_d3][img_num_cnt_d3] <= fp_accumulation_result;
+       convolution_result_rf[process_xptr_d3][process_yptr_d3][img_num_cnt_d3] <= fp_add_tree_out[2];
     end
 end
 
 //---------------------------------------------------------------------
-//      Convolution accumulator
-//---------------------------------------------------------------------
-DW_fp_add_inst
-    #(
-        .sig_width       (inst_sig_width       ),
-        .exp_width       (inst_exp_width       ),
-        .ieee_compliance (inst_ieee_compliance )
-    )
-    u_DW_fp_add_ACT2(
-        .inst_a      (convolution_result_rf[process_xptr_d3][process_yptr_d3][img_num_cnt_d3]),
-        .inst_b      (mac_outputs),
-        .inst_rnd    (3'b000    ),
-        .z_inst      ( fp_accumulation_result     ),
-        .status_inst ( )
-    );
-
-//---------------------------------------------------------------------
 //      MM DATAPATH
 //---------------------------------------------------------------------
-
-
 // mm_cnt delay lines
 always @(posedge clk or negedge rst_n)
 begin
@@ -854,20 +970,26 @@ begin
     begin
         mm_cnt_d1 <= 0;
         mm_cnt_d2 <= 0;
+        mm_cnt_d3 <= 0;
+        mm_cnt_d4 <= 0;
     end
     else if(mm_cur_st != mm_next_st)
     begin
         mm_cnt_d1 <= 0;
         mm_cnt_d2 <= 0;
+        mm_cnt_d3 <= 0;
+        mm_cnt_d4 <= 0;
     end
     else
     begin
         mm_cnt_d1 <= mm_cnt;
         mm_cnt_d2 <= mm_cnt_d1;
+        mm_cnt_d3 <= mm_cnt_d2;
+        mm_cnt_d4 <= mm_cnt_d3;
     end
 end
-reg[DATA_WIDTH-1:0] fp_add0_FC_d2, fp_mult0_FC_d1, fp_mult1_FC_d1;
 
+reg[DATA_WIDTH-1:0] fp_add0_FC_d2, fp_mult0_FC_d1, fp_mult1_FC_d1;
 
 reg fc_valid_d1, fc_valid_d2;
 reg act_valid_d1,act_valid_d2;
@@ -883,25 +1005,14 @@ begin
         fc_valid_d2 <= fc_valid_d1;
     end
 end
-reg l1_valid_d1;
+
 always @(posedge clk or negedge rst_n)
 begin
-    # `C2Q;
     if(~rst_n)
     begin
         for(i=0;i<2;i=i+1)
             for(j=0;j<2;j=j+1)
                 max_pooling_result_rf[i][j] <= 0;
-
-        for(i=0;i<4;i=i+1)
-            fc_result_rf[i] <= 0;
-
-        for(i=0;i<4;i=i+1)
-            norm_result_rf[i] <= 0;
-
-        for(i=0;i<4;i=i+1)
-            for(j=0;j<2;j=j+1)
-                activation_result_rf[i][j] <= 0;
 
         out_valid <= 0;
         out       <= 0;
@@ -911,25 +1022,18 @@ begin
         min_max_diff_ff   <= 0;
         fc_valid_d1 <= 0;
         l1_valid_d1 <= 0;
+        norm_act_d1 <= 0;
     end
     else
     begin
+        min_max_diff_ff  <= fp_addsub1_out;
+
         case(mm_cur_st)
         MM_IDLE:
         begin
             for(i=0;i<3;i=i+1)
                 for(j=0;j<3;j=j+1)
                     max_pooling_result_rf[i][j] <= 0;
-
-            for(i=0;i<4;i=i+1)
-                fc_result_rf[i] <= 0;
-
-            for(i=0;i<4;i=i+1)
-                norm_result_rf[i] <= 0;
-
-            for(i=0;i<4;i=i+1)
-                for(j=0;j<2;j=j+1)
-                    activation_result_rf[i][j] <= 0;
 
             out   <= 0;
             out_valid  <= 0;
@@ -941,6 +1045,7 @@ begin
             fc_valid_d1 <= 0;
             act_valid_d1 <= 0;
             l1_valid_d1 <= 0;
+            norm_act_d1 <= 0;
         end
         MM_MAX_POOLING:
         begin
@@ -1068,70 +1173,11 @@ begin
         begin
             mm_cnt      <= fc_done_f ? 0 : (mm_cnt == 4 ? mm_cnt : mm_cnt + 1);
             fc_valid_d1 <= mm_cnt == 4 ? 0 : 1;
-
-            if(fc_valid_d2)
-            begin
-                case(mm_cnt_d2)
-                'd0:begin
-                    fc_result_rf[0] <= fp_add0_FC_d2;
-                end
-                'd1:begin
-                    fc_result_rf[1] <= fp_add0_FC_d2;
-                end
-                'd2:begin
-                    fc_result_rf[2] <= fp_add0_FC_d2;
-                end
-                'd3:begin
-                    fc_result_rf[3] <= fp_add0_FC_d2;
-                end
-                endcase
-            end
-
         end
-        MM_NORM:
-        begin
-            mm_cnt <= norm_processed_f ? 0 : ( (mm_cnt == 4) ? mm_cnt : mm_cnt + 1);
-            norm_valid_d1 <= (mm_cnt == 4) ? 0 : 1;
-
-            min_max_diff_ff  <= fp_addsub1_out;
-
-            if(norm_valid_d1)
-            begin
-                case(mm_cnt_d1)
-                'd0:
-                begin
-                    norm_result_rf[0] <= fp_div_out;
-                end
-                'd1:
-                begin
-                    norm_result_rf[1] <= fp_div_out;
-                end
-                'd2:
-                begin
-                    norm_result_rf[2] <= fp_div_out;
-                end
-                'd3:
-                begin
-                    norm_result_rf[3] <= fp_div_out;
-                end
-                endcase
-            end
-
-        end
-        MM_ACT:
+        MM_NORM_ACT:
         begin
             mm_cnt <= activation_done_f ? 0 :((mm_cnt == 4) ? mm_cnt : mm_cnt + 1);
-            act_valid_d1 <= (mm_cnt == 4) ? 0 : 1;
-
-            if(act_valid_d2)
-            begin
-                case(mm_cnt_d2)
-                'd0: activation_result_rf[0][mm_img_cnt] <= fp_div_out;
-                'd1: activation_result_rf[1][mm_img_cnt] <= fp_div_out;
-                'd2: activation_result_rf[2][mm_img_cnt] <= fp_div_out;
-                'd3: activation_result_rf[3][mm_img_cnt] <= fp_div_out;
-                endcase
-            end
+            norm_act_d1 <= (mm_cnt == 4) ? 0 : 1;
         end
         MM_WAIT_IMG1:
         begin
@@ -1143,27 +1189,16 @@ begin
         end
         MM_L1_DISTANCE:
         begin
-            mm_cnt <= l1_distance_cal_f ?  0 :  ((mm_cnt == 4) ? mm_cnt : mm_cnt + 1);
-            l1_valid_d1 <= mm_cnt == 4 ? 0 : 1;
+            l1_valid_d1 <= 1;
 
             if(l1_valid_d1)
-                l1_distance_ff <= fp_addsub1_out;
+                l1_distance_ff <= fp_add_tree_out[2];
         end
         MM_DONE:
         begin
             for(i=0;i<3;i=i+1)
                 for(j=0;j<3;j=j+1)
                     max_pooling_result_rf[i][j] <= 0;
-
-            for(i=0;i<4;i=i+1)
-                fc_result_rf[i] <= 0;
-
-            for(i=0;i<4;i=i+1)
-                norm_result_rf[i] <= 0;
-
-            for(i=0;i<4;i=i+1)
-                for(j=0;j<2;j=j+1)
-                    activation_result_rf[i][j] <= 0;
 
             mm_cnt <= 0;
             mm_img_cnt <= 0;
@@ -1175,14 +1210,59 @@ begin
     end
 end
 
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        fc_result_rf[0] <= 0;
+        fc_result_rf[1] <= 0;
+        fc_result_rf[2] <= 0;
+        fc_result_rf[3] <= 0;
+    end
+    else  if(fc_valid_d1)
+    begin
+        fc_result_rf[0] <= fc_result_rf[1];
+        fc_result_rf[1] <= fc_result_rf[2];
+        fc_result_rf[2] <= fc_result_rf[3];
+        fc_result_rf[3] <= fp_addsub0_out;
+    end
+    else if(ST_MM_NORM_ACT)
+    begin
+        fc_result_rf[0] <= fc_result_rf[1];
+        fc_result_rf[1] <= fc_result_rf[2];
+        fc_result_rf[2] <= fc_result_rf[3];
+        fc_result_rf[3] <= 0;
+    end
+end
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        activation_result_rf[0][0] <= 0;
+        activation_result_rf[1][0] <= 0;
+        activation_result_rf[2][0] <= 0;
+        activation_result_rf[3][0] <= 0;
+        activation_result_rf[0][1] <= 0;
+        activation_result_rf[1][1] <= 0;
+        activation_result_rf[2][1] <= 0;
+        activation_result_rf[3][1] <= 0;
+    end
+    else if(norm_act_d4)
+    begin
+        activation_result_rf[0][mm_img_cnt] <= activation_result_rf[1][mm_img_cnt];
+        activation_result_rf[1][mm_img_cnt] <= activation_result_rf[2][mm_img_cnt];
+        activation_result_rf[2][mm_img_cnt] <= activation_result_rf[3][mm_img_cnt];
+        activation_result_rf[3][mm_img_cnt] <= fp_div1_out;
+    end
+end
+
 //---------------------------------------------------------------------
 //   MAX POOLING FP_CMP X4 and its input
 //---------------------------------------------------------------------
-
 // Find min max during fc calculation
 always @(posedge clk or negedge rst_n)
 begin
-    # `C2Q;
     if(~rst_n)
     begin
         x_min_ff <= 0;
@@ -1190,20 +1270,20 @@ begin
     end
     else if(ST_MM_FC)
     begin
-        if(fc_valid_d2)
+        if(fc_valid_d1)
         begin
-            case(mm_cnt_d2)
+            case(mm_cnt_d1)
             'd0:
             begin
-                x_min_ff <= fp_add0_FC_d2;
-                x_max_ff <= fp_add0_FC_d2;
+                x_min_ff <= fp_addsub0_out;
+                x_max_ff <= fp_addsub0_out;
             end
             default:
             begin
                 if(~fp_cmp_results[0][0])
-                    x_min_ff <= fp_add0_FC_d2;
+                    x_min_ff <= fp_addsub0_out;
                 if(fp_cmp_results[0][1])
-                    x_max_ff <= fp_add0_FC_d2;
+                    x_max_ff <= fp_addsub0_out;
             end
             endcase
         end
@@ -1271,16 +1351,15 @@ begin
     begin
         // Since I am calculating the Min max at the same time
         // min
-        fp_cmp_input_a[0][0] = fp_add0_FC_d2;
+        fp_cmp_input_a[0][0] = fp_addsub0_out;
         fp_cmp_input_b[0][0] = x_min_ff;
 
         // max
-        fp_cmp_input_a[0][1] = fp_add0_FC_d2;
+        fp_cmp_input_a[0][1] = fp_addsub0_out;
         fp_cmp_input_b[0][1] = x_max_ff;
     end
 end
 
-genvar idx,jdx;
 generate
     for(idx = 0;idx<2;idx = idx+1)
         for(jdx = 0;jdx < 2;jdx=jdx+1)
@@ -1334,12 +1413,21 @@ begin
         fp_add0_FC_d2 <= 0;
         fp_mult_fc_d1[0] <= 0;
         fp_mult_fc_d1[1] <= 0;
+        fp_div0_out_d2 <= 0;
+
+        norm_act_d2 <= 0;
+        norm_act_d3 <= 0;
+        norm_act_d4 <= 0;
     end
     else
     begin
+        fp_div0_out_d2 <= fp_div0_out;
         fp_add0_FC_d2 <= fp_addsub0_out;
         fp_mult_fc_d1[0] <= fp_mult_FC_out[0];
         fp_mult_fc_d1[1] <= fp_mult_FC_out[1];
+        norm_act_d2 <= norm_act_d1;
+        norm_act_d3 <= norm_act_d2;
+        norm_act_d4 <= norm_act_d3;
     end
 end
 
@@ -1394,12 +1482,11 @@ end
 
 always @(posedge clk or negedge rst_n)
 begin
-    # `C2Q;
     if(~rst_n)
     begin
         fp_norm_sub0_out_d1 <= 0;
     end
-    else if(ST_MM_NORM)
+    else if(ST_MM_NORM_ACT)
     begin
         fp_norm_sub0_out_d1  <= fp_addsub0_out;
     end
@@ -1407,95 +1494,80 @@ end
 
 always @(*)
 begin
-    fp_div_in_a = 0;
-    fp_div_in_b = min_max_diff_ff;
+    fp_div0_in_b = min_max_diff_ff;
+    fp_div0_in_a = fp_norm_sub0_out_d1;
 
-    if(ST_MM_NORM)
+    if(opt_ff == 2 || opt_ff == 3)
     begin
-        fp_div_in_a = fp_norm_sub0_out_d1;
+        // tanh
+        fp_div1_in_a = fp_sub2_act_d4;
+        fp_div1_in_b = fp_add3_act_d4;
     end
-
-    if(ST_MM_ACT)
+    else
     begin
-        if(opt_ff == 2 || opt_ff == 3)
-        begin
-            // tanh
-            fp_div_in_a = fp_sub0_act_d2;
-            fp_div_in_b = fp_add_act_d2;
-        end
-        else
-        begin
-            fp_div_in_a = FP_ONE;
-            fp_div_in_b = fp_add_act_d2;
-        end
+        fp_div1_in_a = FP_ONE;
+        fp_div1_in_b = fp_add3_act_d4;
     end
 end
 
+localparam  div_sig_width = 22;
+localparam  discarded_sig = inst_sig_width - div_sig_width;
+
+wire[DATA_WIDTH-1-discarded_sig : 0] div0_temp_out;
 
 DW_fp_div_inst
     #(
-        .sig_width       (inst_sig_width        ),
+        .sig_width       (div_sig_width        ),
         .exp_width       (inst_exp_width       ),
         .ieee_compliance (inst_ieee_compliance ),
         .faithful_round  (faithful_round  ),
         .en_ubr_flag     (en_ubr_flag     )
     )
     u_DW_fp_div_0(
-        .inst_a      (    fp_div_in_a ),
-        .inst_b      (    fp_div_in_b  ),
+        .inst_a      (    fp_div0_in_a[DATA_WIDTH-1:discarded_sig] ),
+        .inst_b      (    fp_div0_in_b[DATA_WIDTH-1:discarded_sig] ),
         .inst_rnd    (3'b000    ),
-        .z_inst      (  fp_div_out),
+        .z_inst      (  div0_temp_out),
         .status_inst (  )
     );
 
+assign fp_div0_out = {div0_temp_out,{discarded_sig{1'b0}}};
+
+
+wire[DATA_WIDTH-1-discarded_sig : 0] div1_temp_out;
+
+DW_fp_div_inst
+    #(
+        .sig_width       (div_sig_width        ),
+        .exp_width       (inst_exp_width       ),
+        .ieee_compliance (inst_ieee_compliance ),
+        .faithful_round  (faithful_round  ),
+        .en_ubr_flag     (en_ubr_flag     )
+    )
+    u_DW_fp_div_1(
+        .inst_a      (    fp_div1_in_a[DATA_WIDTH-1:discarded_sig] ),
+        .inst_b      (    fp_div1_in_b[DATA_WIDTH-1:discarded_sig] ),
+        .inst_rnd    (3'b000    ),
+        .z_inst      (  div1_temp_out),
+        .status_inst (  )
+    );
+
+assign fp_div1_out = {div1_temp_out,{discarded_sig{1'b0}}};
 //---------------------------------------------------------------------
 //   Activation Sigmoid or tanh, 2 e^x and 1 Sub, 1 Add
 //---------------------------------------------------------------------
 always @(*) begin
     negation_in = 0;
     pos_exp_in  = 0;
-    if(ST_MM_ACT)
+
+    if(opt_ff == 0 || opt_ff == 1)
     begin
-        if(opt_ff == 0 || opt_ff == 1)
-        begin
-            // Sigmoid
-            case(mm_cnt)
-            'd0:begin
-                negation_in = norm_result_rf[0];
-            end
-            'd1:begin
-                negation_in = norm_result_rf[1];
-            end
-            'd2:begin
-                negation_in = norm_result_rf[2];
-            end
-            'd3:begin
-                negation_in = norm_result_rf[3];
-            end
-            endcase
-        end
-        else
-        begin
-            // tanh
-            case(mm_cnt)
-            'd0:begin
-                negation_in = norm_result_rf[0];
-                pos_exp_in  = norm_result_rf[0];
-            end
-            'd1:begin
-                negation_in = norm_result_rf[1];
-                pos_exp_in  = norm_result_rf[1];
-            end
-            'd2:begin
-                negation_in = norm_result_rf[2];
-                pos_exp_in  = norm_result_rf[2];
-            end
-            'd3:begin
-                negation_in = norm_result_rf[3];
-                pos_exp_in  = norm_result_rf[3];
-            end
-            endcase
-        end
+        negation_in = fp_div0_out_d2;
+    end
+    else
+    begin
+        negation_in = fp_div0_out_d2;
+        pos_exp_in  = fp_div0_out_d2;
     end
 end
 
@@ -1503,61 +1575,69 @@ end
 always @(posedge clk or negedge rst_n) begin
     if(~rst_n)
     begin
-        fp_sub0_act_d2<=0;
-        fp_add_act_d2 <=0;
-        exp_pos_result_d1 <= 0;
-        exp_neg_result_d1 <= 0;
+        fp_sub2_act_d4<=0;
+        fp_add3_act_d4 <=0;
+        exp_pos_result_d3 <= 0;
+        exp_neg_result_d3 <= 0;
         act_valid_d2 <= 0;
     end
     else
     begin
         act_valid_d2 <= act_valid_d1;
-        exp_pos_result_d1 <= exp_pos_result;
-        exp_neg_result_d1 <= exp_neg_result;
+        exp_pos_result_d3 <= exp_pos_result;
+        exp_neg_result_d3 <= exp_neg_result;
 
-        if(ST_MM_ACT)
+        if(ST_MM_NORM_ACT)
         begin
             if(opt_ff == 0 || opt_ff == 1)
             begin
                 //sigmoid
-                fp_add_act_d2<= fp_addsub1_out;
+                fp_add3_act_d4<= fp_addsub3_out;
             end
             else
             begin
                 //tanh
-                fp_sub0_act_d2<= fp_addsub0_out;
-                fp_add_act_d2 <=  fp_addsub1_out;
+                fp_sub2_act_d4 <=  fp_addsub2_out;
+                fp_add3_act_d4 <=  fp_addsub3_out;
             end
         end
     end
 end
 
+localparam  exp_sig_width = 19;
+localparam  exp_discarded_sig = inst_sig_width - exp_sig_width;
+
+wire[DATA_WIDTH-1-exp_discarded_sig : 0] exp_neg_result_temp;
+wire[DATA_WIDTH-1-exp_discarded_sig : 0] exp_pos_result_temp;
+
 DW_fp_exp_inst
     #(
-        .inst_sig_width       (inst_sig_width       ),
+        .inst_sig_width       (exp_sig_width       ),
         .inst_exp_width       (inst_exp_width       ),
         .inst_ieee_compliance (inst_ieee_compliance ),
         .inst_arch            (inst_arch            )
     )
     u_DW_fp_exp1(
-        .inst_a      (negation      ),
-        .z_inst      (exp_neg_result      ),
+        .inst_a      (negation[DATA_WIDTH-1:exp_discarded_sig]      ),
+        .z_inst      (exp_neg_result_temp      ),
         .status_inst ( )
     );
 
 DW_fp_exp_inst
     #(
-        .inst_sig_width       (inst_sig_width       ),
+        .inst_sig_width       (exp_sig_width       ),
         .inst_exp_width       (inst_exp_width       ),
         .inst_ieee_compliance (inst_ieee_compliance ),
         .inst_arch            (inst_arch            )
     )
     u_DW_fp_exp2(
-        .inst_a      (pos_exp_in ),
-        .z_inst      (exp_pos_result      ),
+        .inst_a      (pos_exp_in[DATA_WIDTH-1:exp_discarded_sig] ),
+        .z_inst      (exp_pos_result_temp      ),
         .status_inst ( )
     );
 
+assign exp_neg_result =  {exp_neg_result_temp , {exp_discarded_sig{1'b0}}};
+assign exp_pos_result =  {exp_pos_result_temp , {exp_discarded_sig{1'b0}}};
 //---------------------------------------------------------------------
 //   L1 distance 1 SUB, 1 absolute, 1 ADD
 //---------------------------------------------------------------------
@@ -1566,201 +1646,53 @@ always @(posedge clk or negedge rst_n)
 begin:FP_ABS
     if(~rst_n)
     begin
-        abs_out_d1 <= 0;
-    end
-    else if(fp_addsub0_out[31] == 1)
-    begin
-        abs_out_d1 <= {1'b0,fp_addsub0_out[30:0]};
+        abs_out_0_d1 <= 0;
+        abs_out_1_d1 <= 0;
+        abs_out_2_d1 <= 0;
+        abs_out_3_d1 <= 0;
     end
     else
     begin
-        abs_out_d1 <= fp_addsub0_out;
+        abs_out_0_d1 <=  (fp_addsub0_out[31] == 1) ? {1'b0,fp_addsub0_out[30:0]} : fp_addsub0_out;
+        abs_out_1_d1 <=  (fp_addsub1_out[31] == 1) ? {1'b0,fp_addsub1_out[30:0]} : fp_addsub1_out;
+        abs_out_2_d1 <=  (fp_addsub2_out[31] == 1) ? {1'b0,fp_addsub2_out[30:0]} : fp_addsub2_out;
+        abs_out_3_d1 <=  (fp_addsub3_out[31] == 1) ? {1'b0,fp_addsub3_out[30:0]} : fp_addsub3_out;
     end
 end
 
+//---------------------------------------------------------------------
+//   pipelined 3 Adders
+//---------------------------------------------------------------------
+
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        fp_add_tree_d3[0] <= 0;
+        fp_add_tree_d3[1] <= 0;
+    end
+    else
+    begin
+        fp_add_tree_d3[0] <= fp_add_tree_out[0];
+        fp_add_tree_d3[1] <= fp_add_tree_out[1];
+    end
+end
+
+DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          adder_tree0 ( .a(fp_add_tree_in_a[0]), .b(fp_add_tree_in_b[0]), .rnd(3'b000), .z(fp_add_tree_out[0]), .status() );
+
+DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          adder_tree1 ( .a(fp_add_tree_in_a[1]), .b(fp_add_tree_in_b[1]), .rnd(3'b000), .z(fp_add_tree_out[1]), .status() );
+
+DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          adder_tree2 ( .a(fp_add_tree_in_a[2]), .b(fp_add_tree_in_b[2]), .rnd(3'b000), .z(fp_add_tree_out[2]), .status() );
+
 endmodule
-
-
-
 
  //---------------------------------------------------------------------
     //   Module Design
     //---------------------------------------------------------------------
-
-    module MAC#(parameter DATA_WIDTH = 32,
-                parameter sig_width = 23,
-                parameter exp_width = 8,
-                parameter ieee_compliance = 1,
-                parameter en_ubr_flag = 0,
-                parameter inst_arch_type = 2) (
-        input clk,
-        input rst_n,
-        input[DATA_WIDTH-1:0] pixel0,
-        input[DATA_WIDTH-1:0] pixel1,
-        input[DATA_WIDTH-1:0] pixel2,
-        input[DATA_WIDTH-1:0] pixel3,
-        input[DATA_WIDTH-1:0] pixel4,
-        input[DATA_WIDTH-1:0] pixel5,
-        input[DATA_WIDTH-1:0] pixel6,
-        input[DATA_WIDTH-1:0] pixel7,
-        input[DATA_WIDTH-1:0] pixel8,
-
-        input[DATA_WIDTH-1:0] kernal0,
-        input[DATA_WIDTH-1:0] kernal1,
-        input[DATA_WIDTH-1:0] kernal2,
-        input[DATA_WIDTH-1:0] kernal3,
-        input[DATA_WIDTH-1:0] kernal4,
-        input[DATA_WIDTH-1:0] kernal5,
-        input[DATA_WIDTH-1:0] kernal6,
-        input[DATA_WIDTH-1:0] kernal7,
-        input[DATA_WIDTH-1:0] kernal8,
-
-        output reg[DATA_WIDTH-1:0] macResult_ff
-
-    );
-integer i;
-genvar idx;
-genvar jdx;
-
-wire[DATA_WIDTH-1:0] pixels[0:8];
-wire[DATA_WIDTH-1:0] kernals[0:8];
-wire[DATA_WIDTH-1:0] mults_result[0:8];
-wire[DATA_WIDTH-1:0] partial_sum[0:2];
-wire[DATA_WIDTH-1:0] mac_result;
-reg[DATA_WIDTH-1:0]  mults_result_pipe[0:8];
-reg[DATA_WIDTH-1:0] partial_sum_pipe[0:2];
-
-assign pixels[0] = pixel0;
-assign pixels[1] = pixel1;
-assign pixels[2] = pixel2;
-assign pixels[3] = pixel3;
-assign pixels[4] = pixel4;
-assign pixels[5] = pixel5;
-assign pixels[6] = pixel6;
-assign pixels[7] = pixel7;
-assign pixels[8] = pixel8;
-
-assign kernals[0] = kernal0;
-assign kernals[1] = kernal1;
-assign kernals[2] = kernal2;
-assign kernals[3] = kernal3;
-assign kernals[4] = kernal4;
-assign kernals[5] = kernal5;
-assign kernals[6] = kernal6;
-assign kernals[7] = kernal7;
-assign kernals[8] = kernal8;
-
-generate
-    for(idx = 0; idx < 9 ; idx = idx+1)
-    begin:PARRALLEL_MULTS
-        DW_fp_mult_inst #(sig_width,exp_width,ieee_compliance,en_ubr_flag)
-                        u_DW_fp_mult_inst(
-                            .inst_a   ( pixels[idx]         ),
-                            .inst_b   ( kernals[idx]        ),
-                            .inst_rnd ( 3'b000              ),
-                            .z_inst   ( mults_result[idx]   ),
-                            .status_inst  (   )
-                        );
-    end
-endgenerate
-
-always @(posedge clk or negedge rst_n)
-begin
-    #`C2Q;
-    if(~rst_n)
-    begin
-        for(i=0;i<9;i=i+1)
-        begin
-            mults_result_pipe[i] <= 0;
-        end
-    end
-    else
-    begin
-        for(i=0;i<9;i=i+1)
-        begin
-            mults_result_pipe[i] <= mults_result[i];
-        end
-    end
-end
-
-// 3x 3 inputs fp adders
-DW_fp_sum3_inst #(sig_width,exp_width,ieee_compliance,inst_arch_type)
-                u_DW_fp_sum3_inst1(
-                    .inst_a   ( mults_result_pipe[0]),
-                    .inst_b   ( mults_result_pipe[1]),
-                    .inst_c   ( mults_result_pipe[2]   ),
-                    .inst_rnd ( 3'b000 ),
-                    .z_inst   ( partial_sum[0]   ),
-                    .status_inst  (   )
-                );
-
-DW_fp_sum3_inst #(sig_width,exp_width,ieee_compliance,inst_arch_type)
-                u_DW_fp_sum3_inst2(
-                    .inst_a   ( mults_result_pipe[3]),
-                    .inst_b   ( mults_result_pipe[4]),
-                    .inst_c   ( mults_result_pipe[5]   ),
-                    .inst_rnd ( 3'b000 ),
-                    .z_inst   ( partial_sum[1]),
-                    .status_inst  (   )
-                );
-
-DW_fp_sum3_inst #(sig_width,exp_width,ieee_compliance,inst_arch_type)
-                u_DW_fp_sum3_inst3(
-                    .inst_a   ( mults_result_pipe[6]),
-                    .inst_b   ( mults_result_pipe[7]),
-                    .inst_c   ( mults_result_pipe[8]   ),
-                    .inst_rnd ( 3'b000 ),
-                    .z_inst   ( partial_sum[2]),
-                    .status_inst  (   )
-                );
-
-always @(posedge clk or negedge rst_n) begin
-    # `C2Q;
-    if(~rst_n)
-    begin
-        for(i=0;i<3;i=i+1)
-        begin
-           partial_sum_pipe[i] <= 0;
-        end
-    end
-    else
-    begin
-        for(i=0;i<3;i=i+1)
-        begin
-            partial_sum_pipe[i]<=partial_sum[i];
-        end
-    end
-end
-
-
-// 3 input fp adders
-DW_fp_sum3_inst #(sig_width,exp_width,ieee_compliance,inst_arch_type)
-                u_DW_fp_sum3_inst(
-                    .inst_a   ( partial_sum_pipe[0]),
-                    .inst_b   ( partial_sum_pipe[1]),
-                    .inst_c   ( partial_sum_pipe[2]   ),
-                    .inst_rnd ( 3'b000 ),
-                    .z_inst   ( mac_result  ),
-                    .status_inst  (   )
-                );
-
-// Ouput buffer
-always @(posedge clk or negedge rst_n)
-begin
-    //synopsys_translate_off
-    # `C2Q;
-    //synopsys_translate_on
-    if(~rst_n)
-    begin
-        macResult_ff <= 0;
-    end
-    else
-    begin
-        macResult_ff <= mac_result;
-    end
-end
-
-endmodule
 
     module DW_fp_mult_inst( inst_a, inst_b, inst_rnd, z_inst, status_inst );
 parameter sig_width = 23;
@@ -1842,7 +1774,6 @@ DW_fp_div #(sig_width, exp_width, ieee_compliance, faithful_round, en_ubr_flag) 
           );
 endmodule
 
-
     module DW_fp_cmp_inst( inst_a, inst_b, inst_zctr, aeqb_inst, altb_inst,
                            agtb_inst, unordered_inst, z0_inst, z1_inst, status0_inst,
                            status1_inst );
@@ -1912,4 +1843,30 @@ output [7 : 0] status_inst;
 DW_fp_addsub #(sig_width, exp_width, ieee_compliance)
 U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd),
 .op(inst_op), .z(z_inst), .status(status_inst) );
+endmodule
+
+module DW_fp_sum4_inst( inst_a, inst_b, inst_c, inst_d, inst_rnd,
+z_inst, status_inst );
+
+parameter inst_sig_width = 23;
+parameter inst_exp_width = 8;
+parameter inst_ieee_compliance = 0;
+parameter inst_arch_type = 0;
+input [inst_sig_width+inst_exp_width : 0] inst_a;
+input [inst_sig_width+inst_exp_width : 0] inst_b;
+input [inst_sig_width+inst_exp_width : 0] inst_c;
+input [inst_sig_width+inst_exp_width : 0] inst_d;
+input [2 : 0] inst_rnd;
+output [inst_sig_width+inst_exp_width : 0] z_inst;
+output [7 : 0] status_inst;
+// Instance of DW_fp_sum4
+DW_fp_sum4 #(inst_sig_width, inst_exp_width, inst_ieee_compliance, inst_arch_type)
+U1 (
+.a(inst_a),
+.b(inst_b),
+.c(inst_c),
+.d(inst_d),
+.rnd(inst_rnd),
+.z(z_inst),
+.status(status_inst) );
 endmodule
