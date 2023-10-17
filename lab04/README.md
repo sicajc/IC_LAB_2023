@@ -28,3 +28,7 @@
 
 # Tips when generating patterns
 1. Use with open() as f and 1D array is a better way to quickly produce a workable pattern.
+2. Verilog bits to floating point
+
+# [Bits to floating point](https://blog.csdn.net/w40306030072/article/details/43021399)
+1. There are function to directly transform verilog bits representation of floating point into real value.
