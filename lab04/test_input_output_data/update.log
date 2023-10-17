@@ -1,0 +1,2 @@
+PATTERN 新增 檢查out_valid與in_valid不重疊
+SNN_numpy.py, output.txt 修正錯誤並更正golden out

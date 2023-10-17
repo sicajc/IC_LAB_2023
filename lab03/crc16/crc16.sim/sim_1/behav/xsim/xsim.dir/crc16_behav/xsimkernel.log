@@ -1,0 +1,4 @@
+Running: xsim.dir/crc16_behav/xsimk.exe -simmode gui -wdb crc16_behav.wdb -simrunnum 0 -socket 49291
+Design successfully loaded
+Design Loading Memory Usage: 7612 KB (Peak: 7612 KB)
+Design Loading CPU Usage: 0 ms

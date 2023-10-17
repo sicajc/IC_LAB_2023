@@ -1,0 +1,4 @@
+INFO: [VRFC 10-2263] Analyzing Verilog file "C:/Users/HIBIKI/Desktop/IC_LAB_FALL_2023/lab03/crc7.v" into library xil_defaultlib
+INFO: [VRFC 10-311] analyzing module crc7
+INFO: [VRFC 10-2263] Analyzing Verilog file "C:/Users/HIBIKI/Desktop/IC_LAB_FALL_2023/lab03/crc7/crc7.sim/sim_1/behav/xsim/glbl.v" into library xil_defaultlib
+INFO: [VRFC 10-311] analyzing module glbl

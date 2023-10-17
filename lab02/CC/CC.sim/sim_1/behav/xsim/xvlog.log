@@ -1,0 +1,7 @@
+INFO: [VRFC 10-2263] Analyzing Verilog file "C:/Users/HIBIKI/Desktop/IC_LAB_FALL_2023/lab02/PATTERN.v" into library xil_defaultlib
+INFO: [VRFC 10-311] analyzing module PATTERN
+ERROR: [VRFC 10-3161] cannot assign to memory 'golden_out_num' directly [C:/Users/HIBIKI/Desktop/IC_LAB_FALL_2023/lab02/PATTERN.v:77]
+WARNING: [VRFC 10-526] concatenation with unsized literal; will interpret as 32 bits [C:/Users/HIBIKI/Desktop/IC_LAB_FALL_2023/lab02/PATTERN.v:77]
+ERROR: [VRFC 10-395] cannot assign a packed type to an unpacked type [C:/Users/HIBIKI/Desktop/IC_LAB_FALL_2023/lab02/PATTERN.v:77]
+ERROR: [VRFC 10-1523] unpacked value/target cannot be used in assignment [C:/Users/HIBIKI/Desktop/IC_LAB_FALL_2023/lab02/PATTERN.v:77]
+ERROR: [VRFC 10-2865] module 'PATTERN' ignored due to previous errors [C:/Users/HIBIKI/Desktop/IC_LAB_FALL_2023/lab02/PATTERN.v:4]

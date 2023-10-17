@@ -1,0 +1,12 @@
+#-----------------------------------------------------------
+# Vivado v2021.1 (64-bit)
+# SW Build 3247384 on Thu Jun 10 19:36:33 MDT 2021
+# IP Build 3246043 on Fri Jun 11 00:30:35 MDT 2021
+# Start of session at: Fri Sep 29 17:43:04 2023
+# Process ID: 22340
+# Current directory: C:/Users/HIBIKI/Desktop/IC_LAB_FALL_2023/lab02/CC/CC.runs/impl_1
+# Command line: vivado.exe -log CC.vdi -applog -product Vivado -messageDb vivado.pb -mode batch -source CC.tcl -notrace
+# Log file: C:/Users/HIBIKI/Desktop/IC_LAB_FALL_2023/lab02/CC/CC.runs/impl_1/CC.vdi
+# Journal file: C:/Users/HIBIKI/Desktop/IC_LAB_FALL_2023/lab02/CC/CC.runs/impl_1\vivado.jou
+#-----------------------------------------------------------
+source CC.tcl -notrace
