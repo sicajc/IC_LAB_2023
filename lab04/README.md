@@ -25,3 +25,6 @@
 
 # Adavance convolution algorithm
 1. Instead of using the sliding kernals, using sliding images and accumulate the convoluted value into the correct location during process is a great way to reduce run time.
+
+# Tips when generating patterns
+1. Use with open() as f and 1D array is a better way to quickly produce a workable pattern.
