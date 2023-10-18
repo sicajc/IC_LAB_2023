@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="PATTERN_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="PATTERN" />
+            <top_module name="glbl" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="180,156.441 ns"></ZoomStartTime>
+      <ZoomEndTime time="180,873.442 ns"></ZoomEndTime>
+      <Cursor1Time time="180,580.000 ns"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="322"></NameColumnWidth>
+      <ValueColumnWidth column_width="103"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="28" />
+   <wave_markers>
+      <marker time="450000" label="" />
+   </wave_markers>
+   <wvobject fp_name="/PATTERN/clk" type="logic">
+      <obj_property name="ElementShortName">clk</obj_property>
+      <obj_property name="ObjectShortName">clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/rst_n" type="logic">
+      <obj_property name="ElementShortName">rst_n</obj_property>
+      <obj_property name="ObjectShortName">rst_n</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/in_valid" type="logic">
+      <obj_property name="ElementShortName">in_valid</obj_property>
+      <obj_property name="ObjectShortName">in_valid</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/in_valid2" type="logic">
+      <obj_property name="ElementShortName">in_valid2</obj_property>
+      <obj_property name="ObjectShortName">in_valid2</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/mode" type="logic">
+      <obj_property name="ElementShortName">mode</obj_property>
+      <obj_property name="ObjectShortName">mode</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/matrix_size" type="array">
+      <obj_property name="ElementShortName">matrix_size[1:0]</obj_property>
+      <obj_property name="ObjectShortName">matrix_size[1:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/matrix" type="array">
+      <obj_property name="ElementShortName">matrix[7:0]</obj_property>
+      <obj_property name="ObjectShortName">matrix[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/matrix_idx" type="array">
+      <obj_property name="ElementShortName">matrix_idx[3:0]</obj_property>
+      <obj_property name="ObjectShortName">matrix_idx[3:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/PAT_NUM" type="array">
+      <obj_property name="ElementShortName">PAT_NUM[31:0]</obj_property>
+      <obj_property name="ObjectShortName">PAT_NUM[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/out_valid" type="logic">
+      <obj_property name="ElementShortName">out_valid</obj_property>
+      <obj_property name="ObjectShortName">out_valid</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/out_value" type="logic">
+      <obj_property name="ElementShortName">out_value</obj_property>
+      <obj_property name="ObjectShortName">out_value</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/CYCLE" type="other">
+      <obj_property name="ElementShortName">CYCLE</obj_property>
+      <obj_property name="ObjectShortName">CYCLE</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/pat_read" type="array">
+      <obj_property name="ElementShortName">pat_read[31:0]</obj_property>
+      <obj_property name="ObjectShortName">pat_read[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/ans_read" type="array">
+      <obj_property name="ElementShortName">ans_read[31:0]</obj_property>
+      <obj_property name="ObjectShortName">ans_read[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/file" type="array">
+      <obj_property name="ElementShortName">file[31:0]</obj_property>
+      <obj_property name="ObjectShortName">file[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/total_latency" type="array">
+      <obj_property name="ElementShortName">total_latency[31:0]</obj_property>
+      <obj_property name="ObjectShortName">total_latency[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/latency" type="array">
+      <obj_property name="ElementShortName">latency[31:0]</obj_property>
+      <obj_property name="ObjectShortName">latency[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/out_val_clk_times" type="array">
+      <obj_property name="ElementShortName">out_val_clk_times[31:0]</obj_property>
+      <obj_property name="ObjectShortName">out_val_clk_times[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/i_pat" type="array">
+      <obj_property name="ElementShortName">i_pat[31:0]</obj_property>
+      <obj_property name="ObjectShortName">i_pat[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/i" type="array">
+      <obj_property name="ElementShortName">i[31:0]</obj_property>
+      <obj_property name="ObjectShortName">i[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/j" type="array">
+      <obj_property name="ElementShortName">j[31:0]</obj_property>
+      <obj_property name="ObjectShortName">j[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/input_matrix_size" type="array">
+      <obj_property name="ElementShortName">input_matrix_size[31:0]</obj_property>
+      <obj_property name="ObjectShortName">input_matrix_size[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/idx_count" type="array">
+      <obj_property name="ElementShortName">idx_count[31:0]</obj_property>
+      <obj_property name="ObjectShortName">idx_count[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/golden_size" type="array">
+      <obj_property name="ElementShortName">golden_size[31:0]</obj_property>
+      <obj_property name="ObjectShortName">golden_size[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/ker_data" type="array">
+      <obj_property name="ElementShortName">ker_data[0:15][0:24][7:0]</obj_property>
+      <obj_property name="ObjectShortName">ker_data[0:15][0:24][7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/index_pair" type="array">
+      <obj_property name="ElementShortName">index_pair[0:15][0:1][3:0]</obj_property>
+      <obj_property name="ObjectShortName">index_pair[0:15][0:1][3:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/ans" type="array">
+      <obj_property name="ElementShortName">ans[19:0]</obj_property>
+      <obj_property name="ObjectShortName">ans[19:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/PATTERN/golden_reversed_byte" type="array">
+      <obj_property name="ElementShortName">golden_reversed_byte[19:0]</obj_property>
+      <obj_property name="ObjectShortName">golden_reversed_byte[19:0]</obj_property>
+   </wvobject>
+</wave_config>

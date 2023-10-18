@@ -38,6 +38,7 @@ if __name__ == '__main__':
             # 16 , size of img matrix, each with matrix_size
             for _ in range(16):
                 for _ in range(matrix_size*matrix_size):
+                    # Extreme cases all 127 and all -128
                     if i ==0:
                         matrix_value = 127
                     elif i==1:

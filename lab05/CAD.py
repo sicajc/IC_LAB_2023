@@ -83,7 +83,14 @@ with open('lab05/output.txt', 'w') as file:
     kernal_16 = []
     matrix_idx = []
     # MATRIX SIZE
-    matrix_size = int(file_in[1 + 50 * i + 0])
+    matrix_in_idx = int(file_in[1 + 50 * i + 0])
+
+    if matrix_in_idx == 0:
+       matrix_size = 8
+    elif matrix_in_idx == 1:
+       matrix_size = 16
+    else:
+       matrix_size = 32
 
     for j in range(16):
       img_in = (np.array([int(toDec(val,8)) for val in file_in[1 + 50 * i + (1+j)].split()]))

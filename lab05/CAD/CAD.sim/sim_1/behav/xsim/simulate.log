@@ -1,0 +1,6 @@
+Time resolution is 1 ps
+***********************************************************************
+*  Error                                                              *
+*  Output signal should reset after initial RESET                     *
+***********************************************************************
+$finish called at time : 420 ns : File "C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab05/PATTERN.v" Line 156
