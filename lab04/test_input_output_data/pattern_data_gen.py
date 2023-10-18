@@ -100,7 +100,7 @@ with open('input.txt', 'w') as f:
       img23.append(tmf)
       f.write(f"{tmh} ")
     f.write("\n")
-    
+
     # ker1
     for k in range(9):
       tmp = random.uniform(0, 0.5) * random.choice([1, -1])
@@ -125,7 +125,7 @@ with open('input.txt', 'w') as f:
       ker3.append(tmf)
       f.write(f"{tmh} ")
     f.write("\n")
-    
+
     # weight
     for k in range(4):
       tmp = random.uniform(0, 0.5) * random.choice([1, -1])
