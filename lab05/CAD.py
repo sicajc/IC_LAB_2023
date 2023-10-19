@@ -71,7 +71,6 @@ vf_two_comp = np.vectorize(twocomplement)
 vf_reverse = np.vectorize(reverse_str)
 vf_bin2hex = np.vectorize(bin2hex)
 
-
 with open('lab05/input.txt', 'r') as file1:
   file_in = file1.readlines()
 

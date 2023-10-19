@@ -27,7 +27,11 @@ if __name__ == '__main__':
         f.write(f"{PATTERN_NUM}\n")
         for i in range(PATTERN_NUM):
             # Matrix size 8,16,32
-            matrix_size =  random.choice([8,16,32])
+            if i == 0:
+                matrix_size = 8
+            else:
+                matrix_size =  random.choice([8,16,32])
+
             if matrix_size == 8:
                 f.write(f"{0}\n")
             elif matrix_size == 16:
@@ -40,11 +44,13 @@ if __name__ == '__main__':
                 for _ in range(matrix_size*matrix_size):
                     # Extreme cases all 127 and all -128
                     if i ==0:
-                        matrix_value = 127
+                        matrix_value = random.randint(1,2)
                     elif i==1:
-                        matrix_value = -128
+                        matrix_value = 127
                     elif i==2:
                         matrix_value = random.randint(0,1)
+                    elif i == 3:
+                        matrix_value = -128
                     else:
                         matrix_value = random.randint(LOWER_BOUND,UPPER_BOUND)
                     matrix_value_hex = int2hex(matrix_value,BIT_WIDTH)
@@ -55,12 +61,14 @@ if __name__ == '__main__':
             # 16 , kernal with size
             for _ in range(16):
                 for _ in range(5*5):
-                    if i ==0:
-                        kernal_value = 127
+                    if   i==0:
+                        kernal_value = random.randint(1,2)
                     elif i==1:
-                        kernal_value = -128
+                        kernal_value = 127
                     elif i==2:
                         kernal_value = random.randint(-1,0)
+                    elif i==3:
+                        kernal_value = -128
                     else:
                         kernal_value = random.randint(LOWER_BOUND,UPPER_BOUND)
                     kernal_value_hex = int2hex(kernal_value,BIT_WIDTH)
@@ -69,7 +77,10 @@ if __name__ == '__main__':
                 f.write("\n")
 
             # mode
-            f.write(f"{random.randint(0,1)}\n")
+            if i <= 5:
+                f.write(f"{0}\n")
+            else:
+                f.write(f"{1}\n")
 
             # 16 ops for in_valid 2
             for _ in range(16):
