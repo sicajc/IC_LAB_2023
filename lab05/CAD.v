@@ -415,8 +415,8 @@ begin
   begin
     if(mode_ff == 0)
     begin
-      idx_x[x] = img_yptr+mp_window_y_cnt;
-      idx_y = img_xptr+mp_window_x_cnt;
+      idx_x[x] = img_xptr+mp_window_x_cnt;
+      idx_y = img_yptr+mp_window_y_cnt;
     end
     else
     begin
@@ -433,7 +433,7 @@ wire signed[7:0] k0_out_data, k1_out_data, k2_out_data,k3_out_data,k4_out_data;
 
 reg signed[DATA_WIDTH-1:0] mult0_in0_ff;
 reg signed[DATA_WIDTH-1:0] mult0_in1_ff;
-reg[7:0] mult0_in0_sram_num;
+reg[7:0] mult0_in0_sram_num,mult0_in0_sram_num_d;
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -441,10 +441,12 @@ begin
   begin
     mult0_in0_ff <=0 ;
     mult0_in1_ff <= 0;
+    mult0_in0_sram_num_d <= 0;
   end
   else
   begin
-    case(mult0_in0_sram_num)
+    mult0_in0_sram_num_d <= mult0_in0_sram_num;
+    case(mult0_in0_sram_num_d)
     'd0: mult0_in0_ff <= s0_out_data;
     'd1: mult0_in0_ff <= s1_out_data;
     'd2: mult0_in0_ff <= s2_out_data;
@@ -497,7 +499,7 @@ reg[15:0] offset_in_block;
 reg[5:0] kernal_sram_num[0:4];
 
 
-reg[7:0] mult0_in0_sram_addr;
+reg[11:0] mult0_in0_sram_addr;
 always @(*)
 begin
   wen_0 = 1;
@@ -551,7 +553,10 @@ begin
   // Processings
   mult0_in0_sram_num = (idx_x[0] + 0)%5;
   // Its address, uses this address to access sram
-  mult0_in0_sram_addr = ((idx_x[0]+0 + k_xptr)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 224;
+  if(mult0_in0_sram_num == 0 || mult0_in0_sram_num == 1)
+    mult0_in0_sram_addr = ((idx_x[0]+0)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 224;
+  else
+    mult0_in0_sram_addr = ((idx_x[0]+0)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 192;
 
 
   if(in_valid && (ST_P_RD_DATA || ST_P_IDLE) && ~read_img_done_ff)
