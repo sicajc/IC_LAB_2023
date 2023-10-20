@@ -541,7 +541,7 @@ end
 //===================//
 // MAX POOLING       //
 //===================//
-reg[19:0] temp_max;
+reg[19:0] temp_max_ff;
 reg temp_max_first_ff;
 
 always @(posedge clk or negedge rst_n)
@@ -549,18 +549,17 @@ begin
   if(~rst_n)
   begin
     temp_max_first_ff <= 0;
-    temp_max <= 0;
+    temp_max_ff <= 0;
   end
   else if(local_kernal_processed_d2)
   begin
-    if(~temp_max_first_ff)
+    if(local_mp_processed_d2)
     begin
-      temp_max <= (mac_result + conv_ff);
-      temp_max_first_ff <= 1;
+      temp_max_ff <= (mac_result + conv_ff);
     end
     else
     begin
-      temp_max <=  ((mac_result + conv_ff) > temp_max) ? (mac_result + conv_ff) : temp_max;
+      temp_max_ff <=  ((mac_result + conv_ff) > temp_max_ff) ? (mac_result + conv_ff) : temp_max_ff;
     end
   end
 end
