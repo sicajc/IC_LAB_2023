@@ -70,8 +70,10 @@ reg[2:0] mp_window_x_cnt ,mp_window_y_cnt,mp_window_x_cnt_d1 ,mp_window_y_cnt_d1
 ,mp_window_y_cnt_d2,mp_window_x_cnt_d3 ,mp_window_y_cnt_d3;
 reg[5:0] output_cnt;
 
-reg[5:0] idx_x,idx_y;
-reg[5:0] idx_x_d1,idx_y_d1,idx_x_d2,idx_y_d2;
+reg[5:0] idx_x[0:4];
+reg[5:0] idx_x_d1[0:4];
+reg[5:0] idx_y;
+reg[5:0] idx_y_d1;
 
 //---------------------------------------------------------------------
 //      REGs and FFs
@@ -145,7 +147,7 @@ reg read_img_done_ff;
 //---------------------------------------------------------------------
 //      SUB CTRS
 //---------------------------------------------------------------------
-integer i,j;
+integer x,y,i,j;
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -209,6 +211,7 @@ begin
       begin
         img_xptr <= 0;
         img_yptr <= 0;
+        img_num_cnt <= 0;
       end
       else if(img16_read_f)
       begin
@@ -267,6 +270,7 @@ begin
       begin
         mode_ff <= mode;
         img_idx_ff <= matrix_idx;
+        rd_cnt <= rd_cnt + 1;
       end
       else
       begin
@@ -275,7 +279,66 @@ begin
     end
     else if(ST_P_PROCESSING)
     begin
+      if(mode_ff == 0)
+      begin
+        // Convolution + MP
+        if(img_processed_f)
+        begin
+          img_yptr <= 0;
+          img_xptr <= 0;
+          img_num_cnt <= img_num_cnt + 1;
+        end
+        else if((img_xptr == (matrix_size_ff -5)))
+        begin
+          img_yptr <= img_yptr + 1;
+          img_xptr <= 0;
+        end
+        else if(k_yptr == 4)
+        begin
+          img_xptr <= img_xptr + 1;
+        end
 
+        if(k_yptr == 4)
+        begin
+          k_yptr <= 0;
+        end
+        else
+        begin
+          k_yptr <= k_yptr + 1;
+        end
+      end
+      else if(mode_ff == 1)
+      begin
+        // Deconvolution
+        if(img_processed_f)
+        begin
+          img_yptr <= 0;
+          img_xptr <= 0;
+          img_num_cnt <= img_num_cnt + 1;
+        end
+        else if((img_xptr == (matrix_size_ff -5)))
+        begin
+          img_yptr <= img_yptr + 1;
+          img_xptr <= 0;
+        end
+        else if(k_yptr == 4)
+        begin
+          img_xptr <= img_xptr + 1;
+        end
+
+        if(k_yptr == 4)
+        begin
+          k_yptr <= 0;
+        end
+        else
+        begin
+          k_yptr <= k_yptr + 1;
+        end
+      end
+      else
+      begin
+
+      end
     end
 end
 
@@ -301,8 +364,9 @@ begin
     mp_window_y_cnt_d2 <= 0 ;
     mp_window_y_cnt_d3 <= 0 ;
 
-    idx_x_d1  <= 0;
     idx_y_d1  <= 0;
+    for(x=0;x<5;x=x+1)
+      idx_x_d1[x]  <= 0;
   end
   else
   begin
@@ -318,22 +382,27 @@ begin
     mp_window_y_cnt_d2 <= mp_window_y_cnt_d1;
     mp_window_y_cnt_d3 <= mp_window_y_cnt_d2;
 
-    idx_x_d1  <= idx_x;
+    for(x=0;x<5;x=x+1)
+      idx_x_d1[x]  <= idx_x[x];
+
     idx_y_d1  <= idx_y;
   end
 end
 
 always @(*)
 begin
-  if(mode_ff == 0)
+  for(x=0;x<5;x=x+1)
   begin
-    idx_x = img_yptr+mp_window_y_cnt;
-    idx_y = img_xptr+mp_window_x_cnt;
-  end
-  else
-  begin
-    idx_x = img_yptr+mp_window_y_cnt;
-    idx_y = img_xptr+mp_window_x_cnt;
+    if(mode_ff == 0)
+    begin
+      idx_x[x] = img_yptr+mp_window_y_cnt;
+      idx_y = img_xptr+mp_window_x_cnt;
+    end
+    else
+    begin
+      idx_x[x] = img_xptr + x;
+      idx_y = img_yptr+k_yptr;
+    end
   end
 end
 
@@ -361,6 +430,8 @@ reg[15:0] conv_img_access_addr[0:4];
 reg[15:0] conv_sram_num [0:4];
 reg[15:0] conv_img_block_num[0:4];
 reg[15:0] conv_img_offset_in_block[0:4];
+reg[15:0] img_x_cord[0:4];
+reg[15:0] kernal_x_cord[0:4];
 
 reg[7:0] block_num;
 reg[15:0] addr_in_sram;
@@ -376,6 +447,7 @@ wire signed[7:0] k0_out_data, k1_out_data, k2_out_data,k3_out_data,k4_out_data;
 reg[19:0] deconv_out_data;
 reg k_sram_en;
 reg[15:0] offset_in_block;
+reg[5:0] kernal_sram_num[0:4];
 
 always @(*)
 begin
@@ -405,37 +477,16 @@ begin
 
   for(i=0;i<5;i=i+1) // Initilization
   begin
-    conv_img_access_addr[i] = 0;
     conv_img_block_num[i] = 0;
     conv_img_offset_in_block[i] = 0;
     conv_sram_num[i] = 0;
+    kernal_x_cord[i] = 0;
+    img_x_cord[i] = 0;
+    kernal_sram_addr[i]=0;
+    kernal_sram_num[i]=0;
   end
 
-  if(ST_P_IDLE || ST_P_RD_DATA)
-  begin
-    img_sram_num        = img_xptr % 5;
-    block_num           = img_xptr / 5;
-    offset_in_block     = block_num * matrix_size_ff + img_yptr;
-  end
-  else if(ST_P_PROCESSING)
-  begin
-    for(i=0;i<5;i=i+1)
-    begin
-      if(mode_ff == 0)
-      begin
-        conv_img_access_addr[i]         = (idx_x + i) % 5;
-        conv_img_block_num[i]           = (idx_x + i) / 5;
-        conv_img_offset_in_block[i]     = conv_img_block_num * matrix_size_ff + (idx_y + k_yptr);
-      end
-      else
-      begin
-        conv_img_access_addr[i]        = (img_xptr + i - 4) % 5;
-        conv_img_block_num[i]          = (img_xptr + i - 4) / 5;
-        conv_img_offset_in_block[i]    = conv_img_block_num * matrix_size_ff + (idx_y-4);
-      end
-    end
-  end
-
+  // READ DATAs
   if(img_sram_num == 0 || img_sram_num == 1)
   begin
     if(ST_P_IDLE || ST_P_RD_DATA)
@@ -449,6 +500,61 @@ begin
       addr_in_sram =  offset_in_block + img_num_cnt * 192;
     else
       addr_in_sram = offset_in_block + img_idx_ff * 192;
+  end
+
+  if(ST_P_IDLE || ST_P_RD_DATA)
+  begin
+    img_sram_num        = img_xptr % 5;
+    block_num           = img_xptr / 5;
+    offset_in_block     = block_num * matrix_size_ff + img_yptr;
+  end
+
+  if(in_valid && read_img_done_ff && (ST_P_IDLE || ST_P_RD_DATA))
+  begin
+    case(k_sram_num)
+    'd0:
+    begin
+      wen_k0 = 0;
+    end
+    'd1:
+    begin
+      wen_k1 = 0;
+    end
+    'd2:
+    begin
+      wen_k2 = 0;
+    end
+    'd3:
+    begin
+      wen_k3 = 0;
+    end
+    'd4:
+    begin
+      wen_k4 = 0;
+    end
+    endcase
+  end
+
+  //Processings
+  if(ST_P_PROCESSING)
+  begin
+    for(x=0;x<5;x=x+1)
+    begin
+      if(mode_ff == 0)
+      begin
+        img_x_cord[x]                   = idx_x[x] + $unsigned(x);
+        conv_sram_num[x]                = img_x_cord[x] % $unsigned(5);
+        conv_img_block_num[x]           = img_x_cord[x] / $unsigned(5);
+        conv_img_offset_in_block[x]     = conv_img_block_num[x] * matrix_size_ff + (idx_y + k_yptr);
+      end
+      else
+      begin
+        img_x_cord[x]                   = idx_x[x] - $unsigned(4);
+        conv_sram_num[x]                = img_x_cord[x] % $unsigned(5);
+        conv_img_block_num[x]           = img_x_cord[x] / $unsigned(5);
+        conv_img_offset_in_block[x]     = conv_img_block_num[x] * matrix_size_ff + (idx_y-4);
+      end
+    end
   end
 
   if(in_valid && (ST_P_RD_DATA || ST_P_IDLE) && ~read_img_done_ff)
@@ -486,59 +592,58 @@ begin
     end
     endcase
   end
-  else
+  else if(ST_P_PROCESSING)
   begin
-    s0_addr = conv_img_access_addr[0];
-    s1_addr = conv_img_access_addr[1];
-    s2_addr = conv_img_access_addr[2];
-    s3_addr = conv_img_access_addr[3];
-    s4_addr = conv_img_access_addr[4];
+    for(x=0;x<5;x=x+1)
+    begin
+      case(conv_sram_num[x])
+      'd0: s0_addr =  conv_img_offset_in_block[x] + img_idx_ff * 224;
+      'd1: s1_addr =  conv_img_offset_in_block[x] + img_idx_ff * 224;
+      'd2: s2_addr =  conv_img_offset_in_block[x] + img_idx_ff * 192;
+      'd3: s3_addr =  conv_img_offset_in_block[x] + img_idx_ff * 192;
+      'd4: s4_addr =  conv_img_offset_in_block[x] + img_idx_ff * 192;
+      endcase
+    end
   end
 
   // KERNALS ADDRS
   if(in_valid && (ST_P_IDLE || ST_P_RD_DATA))
   begin
-    kernal_sram_addr   = k_yptr + 5 * kernal_num_cnt;
+      for(x=0;x<5;x=x+1)
+        kernal_sram_addr[x]  = k_yptr + 5 * kernal_num_cnt;
+
     k_sram_num = k_xptr;
   end
-  else if(ST_P_PROCESSING)
+
+  if(ST_P_PROCESSING)
   begin
-    if(mode_ff == 0)
+    for(x=0;x<5;x=x+1)
     begin
-      k_sram_num = k_xptr;
-      kernal_sram_addr = k_yptr + 5 * kernal_idx_ff;
-    end
-    else
-    begin
-      // Reversed kernals
-      k_sram_num = 4-k_xptr;
-      kernal_sram_addr =  (4-k_yptr)  + 5 * kernal_idx_ff;
+      if(mode_ff == 0)
+      begin
+        kernal_sram_num[x]  = x;
+        kernal_sram_addr[x] = k_yptr + 5 * kernal_idx_ff * 5;
+      end
+      else
+      begin
+        // Reversed kernals
+        kernal_sram_num[x] = (4 - x);
+        kernal_sram_addr[x]   =  (4-k_yptr) + 5 * kernal_idx_ff * 5;
+      end
     end
   end
 
-  if(in_valid && read_img_done_ff && (ST_P_IDLE || ST_P_RD_DATA))
+
+
+  if(ST_P_PROCESSING)
   begin
-    case(k_sram_num)
-    'd0:
-    begin
-      wen_k0 = 0;
-    end
-    'd1:
-    begin
-      wen_k1 = 0;
-    end
-    'd2:
-    begin
-      wen_k2 = 0;
-    end
-    'd3:
-    begin
-      wen_k3 = 0;
-    end
-    'd4:
-    begin
-      wen_k4 = 0;
-    end
+    for(x=0;x<5;x=x+1)
+    case(kernal_sram_num[x])
+    'd0: kernal_sram_addr[0] = kernal_sram_addr[x];
+    'd1: kernal_sram_addr[1] = kernal_sram_addr[x];
+    'd2: kernal_sram_addr[2] = kernal_sram_addr[x];
+    'd3: kernal_sram_addr[3] = kernal_sram_addr[x];
+    'd4: kernal_sram_addr[4] = kernal_sram_addr[x];
     endcase
   end
 end

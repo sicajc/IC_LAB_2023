@@ -79,9 +79,12 @@ if __name__ == '__main__':
 
 
             # 16 ops for in_valid 2
-            for _ in range(16):
+            for k in range(16):
                 # mode
-                f.write(f"{random.randint(0,1)}\n")
+                if(k == 0):
+                    f.write(f"{0}\n")
+                else:
+                    f.write(f"{random.randint(0,1)}\n")
                 i_matrix = random.randint(0,15)
                 k_matrix = random.randint(0,15)
                 f.write(f"{i_matrix} {k_matrix}")
