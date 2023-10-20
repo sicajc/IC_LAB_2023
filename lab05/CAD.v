@@ -548,6 +548,7 @@ end
 //===================//
 reg[19:0] temp_max_ff;
 reg[4:0] mp_cnt;
+wire mp_done_f = mp_cnt == 3 && conv_accumulated;
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -555,13 +556,26 @@ begin
   begin
     temp_max_ff <= 0;
   end
+  else if(mp_done_f)
+    temp_max_ff <= mac_result;
+  else if(conv_accumulated)
+    temp_max_ff <=  ((mac_result+conv_ff) > temp_max_ff) ? mac_result + conv_ff : temp_max_ff;
+end
+
+
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
+    mp_cnt <= 0;
+  end
+  else if(mp_done_f)
+  begin
+    mp_cnt <= 0;
+  end
   else if(conv_accumulated)
   begin
-    temp_max_ff <= mac_result+conv_ff;
-  end
-  else
-  begin
-    temp_max_ff <=  ((mac_result+conv_ff) > temp_max_ff) ? mac_result + conv_ff : temp_max_ff;
+    mp_cnt <= mp_cnt + 1;
   end
 end
 
