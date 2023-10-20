@@ -551,7 +551,7 @@ begin
   // Processings
   mult0_in0_sram_num = (idx_x[0] + 0)%5;
   // Its address, uses this address to access sram
-  mult0_in0_sram_addr = ((idx_x[0]+0 + k_xptr)/5) * matrix_size_ff + (idx_y + k_yptr);
+  mult0_in0_sram_addr = ((idx_x[0]+0 + k_xptr)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 224;
 
 
   if(in_valid && (ST_P_RD_DATA || ST_P_IDLE) && ~read_img_done_ff)
