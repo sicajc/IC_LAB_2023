@@ -42,20 +42,157 @@ output reg  out_value;
 //==============================================//
 //            reg & wire declaration            //
 //==============================================//
+parameter DATA_WIDTH = 8;
 
 
 //==============================================//
-//                  Input Block                 //
+//                  States                      //
 //==============================================//
+reg[2:0] p_cur_st, p_next_st;
+localparam  P_IDLE        = 4'b0001;
+localparam  P_RD_DATA     = 4'b0010;
+localparam  P_WAIT_IDX    = 4'b0100;
+localparam  P_PROCESSING  = 4'b1000;
+
+wire ST_P_IDLE = p_cur_st[0];
+wire ST_P_RD_DATA = p_cur_st[1];
+wire ST_P_WAIT_IDX = p_cur_st[2];
+wire ST_P_PROCESSING = p_cur_st[3];
+
+reg[14:0] rd_cnt;
+reg[7:0] kernal_idx_ff,img_idx_ff;
+
+reg[5:0] img_num_cnt;
+reg[8:0] img_xptr,img_yptr,k_xptr,k_yptr;
+reg valid;
+reg[14:0] read_img_upper_bound;
+reg[2:0] mp_window_x_cnt ,mp_window_y_cnt;
+reg[5:0] output_cnt;
 
 
-//==============================================//
-//                Output Block                  //
-//==============================================//
+//---------------------------------------------------------------------
+//      REGs and FFs
+//---------------------------------------------------------------------
+reg[2:0] mode_ff;
+reg[7:0] matrix_size_ff;
+reg[DATA_WIDTH-1:0] kernal_rf[0:4][0:4];
 
-//==============================================//
-//                Output Block                  //
-//==============================================//
+//---------------------------------------------------------------------
+//      flags
+//---------------------------------------------------------------------
+wire rd_data_done_f  = rd_cnt == read_img_upper_bound;
+wire idx_read_done_f = rd_cnt == 1;
+wire img_processed_f = (img_xptr == (matrix_size_ff - 5)) && (img_yptr == (matrix_size_ff - 5));
+wire proecssed_16_imgs_f = img_num_cnt == 15;
+
+wire output_stall_f = output_cnt < 15 && (mode_ff == 1);
+
+
+
+//---------------------------------------------------------------------
+//      MAIN FSM
+//---------------------------------------------------------------------
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        p_cur_st <= P_IDLE;
+    end
+    else
+    begin
+        p_cur_st <= p_next_st;
+    end
+end
+
+always @(*)
+begin
+    p_next_st = p_cur_st;
+    case(p_cur_st)
+    P_IDLE:
+    begin
+        if(in_valid) p_next_st = P_RD_DATA;
+    end
+    P_RD_DATA:
+    begin
+        if(rd_data_done_f) p_next_st = P_WAIT_IDX;
+    end
+    P_WAIT_IDX:
+    begin
+        if(idx_read_done_f) p_next_st = P_PROCESSING;
+    end
+    P_PROCESSING:
+    begin
+        if(img_processed_f)
+        begin
+          if(proecssed_16_imgs_f)
+            p_next_st = P_IDLE;
+          else
+            p_next_st = P_WAIT_IDX;
+        end
+    end
+    endcase
+end
+
+//---------------------------------------------------------------------
+//      SUB CTRS
+//---------------------------------------------------------------------
+integer i,j;
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+      for(i=0;i<5;i=i+1)
+        for(j=0;j<5;j=j+1)
+          kernal_rf[i][j] <= 0;
+
+      img_xptr <= 0;
+      img_yptr <= 0;
+      k_xptr   <= 0;
+      k_yptr   <= 0;
+
+      img_idx_ff    <= 0;
+      kernal_idx_ff <= 0;
+      matrix_size_ff <= 0;
+    end
+    else if(ST_P_IDLE)
+    begin
+      if(in_valid)
+      begin
+        case(matrix_size)
+        'd0: matrix_size_ff <= 8;
+        'd1: matrix_size_ff <= 16;
+        'd2: matrix_size_ff <= 32;
+        endcase
+
+        img_xptr <= 1;
+      end
+      else
+      begin
+
+        for(i=0;i<5;i=i+1)
+          for(j=0;j<5;j=j+1)
+            kernal_rf[i][j] <= 0;
+
+        img_xptr <= 0;
+        img_yptr <= 0;
+        k_xptr   <= 0;
+        k_yptr   <= 0;
+
+        img_idx_ff    <= 0;
+        kernal_idx_ff <= 0;
+        matrix_size_ff <= 0;
+      end
+    end
+    else if(ST_P_WAIT_IDX)
+    begin
+
+    end
+    else if(ST_P_PROCESSING)
+    begin
+
+    end
+end
+
 
 //==============================================//
 //                SRAMs                  //
@@ -136,27 +273,6 @@ SRAM_32x6x16 u_S4(.A0(s4_addr[0]),.A1(s4_addr[1]),.A2(s4_addr[2]),
                   .DI6(s4_in_data[6]),.DI7(s4_in_data[7]),
                   .CK(clk),.WEB(wen_4),.OE(1'b1),.CS(1'b1));
 
-
-// SRAM_32x32x20 (A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,DO0,DO1,DO2,DO3,DO4,
-//                       DO5,DO6,DO7,DO8,DO9,DO10,DO11,DO12,DO13,DO14,
-//                       DO15,DO16,DO17,DO18,DO19,DI0,DI1,DI2,DI3,
-//                       DI4,DI5,DI6,DI7,DI8,DI9,DI10,DI11,DI12,DI13,
-//                       DI14,DI15,DI16,DI17,DI18,DI19,CK,WEB,OE, CS);
-
-SRAM_32x32x20 u_deCONV(.A0(deconv_addr[0]),.A1(deconv_addr[1]),.A2(deconv_addr[2]),
-.A3(deconv_addr[3]),
-.A4(deconv_addr[4]),.A5(deconv_addr[5]),.A6(deconv_addr[6]),
-.A7(deconv_addr[7]),.A8(deconv_addr[8]),.A9(deconv_addr[9]),
-.DO0(deconv_out_data[0]),.DO1(deconv_out_data[1]),.DO2(deconv_out_data[2]),.DO3(deconv_out_data[3]),.DO4(deconv_out_data[4]),
-.DO5(deconv_out_data[5]),.DO6(deconv_out_data[6]),.DO7(deconv_out_data[7]),.DO8(deconv_out_data[8]),.DO9(deconv_out_data[9]),
-.DO10(deconv_out_data[10]),.DO11(deconv_out_data[11]),.DO12(deconv_out_data[12]),.DO13(deconv_out_data[13]),.DO14(deconv_out_data[14]),
-.DO15(deconv_out_data[15]),.DO16(deconv_out_data[16]),.DO17(deconv_out_data[17]),.DO18(deconv_out_data[18]),.DO19(deconv_out_data[19]),
-.DI0(s5_in_data[0]),.DI1(s5_in_data[1]),.DI2(s5_in_data[2]),.DI3(s5_in_data[3]),
-.DI4(s5_in_data[4]),.DI5(s5_in_data[5]),.DI6(s5_in_data[6]),.DI7(s5_in_data[7]),.DI8(s5_in_data[8]),
-.DI9(s5_in_data[9]),.DI10(s5_in_data[10]),.DI11(s5_in_data[11]),.DI12(s5_in_data[12]),.DI13(s5_in_data[13]),
-.DI14(s5_in_data[14]),.DI15(s5_in_data[15]),.DI16(s5_in_data[16]),.DI17(s5_in_data[17]),.DI18(s5_in_data[18]),
-.DI19(s5_in_data[19]),
-.CK(clk),.WEB(deconv_wen),.OE(1'b1),.CS(1'b1));
 
 
 endmodule

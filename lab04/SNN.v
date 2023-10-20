@@ -199,7 +199,7 @@ wire max_pooling_done_f     = mm_cnt == 2 && ST_MM_MAX_POOLING;
 wire fc_done_f              = mm_cnt_d1 == 3 && ST_MM_FC;
 wire activation_done_f      = mm_cnt_d4 == 3 && ST_MM_NORM_ACT;
 wire l1_distance_cal_f      = l1_valid_d1 && ST_MM_L1_DISTANCE;
-reg convolution_done_f_d1,convolution_done_f_d2,convolution_done_f_d3,convolution_done_f_d4;
+reg  convolution_done_f_d1,convolution_done_f_d2,convolution_done_f_d3,convolution_done_f_d4;
 
 //---------------------------------------------------------------------
 //      2X DW_ADD_SUB
