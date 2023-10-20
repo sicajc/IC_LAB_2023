@@ -76,14 +76,12 @@ if __name__ == '__main__':
                     f.write(f"{kernal_value_hex} ")
                 f.write("\n")
 
-            # mode
-            if i <= 5:
-                f.write(f"{0}\n")
-            else:
-                f.write(f"{1}\n")
+
 
             # 16 ops for in_valid 2
             for _ in range(16):
+                # mode
+                f.write(f"{random.randint(0,1)}\n")
                 i_matrix = random.randint(0,15)
                 k_matrix = random.randint(0,15)
                 f.write(f"{i_matrix} {k_matrix}")

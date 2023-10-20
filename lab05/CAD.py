@@ -81,8 +81,9 @@ with open('lab05/output.txt', 'w') as file:
     img_16 = []
     kernal_16 = []
     matrix_idx = []
+    mode = []
     # MATRIX SIZE
-    matrix_in_idx = int(file_in[1 + 50 * i + 0])
+    matrix_in_idx = int(file_in[1 + 65 * i + 0])
 
     if matrix_in_idx == 0:
        matrix_size = 8
@@ -92,20 +93,19 @@ with open('lab05/output.txt', 'w') as file:
        matrix_size = 32
 
     for j in range(16):
-      img_in = (np.array([int(toDec(val,8)) for val in file_in[1 + 50 * i + (1+j)].split()]))
+      img_in = (np.array([int(toDec(val,8)) for val in file_in[1 + 65 * i + (1+j)].split()]))
       img_16.append(np.reshape(img_in,(matrix_size,matrix_size)))
 
     for k in range(16):
-      kernal_in = np.array([int(toDec(val,8)) for val in file_in[1 + 50 * i + (17+k)].split()])
+      kernal_in = np.array([int(toDec(val,8)) for val in file_in[1 + 65 * i + (17+k)].split()])
       kernal_16.append(np.reshape(kernal_in,(5,5)))
 
     # Start processing
-    mode = int(file_in[1 + 50 * i + 33])
-
     for idx in range(16):
-      matrix_idx.append(np.array([int(val) for val in file_in[1 + 50 * i + (34+idx)].split()]))
+      mode.append(int(file_in[1 + 65 * i +(33+idx*2)])) #0 2 4
+      matrix_idx.append(np.array([int(val) for val in file_in[1 + 65 * i + (34+idx*2)].split()]))# 1 3 5
 
-      if mode == 0:
+      if mode[idx] == 0:
         conv_result = conv(img_16[matrix_idx[idx][0]],kernal_16[matrix_idx[idx][1]],matrix_size)
         result = max_pooling(conv_result)
       else:

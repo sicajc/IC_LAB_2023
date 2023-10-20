@@ -48,26 +48,32 @@ parameter DATA_WIDTH = 8;
 //==============================================//
 //                  States                      //
 //==============================================//
-reg[2:0] p_cur_st, p_next_st;
-localparam  P_IDLE        = 4'b0001;
-localparam  P_RD_DATA     = 4'b0010;
-localparam  P_WAIT_IDX    = 4'b0100;
-localparam  P_PROCESSING  = 4'b1000;
+reg[4:0] p_cur_st, p_next_st;
+localparam  P_IDLE        = 5'b00001;
+localparam  P_RD_DATA     = 5'b00010;
+localparam  P_WAIT_IDX    = 5'b00100;
+localparam  P_RD_KERNAL   = 5'b01000;
+localparam  P_PROCESSING  = 5'b10000;
 
-wire ST_P_IDLE = p_cur_st[0];
-wire ST_P_RD_DATA = p_cur_st[1];
-wire ST_P_WAIT_IDX = p_cur_st[2];
-wire ST_P_PROCESSING = p_cur_st[3];
+wire ST_P_IDLE          = p_cur_st[0];
+wire ST_P_RD_DATA       = p_cur_st[1];
+wire ST_P_WAIT_IDX      = p_cur_st[2];
+wire ST_P_RD_KERNAL     = p_cur_st[3];
+wire ST_P_PROCESSING    = p_cur_st[4];
 
 reg[14:0] rd_cnt;
 reg[7:0] kernal_idx_ff,img_idx_ff;
 
-reg[5:0] img_num_cnt;
+reg[5:0] img_num_cnt,kernal_num_cnt;
 reg[8:0] img_xptr,img_yptr,k_xptr,k_yptr;
-reg valid;
+reg valid,valid_d1,valid_d2,valid_d3;
 reg[14:0] read_img_upper_bound;
-reg[2:0] mp_window_x_cnt ,mp_window_y_cnt;
+reg[2:0] mp_window_x_cnt ,mp_window_y_cnt,mp_window_x_cnt_d1 ,mp_window_y_cnt_d1,mp_window_x_cnt_d2
+,mp_window_y_cnt_d2,mp_window_x_cnt_d3 ,mp_window_y_cnt_d3;
 reg[5:0] output_cnt;
+
+reg[5:0] idx_x,idx_y;
+reg[5:0] idx_x_d1,idx_y_d1,idx_x_d2,idx_y_d2;
 
 
 //---------------------------------------------------------------------
@@ -82,11 +88,17 @@ reg[DATA_WIDTH-1:0] kernal_rf[0:4][0:4];
 //---------------------------------------------------------------------
 wire rd_data_done_f  = rd_cnt == read_img_upper_bound;
 wire idx_read_done_f = rd_cnt == 1;
-wire img_processed_f = (img_xptr == (matrix_size_ff - 5)) && (img_yptr == (matrix_size_ff - 5));
-wire proecssed_16_imgs_f = img_num_cnt == 15;
+wire img_processed_f = (img_xptr == (matrix_size_ff - 5)) && (img_yptr == (matrix_size_ff - 5)) && ST_P_PROCESSING;
+wire img_read_f     = (img_xptr == (matrix_size_ff - 1)) && (img_yptr == (matrix_size_ff - 1)) && ST_P_RD_DATA;
+wire img16_read_f   = (img_num_cnt ==  15) &&(img_xptr == (matrix_size_ff - 1))
+&& (img_yptr == (matrix_size_ff - 1)) && ST_P_RD_DATA;
 
-wire output_stall_f = output_cnt < 15 && (mode_ff == 1);
+wire kernal_read_f  = (k_xptr == 4) && (k_yptr == 4) && ST_P_RD_DATA;
+wire kernal16_read_f = (kernal_num_cnt == 15) &&(k_xptr == 4) && (k_yptr == 4) && ST_P_RD_DATA;
 
+wire proecssed_16_imgs_f = img_num_cnt == 15 && ST_P_PROCESSING;
+
+wire output_stall_f =  (out_valid == 1) && output_cnt < 15 && (mode_ff == 1) && ST_P_PROCESSING;
 
 
 //---------------------------------------------------------------------
@@ -133,6 +145,7 @@ begin
     endcase
 end
 
+reg read_img_done_ff;
 //---------------------------------------------------------------------
 //      SUB CTRS
 //---------------------------------------------------------------------
@@ -149,10 +162,15 @@ begin
       img_yptr <= 0;
       k_xptr   <= 0;
       k_yptr   <= 0;
+      read_img_done_ff <= 0;
 
       img_idx_ff    <= 0;
       kernal_idx_ff <= 0;
       matrix_size_ff <= 0;
+      rd_cnt <= 0;
+      img_num_cnt <= 0;
+      kernal_num_cnt <= 0;
+      read_img_upper_bound <= 0;
     end
     else if(ST_P_IDLE)
     begin
@@ -165,6 +183,7 @@ begin
         endcase
 
         img_xptr <= 1;
+        rd_cnt   <= 1;
       end
       else
       begin
@@ -181,9 +200,93 @@ begin
         img_idx_ff    <= 0;
         kernal_idx_ff <= 0;
         matrix_size_ff <= 0;
+        img_num_cnt <= 0;
+        kernal_num_cnt <= 0;
+        read_img_done_ff <= 0;
+      end
+    end
+    else if(ST_P_RD_DATA)
+    begin
+      case(matrix_size_ff)
+      'd8:  read_img_upper_bound <= 1423;
+      'd16:  read_img_upper_bound <= 4495;
+      'd32:  read_img_upper_bound <= 16783;
+      endcase
+
+      if(rd_data_done_f)
+        rd_cnt <= 0;
+      else
+        rd_cnt <= rd_cnt + 1;
+
+      if(rd_data_done_f)
+      begin
+        img_xptr <= 0;
+        img_yptr <= 0;
+      end
+      else if(img16_read_f)
+      begin
+        img_xptr <= img_xptr;
+        img_yptr <= img_yptr;
+        read_img_done_ff <= 1;
+      end
+      else if(img_read_f)
+      begin
+        img_xptr <= 0;
+        img_yptr <= 0;
+        img_num_cnt <= img_num_cnt + 1;
+      end
+      else if(img_xptr == matrix_size_ff-1)
+      begin
+        img_xptr <= 0;
+        img_yptr <= img_yptr + 1;
+      end
+      else
+      begin
+        img_xptr <= img_xptr + 1;
+      end
+
+      if(rd_data_done_f)
+      begin
+          k_xptr <= 0;
+          k_yptr <= 0;
+      end
+      else if(read_img_done_ff)
+      begin
+        if(kernal16_read_f)
+        begin
+          k_xptr <= 0;
+          k_yptr <= 0;
+        end
+        else if(kernal_read_f)
+        begin
+          k_xptr <= 0;
+          k_yptr <= 0;
+          kernal_num_cnt <= kernal_num_cnt + 1;
+        end
+        else if(k_xptr == 4)
+        begin
+          k_xptr <= 0;
+          k_yptr <= k_yptr + 1;
+        end
+        else
+        begin
+          k_xptr <= k_xptr+1;
+        end
       end
     end
     else if(ST_P_WAIT_IDX)
+    begin
+      if(in_valid2 && rd_cnt == 0)
+      begin
+        mode_ff <= mode;
+        img_idx_ff <= matrix_idx;
+      end
+      else
+      begin
+        kernal_idx_ff <= matrix_idx;
+      end
+    end
+    else if(ST_P_RD_KERNAL)
     begin
 
     end
@@ -193,23 +296,197 @@ begin
     end
 end
 
-
 //==============================================//
-//                SRAMs                  //
+//               DATAPATH                       //
 //==============================================//
-reg wen_0,wen_1, wen_2, wen_3,wen_4,deconv_wen;
+//================//
+// Delay lines    //
+//================//
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
 
-reg[11:0] s0_addr, s1_addr, s2_addr,s3_addr,s4_addr,deconv_addr;
-reg[7:0] s0_in_data, s1_in_data, s2_in_data,s3_in_data,s4_in_data,
-reg[19:0] deconv_in_data;
+
+  end
+  else
+  begin
+
+  end
+end
+
+
+always @(*)
+begin
+  if(mode_ff == 0)
+  begin
+    idx_x = img_yptr+mp_window_y_cnt;
+    idx_y = img_xptr+mp_window_x_cnt;
+  end
+  else
+  begin
+    idx_x = img_yptr+mp_window_y_cnt;
+    idx_y = img_xptr+mp_window_x_cnt;
+  end
+end
+
+//---------------------------------------------------------------------
+//      Output CTR
+//---------------------------------------------------------------------
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
+    out_value <= 0;
+    out_valid <= 0;
+  end
+end
+
+
+//---------------------------------------------------------------------
+//      SRAM ADDR CALCULATOR
+//---------------------------------------------------------------------
+reg[7:0] img_sram_num;
+reg[7:0] k_sram_num;
+reg[7:0] kernal_sram_addr;
+reg[7:0] block_num;
+reg[15:0] addr_in_sram;
+
+reg wen_0,wen_1, wen_2, wen_3,wen_4;
+reg wen_k0,wen_k1, wen_k2, wen_k3, wen_k4;
+
+reg[11:0] s0_addr, s1_addr, s2_addr,s3_addr,s4_addr;
+reg[7:0] s0_in_data, s1_in_data, s2_in_data,s3_in_data,s4_in_data,k_sram_in_data;
+reg[8:0]  k_sram_addr;
 wire signed[7:0] s0_out_data, s1_out_data, s2_out_data,s3_out_data,s4_out_data;
+wire signed[7:0] k0_out_data, k1_out_data, k2_out_data,k3_out_data,k4_out_data;
 reg[19:0] deconv_out_data;
+reg k_sram_en;
+reg[15:0] offset_in_block;
+
+always @(*)
+begin
+  wen_0 = 1;
+  wen_1 = 1;
+  wen_2 = 1;
+  wen_3 = 1;
+  wen_4 = 1;
+
+  wen_k0 = 1;
+  wen_k1 = 1;
+  wen_k2 = 1;
+  wen_k3 = 1;
+  wen_k4 = 1;
+
+  img_sram_num        = img_xptr % 5;
+  block_num       = img_xptr / 5;
+  offset_in_block = block_num * matrix_size_ff + img_yptr;
+
+  s0_addr = 0;
+  s1_addr = 0;
+  s2_addr = 0;
+  s3_addr = 0;
+  s4_addr = 0;
+
+  s0_in_data = 0;
+  s1_in_data = 0;
+  s2_in_data = 0;
+  s3_in_data  =0;
+  s4_in_data = 0;
+
+  if(img_sram_num == 0 || img_sram_num == 1)
+  begin
+    if(ST_P_IDLE || ST_P_RD_DATA)
+      addr_in_sram = offset_in_block + img_num_cnt * 224;
+    else
+      addr_in_sram = offset_in_block + img_idx_ff * 224;
+  end
+  else
+  begin
+    if(ST_P_IDLE || ST_P_RD_DATA)
+      addr_in_sram =  offset_in_block + img_num_cnt * 192;
+    else
+      addr_in_sram = offset_in_block + img_idx_ff * 192;
+  end
+
+  if(in_valid && (ST_P_RD_DATA || ST_P_IDLE) && ~read_img_done_ff)
+  begin
+    case(img_sram_num)
+    'd0:
+    begin
+      wen_0 = 0;
+      s0_in_data = matrix;
+      s0_addr = addr_in_sram;
+    end
+    'd1:
+    begin
+      wen_1 = 0;
+      s1_in_data = matrix;
+      s1_addr = addr_in_sram;
+    end
+    'd2:
+    begin
+      wen_2 = 0;
+      s2_in_data = matrix;
+      s2_addr = addr_in_sram;
+    end
+    'd3:
+    begin
+      wen_3 = 0;
+      s3_in_data = matrix;
+      s3_addr = addr_in_sram;
+    end
+    'd4:
+    begin
+      wen_4 = 0;
+      s4_in_data = matrix;
+      s4_addr = addr_in_sram;
+    end
+    endcase
+  end
+
+  if(in_valid && (ST_P_IDLE || ST_P_RD_DATA))
+  begin
+    kernal_sram_addr = k_yptr + 5 * kernal_num_cnt;
+  end
+  else
+  begin
+    kernal_sram_addr = k_yptr + 5 * kernal_idx_ff;
+  end
+
+  k_sram_num = k_xptr;
+
+  if(in_valid && read_img_done_ff && (ST_P_IDLE || ST_P_RD_DATA))
+  begin
+    case(k_sram_num)
+    'd0:
+    begin
+      wen_k0 = 0;
+    end
+    'd1:
+    begin
+      wen_k1 = 0;
+    end
+    'd2:
+    begin
+      wen_k2 = 0;
+    end
+    'd3:
+    begin
+      wen_k3 = 0;
+    end
+    'd4:
+    begin
+      wen_k4 = 0;
+    end
+    endcase
+  end
+end
 
 
-// SRAM_32x7x16 (A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,DO0,DO1,DO2,
-//                      DO3,DO4,DO5,DO6,DO7,DI0,DI1,DI2,DI3,DI4,DI5,
-//                      DI6,DI7,CK,WEB,OE, CS);
-
+//==============================================//
+//               5 x SRAMs 1 KERNAL SRAM        //
+//==============================================//
 SRAM_32x7x16 u_S0(.A0(s0_addr[0]),.A1(s0_addr[1]),.A2(s0_addr[2]),.A3(s0_addr[3]),
     .A4(s0_addr[4]),.A5(s0_addr[5]),.A6(s0_addr[6]),.A7(s0_addr[7]),
     .A8(s0_addr[8]),.A9(s0_addr[9]),.A10(s0_addr[10]),.A11(s0_addr[11]),
@@ -228,12 +505,7 @@ SRAM_32x7x16 u_S1(.A0(s1_addr[0]),.A1(s1_addr[1]),.A2(s1_addr[2]),.A3(s1_addr[3]
             .DO4(s1_out_data[4]),.DO5(s1_out_data[5]),.DO6(s1_out_data[6]),.DO7(s1_out_data[7]),
             .DI0(s1_in_data[0]),.DI1(s1_in_data[1]),.DI2(s1_in_data[2]),.DI3(s1_in_data[3]),
             .DI4(s1_in_data[4]),.DI5(s1_in_data[5]),
-            .DI6(s1_in_data[6]),.DI7(s1_in_data[7]),.clk(clk),.WEB(wen_1),.OE(1'b1),.CS(1'b1));
-
-
-// SRAM_32x6x16 (A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,DO0,DO1,DO2,
-//                      DO3,DO4,DO5,DO6,DO7,DI0,DI1,DI2,DI3,DI4,DI5,
-//                      DI6,DI7,CK,WEB,OE, CS);
+            .DI6(s1_in_data[6]),.DI7(s1_in_data[7]),.CK(clk),.WEB(wen_1),.OE(1'b1),.CS(1'b1));
 
 SRAM_32x6x16 u_S2(.A0(s2_addr[0]),.A1(s2_addr[1]),.A2(s2_addr[2]),
                   .A3(s2_addr[3]),.A4(s2_addr[4]),.A5(s2_addr[5]),
@@ -274,5 +546,45 @@ SRAM_32x6x16 u_S4(.A0(s4_addr[0]),.A1(s4_addr[1]),.A2(s4_addr[2]),
                   .CK(clk),.WEB(wen_4),.OE(1'b1),.CS(1'b1));
 
 
+SRAM_5x16 u_K0(.A0(kernal_sram_addr[0]),.A1(kernal_sram_addr[1]),.A2(kernal_sram_addr[2]),
+.A3(kernal_sram_addr[3]),.A4(kernal_sram_addr[4]),.A5(kernal_sram_addr[5]),
+.A6(kernal_sram_addr[6]),
+            .DO0(k0_out_data[0]),.DO1(k0_out_data[1]),.DO2(k0_out_data[2]),.DO3(k0_out_data[3]),
+            .DO4(k0_out_data[4]),.DO5(k0_out_data[5]),.DO6(k0_out_data[6]),
+            .DO7(k0_out_data[7]),.DI0(matrix[0]),.DI1(matrix[1]),.DI2(matrix[2]),
+                  .DI3(matrix[3]),.DI4(matrix[4]),.DI5(matrix[5]),
+                  .DI6(matrix[6]),.DI7(matrix[7]),.CK(clk),.WEB(wen_k0),.OE(1'b1),.CS(1'b1));
+
+SRAM_5x16 u_K1(.A0(kernal_sram_addr[0]),.A1(kernal_sram_addr[1]),.A2(kernal_sram_addr[2]),
+.A3(kernal_sram_addr[3]),.A4(kernal_sram_addr[4]),.A5(kernal_sram_addr[5]),
+.A6(kernal_sram_addr[6]),.DO0(k1_out_data[0]),.DO1(k1_out_data[1]),.DO2(k1_out_data[2]),.DO3(k1_out_data[3]),
+.DO4(k1_out_data[4]),.DO5(k1_out_data[5]),.DO6(k1_out_data[6]),.
+                  DO7(k1_out_data[7]),.DI0(matrix[0]),.DI1(matrix[1]),.DI2(matrix[2]),
+                  .DI3(matrix[3]),.DI4(matrix[4]),.DI5(matrix[5]),
+                  .DI6(matrix[6]),.DI7(matrix[7]),.CK(clk),.WEB(wen_k1),.OE(1'b1),.CS(1'b1));
+
+SRAM_5x16 u_K2(.A0(kernal_sram_addr[0]),.A1(kernal_sram_addr[1]),.A2(kernal_sram_addr[2]),
+.A3(kernal_sram_addr[3]),.A4(kernal_sram_addr[4]),.A5(kernal_sram_addr[5]),
+.A6(kernal_sram_addr[6]),.DO0(k2_out_data[0]),.DO1(k2_out_data[1]),.DO2(k2_out_data[2]),.DO3(k2_out_data[3]),
+                  .DO4(k2_out_data[4]),.DO5(k2_out_data[5]),.DO6(k2_out_data[6]),
+                  .DO7(k2_out_data[7]),
+                  .DI0(matrix[0]),.DI1(matrix[1]),.DI2(matrix[2]),
+                  .DI3(matrix[3]),.DI4(matrix[4]),.DI5(matrix[5]),
+                  .DI6(matrix[6]),.DI7(matrix[7]),.CK(clk),.WEB(wen_k2),.OE(1'b1),.CS(1'b1));
+
+SRAM_5x16 u_K3(.A0(kernal_sram_addr[0]),.A1(kernal_sram_addr[1]),.A2(kernal_sram_addr[2]),
+.A3(kernal_sram_addr[3]),.A4(kernal_sram_addr[4]),.A5(kernal_sram_addr[5]),
+.A6(kernal_sram_addr[6]),.DO0(k3_out_data[0]),.DO1(k3_out_data[1]),.DO2(k3_out_data[2]),.DO3(k3_out_data[3]),
+              .DO4(k3_out_data[4]),.DO5(k3_out_data[5]),.DO6(k3_out_data[6]),
+              .DO7(k3_out_data[7]),.DI0(matrix[0]),.DI1(matrix[1]),.DI2(matrix[2]),.DI3(matrix[3]),
+                  .DI4(matrix[4]),.DI5(matrix[5]),.DI6(matrix[6]),.DI7(matrix[7]),.CK(clk),.WEB(wen_k3),.OE(1'b1),.CS(1'b1));
+
+SRAM_5x16 u_K4(.A0(kernal_sram_addr[0]),.A1(kernal_sram_addr[1]),.A2(kernal_sram_addr[2]),
+.A3(kernal_sram_addr[3]),.A4(kernal_sram_addr[4]),.A5(kernal_sram_addr[5]),
+.A6(kernal_sram_addr[6]),.DO0(k4_out_data[0]),.DO1(k4_out_data[1]),.DO2(k4_out_data[2]),
+                  .DO3(k4_out_data[3]),.DO4(k4_out_data[4]),.DO5(k4_out_data[5]),.DO6(k4_out_data[6]),
+                  .DO7(k4_out_data[7]),.DI0(matrix[0]),.DI1(matrix[1]),.DI2(matrix[2]),
+                  .DI3(matrix[3]),.DI4(matrix[4]),.DI5(matrix[5]),
+                  .DI6(matrix[6]),.DI7(matrix[7]),.CK(clk),.WEB(wen_k4),.OE(1'b1),.CS(1'b1));
 
 endmodule
