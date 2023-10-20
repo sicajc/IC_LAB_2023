@@ -431,28 +431,68 @@ end
 wire signed[7:0] s0_out_data, s1_out_data, s2_out_data,s3_out_data,s4_out_data;
 wire signed[7:0] k0_out_data, k1_out_data, k2_out_data,k3_out_data,k4_out_data;
 
-reg signed[DATA_WIDTH-1:0] mult0_in0_ff;
-reg signed[DATA_WIDTH-1:0] mult0_in1_ff;
+reg signed[DATA_WIDTH-1:0] mult_in0_ff[0:4];
+reg signed[DATA_WIDTH-1:0] mult_in1_ff[0:4];
 reg[7:0] mult0_in0_sram_num,mult0_in0_sram_num_d;
+
+reg[7:0] mult_in0_sram_num[0:4];
+reg[7:0] mult_in0_sram_num_d[0:4];
 
 always @(posedge clk or negedge rst_n)
 begin
   if(~rst_n)
   begin
-    mult0_in0_ff <=0 ;
-    mult0_in1_ff <= 0;
-    mult0_in0_sram_num_d <= 0;
+    for(x=0;x<5;x=x+1)
+    begin
+      mult_in0_ff[x] <=0;
+      mult_in1_ff[x] <= 0;
+      mult_in0_sram_num_d[x] <= 0;
+    end
+
   end
   else
   begin
-    mult0_in0_sram_num_d <= mult0_in0_sram_num;
-    case(mult0_in0_sram_num_d)
-    'd0: mult0_in0_ff <= s0_out_data;
-    'd1: mult0_in0_ff <= s1_out_data;
-    'd2: mult0_in0_ff <= s2_out_data;
-    'd3: mult0_in0_ff <= s3_out_data;
-    'd4: mult0_in0_ff <= s4_out_data;
-    endcase
+
+    for(x=0;x<5;x=x+1)
+    begin
+      mult_in1_ff[0] <= k0_out_data;
+      mult_in1_ff[1] <= k1_out_data;
+      mult_in1_ff[2] <= k2_out_data;
+      mult_in1_ff[3] <= k3_out_data;
+      mult_in1_ff[4] <= k4_out_data;
+
+      mult_in0_sram_num_d[x] <= mult_in0_sram_num[x];
+
+      case(mult_in0_sram_num_d[x])
+      'd0: mult_in0_ff[x] <= s0_out_data;
+      'd1: mult_in0_ff[x] <= s1_out_data;
+      'd2: mult_in0_ff[x] <= s2_out_data;
+      'd3: mult_in0_ff[x] <= s3_out_data;
+      'd4: mult_in0_ff[x] <= s4_out_data;
+      endcase
+    end
+  end
+end
+
+
+reg[19:0] mac_result;
+always @(*)
+begin
+  mac_result = 0;
+  mac_result = mult0_in0_d2
+
+end
+
+reg[19:0] conv_ff;
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
+    conv_ff <= 0;
+  end
+  else
+  begin
+    conv_ff <= mac_result;
   end
 end
 
@@ -499,7 +539,8 @@ reg[15:0] offset_in_block;
 reg[5:0] kernal_sram_num[0:4];
 
 
-reg[11:0] mult0_in0_sram_addr;
+reg[11:0] mult_in0_sram_addr[0:4];
+reg[11:0] mult0_in1_sram_addr;
 always @(*)
 begin
   wen_0 = 1;
@@ -551,13 +592,16 @@ begin
   end
 
   // Processings
-  mult0_in0_sram_num = (idx_x[0] + 0)%5;
+  // Needs to do these for mult0~4 inputs
   // Its address, uses this address to access sram
-  if(mult0_in0_sram_num == 0 || mult0_in0_sram_num == 1)
-    mult0_in0_sram_addr = ((idx_x[0]+0)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 224;
-  else
-    mult0_in0_sram_addr = ((idx_x[0]+0)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 192;
-
+  for(x=0;x<5;x=x+1)
+  begin
+    mult_in0_sram_num[x] = (idx_x[x] + x)%5;
+    if(mult_in0_sram_num[x] == 0 || mult_in0_sram_num[x] == 1)
+       mult_in0_sram_addr[x]= ((idx_x[x]+x)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 224;
+    else
+       mult_in0_sram_addr[x]= ((idx_x[x]+x)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 192;
+  end
 
   if(in_valid && (ST_P_RD_DATA || ST_P_IDLE) && ~read_img_done_ff)
   begin
@@ -596,14 +640,16 @@ begin
   end
   else if(ST_P_PROCESSING)
   begin
-      // mult0 inputs
-      case(mult0_in0_sram_num)
-      'd0:  s0_addr =  mult0_in0_sram_addr;
-      'd1:  s1_addr =  mult0_in0_sram_addr;
-      'd2:  s2_addr =  mult0_in0_sram_addr;
-      'd3:  s3_addr =  mult0_in0_sram_addr;
-      'd4:  s4_addr =  mult0_in0_sram_addr;
+    for(x=0;x<5;x=x+1)
+    begin
+      case(mult_in0_sram_num[x])
+      'd0:  s0_addr =  mult_in0_sram_addr[x];
+      'd1:  s1_addr =  mult_in0_sram_addr[x];
+      'd2:  s2_addr =  mult_in0_sram_addr[x];
+      'd3:  s3_addr =  mult_in0_sram_addr[x];
+      'd4:  s4_addr =  mult_in0_sram_addr[x];
       endcase
+    end
   end
 end
 
@@ -614,19 +660,29 @@ begin
   wen_k2 = 1;
   wen_k3 = 1;
   wen_k4 = 1;
+  k_sram_num = 0;
 
   for(x=0;x<5;x=x+1)
   begin
     kernal_sram_addr[x] = 0;
   end
 
- // KERNALS ADDRS
+  // KERNALS ADDRS
   if(in_valid && (ST_P_IDLE || ST_P_RD_DATA))
   begin
-      for(x=0;x<5;x=x+1)
-        kernal_sram_addr[x]  = k_yptr + 5 * kernal_num_cnt;
+    for(x=0;x<5;x=x+1)
+      kernal_sram_addr[x]  = k_yptr + 5 * kernal_num_cnt;
 
     k_sram_num = k_xptr;
+  end
+  else
+  begin
+    // Kernals address
+    kernal_sram_addr[0] = k_yptr + kernal_idx_ff * 5;
+    kernal_sram_addr[1] = k_yptr + kernal_idx_ff * 5;
+    kernal_sram_addr[2] = k_yptr + kernal_idx_ff * 5;
+    kernal_sram_addr[3] = k_yptr + kernal_idx_ff * 5;
+    kernal_sram_addr[4] = k_yptr + kernal_idx_ff * 5;
   end
 
   if(in_valid && read_img_done_ff && (ST_P_IDLE || ST_P_RD_DATA))
