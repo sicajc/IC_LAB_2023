@@ -85,7 +85,37 @@ reg[7:0] matrix_size_ff;
 //      flags
 //---------------------------------------------------------------------
 wire local_kernal_processed_f = k_yptr == 4;
+reg local_kernal_processed_d1,local_kernal_processed_d2;
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
+    local_kernal_processed_d1 <= 0;
+    local_kernal_processed_d2 <= 0;
+  end
+  else
+  begin
+    local_kernal_processed_d1 <= local_kernal_processed_f;
+    local_kernal_processed_d2 <= local_kernal_processed_d1;
+  end
+end
+reg local_mp_processed_d1,local_mp_processed_d2;
+
 wire local_mp_processed_f = mp_window_x_cnt == 1 && mp_window_y_cnt == 1 && local_kernal_processed_f;
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
+    local_mp_processed_d1 <= 0;
+    local_mp_processed_d2 <= 0;
+  end
+  else
+  begin
+    local_mp_processed_d1 <= local_mp_processed_f;
+    local_mp_processed_d2 <= local_mp_processed_d1;
+  end
+end
+
 wire rd_data_done_f  = rd_cnt == read_img_upper_bound;
 wire idx_read_done_f = rd_cnt == 1;
 wire img_processed_f = (img_xptr == (matrix_size_ff - 6)) && (img_yptr == (matrix_size_ff - 6)) && local_mp_processed_f && ST_P_PROCESSING;
@@ -279,6 +309,7 @@ begin
       end
       else
       begin
+        if(p_cur_st != p_next_st) rd_cnt <= 0;
         kernal_idx_ff <= matrix_idx;
       end
     end
@@ -474,13 +505,20 @@ begin
   end
 end
 
+//================//
+// CONV MAC       //
+//================//
+reg[3:0] conv_cnt;
+wire conv_done_f = conv_cnt == 4;
 
 reg[19:0] mac_result;
 always @(*)
 begin
   mac_result = 0;
-  mac_result = mult0_in0_d2
-
+  mac_result = mult_in0_ff[0] * mult_in1_ff[0] + mult_in0_ff[1] * mult_in1_ff[1];
+  mac_result = mult_in0_ff[2] * mult_in1_ff[2] + mac_result;
+  mac_result = mult_in0_ff[3] * mult_in1_ff[3] + mac_result;
+  mac_result = mult_in0_ff[4] * mult_in1_ff[4] + mac_result;
 end
 
 reg[19:0] conv_ff;
@@ -490,9 +528,40 @@ begin
   begin
     conv_ff <= 0;
   end
-  else
+  else if(local_kernal_processed_d2)
   begin
     conv_ff <= mac_result;
+  end
+  else
+  begin
+    conv_ff <= mac_result + conv_ff;
+  end
+end
+
+//===================//
+// MAX POOLING       //
+//===================//
+reg[19:0] temp_max;
+reg temp_max_first_ff;
+
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
+    temp_max_first_ff <= 0;
+    temp_max <= 0;
+  end
+  else if(local_kernal_processed_d2)
+  begin
+    if(~temp_max_first_ff)
+    begin
+      temp_max <= (mac_result + conv_ff);
+      temp_max_first_ff <= 1;
+    end
+    else
+    begin
+      temp_max <=  ((mac_result + conv_ff) > temp_max) ? (mac_result + conv_ff) : temp_max;
+    end
   end
 end
 
