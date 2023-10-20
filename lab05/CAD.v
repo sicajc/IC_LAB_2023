@@ -84,9 +84,11 @@ reg[7:0] matrix_size_ff;
 //---------------------------------------------------------------------
 //      flags
 //---------------------------------------------------------------------
+wire local_kernal_processed_f = k_yptr == 4;
+wire local_mp_processed_f = mp_window_x_cnt == 1 && mp_window_y_cnt == 1 && local_kernal_processed_f;
 wire rd_data_done_f  = rd_cnt == read_img_upper_bound;
 wire idx_read_done_f = rd_cnt == 1;
-wire img_processed_f = (img_xptr == (matrix_size_ff - 5)) && (img_yptr == (matrix_size_ff - 5)) && ST_P_PROCESSING;
+wire img_processed_f = (img_xptr == (matrix_size_ff - 6)) && (img_yptr == (matrix_size_ff - 6)) && local_mp_processed_f && ST_P_PROCESSING;
 wire img_read_f     = (img_xptr == (matrix_size_ff - 1)) && (img_yptr == (matrix_size_ff - 1)) && ST_P_RD_DATA;
 wire img16_read_f   = (img_num_cnt ==  15) &&(img_xptr == (matrix_size_ff - 1))
 && (img_yptr == (matrix_size_ff - 1)) && ST_P_RD_DATA;
@@ -165,6 +167,9 @@ begin
       img_num_cnt <= 0;
       kernal_num_cnt <= 0;
       read_img_upper_bound <= 0;
+
+      mp_window_x_cnt <= 0;
+      mp_window_y_cnt <= 0;
     end
     else if(ST_P_IDLE)
     begin
@@ -288,23 +293,38 @@ begin
           img_xptr <= 0;
           img_num_cnt <= img_num_cnt + 1;
         end
-        else if((img_xptr == (matrix_size_ff -5)))
+        else if((img_xptr == (matrix_size_ff -6)) && local_mp_processed_f)
         begin
-          img_yptr <= img_yptr + 1;
+          img_yptr <= img_yptr + 2;
           img_xptr <= 0;
         end
-        else if(k_yptr == 4)
+        else if(local_mp_processed_f)
         begin
-          img_xptr <= img_xptr + 1;
+          img_xptr <= img_xptr + 2;
         end
 
-        if(k_yptr == 4)
+        if(local_kernal_processed_f)
         begin
           k_yptr <= 0;
         end
         else
         begin
           k_yptr <= k_yptr + 1;
+        end
+
+        if(local_mp_processed_f)
+        begin
+          mp_window_x_cnt <= 0;
+          mp_window_y_cnt <= 0;
+        end
+        else if(mp_window_x_cnt == 1 && local_kernal_processed_f)
+        begin
+          mp_window_x_cnt <= 0;
+          mp_window_y_cnt <= 1;
+        end
+        else if(k_yptr == 4)
+        begin
+          mp_window_x_cnt <= mp_window_x_cnt+1;
         end
       end
       else if(mode_ff == 1)
@@ -405,6 +425,34 @@ begin
     end
   end
 end
+//---------------------------------------------------------------------
+//      Multipliers inputs
+//---------------------------------------------------------------------
+wire signed[7:0] s0_out_data, s1_out_data, s2_out_data,s3_out_data,s4_out_data;
+wire signed[7:0] k0_out_data, k1_out_data, k2_out_data,k3_out_data,k4_out_data;
+
+reg signed[DATA_WIDTH-1:0] mult0_in0_ff;
+reg signed[DATA_WIDTH-1:0] mult0_in1_ff;
+reg[7:0] mult0_in0_sram_num;
+
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
+    mult0_in0_ff <=0 ;
+    mult0_in1_ff <= 0;
+  end
+  else
+  begin
+    case(mult0_in0_sram_num)
+    'd0: mult0_in0_ff <= s0_out_data;
+    'd1: mult0_in0_ff <= s1_out_data;
+    'd2: mult0_in0_ff <= s2_out_data;
+    'd3: mult0_in0_ff <= s3_out_data;
+    'd4: mult0_in0_ff <= s4_out_data;
+    endcase
+  end
+end
 
 //---------------------------------------------------------------------
 //      Output CTR
@@ -442,13 +490,14 @@ reg wen_k0,wen_k1, wen_k2, wen_k3, wen_k4;
 reg[11:0] s0_addr, s1_addr, s2_addr,s3_addr,s4_addr;
 reg[7:0] s0_in_data, s1_in_data, s2_in_data,s3_in_data,s4_in_data,k_sram_in_data;
 reg[8:0]  k_sram_addr;
-wire signed[7:0] s0_out_data, s1_out_data, s2_out_data,s3_out_data,s4_out_data;
-wire signed[7:0] k0_out_data, k1_out_data, k2_out_data,k3_out_data,k4_out_data;
+
 reg[19:0] deconv_out_data;
 reg k_sram_en;
 reg[15:0] offset_in_block;
 reg[5:0] kernal_sram_num[0:4];
 
+
+reg[7:0] mult0_in0_sram_addr;
 always @(*)
 begin
   wen_0 = 1;
@@ -456,12 +505,6 @@ begin
   wen_2 = 1;
   wen_3 = 1;
   wen_4 = 1;
-
-  wen_k0 = 1;
-  wen_k1 = 1;
-  wen_k2 = 1;
-  wen_k3 = 1;
-  wen_k4 = 1;
 
   s0_addr = 0;
   s1_addr = 0;
@@ -480,10 +523,13 @@ begin
     conv_img_block_num[i] = 0;
     conv_img_offset_in_block[i] = 0;
     conv_sram_num[i] = 0;
-    kernal_x_cord[i] = 0;
-    img_x_cord[i] = 0;
-    kernal_sram_addr[i]=0;
-    kernal_sram_num[i]=0;
+  end
+
+  if(ST_P_IDLE || ST_P_RD_DATA)
+  begin
+    img_sram_num        = img_xptr % 5;
+    block_num           = img_xptr / 5;
+    offset_in_block     = block_num * matrix_size_ff + img_yptr;
   end
 
   // READ DATAs
@@ -502,60 +548,11 @@ begin
       addr_in_sram = offset_in_block + img_idx_ff * 192;
   end
 
-  if(ST_P_IDLE || ST_P_RD_DATA)
-  begin
-    img_sram_num        = img_xptr % 5;
-    block_num           = img_xptr / 5;
-    offset_in_block     = block_num * matrix_size_ff + img_yptr;
-  end
+  // Processings
+  mult0_in0_sram_num = (idx_x[0] + 0)%5;
+  // Its address, uses this address to access sram
+  mult0_in0_sram_addr = ((idx_x[0]+0 + k_xptr)/5) * matrix_size_ff + (idx_y + k_yptr);
 
-  if(in_valid && read_img_done_ff && (ST_P_IDLE || ST_P_RD_DATA))
-  begin
-    case(k_sram_num)
-    'd0:
-    begin
-      wen_k0 = 0;
-    end
-    'd1:
-    begin
-      wen_k1 = 0;
-    end
-    'd2:
-    begin
-      wen_k2 = 0;
-    end
-    'd3:
-    begin
-      wen_k3 = 0;
-    end
-    'd4:
-    begin
-      wen_k4 = 0;
-    end
-    endcase
-  end
-
-  //Processings
-  if(ST_P_PROCESSING)
-  begin
-    for(x=0;x<5;x=x+1)
-    begin
-      if(mode_ff == 0)
-      begin
-        img_x_cord[x]                   = idx_x[x] + $unsigned(x);
-        conv_sram_num[x]                = img_x_cord[x] % $unsigned(5);
-        conv_img_block_num[x]           = img_x_cord[x] / $unsigned(5);
-        conv_img_offset_in_block[x]     = conv_img_block_num[x] * matrix_size_ff + (idx_y + k_yptr);
-      end
-      else
-      begin
-        img_x_cord[x]                   = idx_x[x] - $unsigned(4);
-        conv_sram_num[x]                = img_x_cord[x] % $unsigned(5);
-        conv_img_block_num[x]           = img_x_cord[x] / $unsigned(5);
-        conv_img_offset_in_block[x]     = conv_img_block_num[x] * matrix_size_ff + (idx_y-4);
-      end
-    end
-  end
 
   if(in_valid && (ST_P_RD_DATA || ST_P_IDLE) && ~read_img_done_ff)
   begin
@@ -594,19 +591,31 @@ begin
   end
   else if(ST_P_PROCESSING)
   begin
-    for(x=0;x<5;x=x+1)
-    begin
-      case(conv_sram_num[x])
-      'd0: s0_addr =  conv_img_offset_in_block[x] + img_idx_ff * 224;
-      'd1: s1_addr =  conv_img_offset_in_block[x] + img_idx_ff * 224;
-      'd2: s2_addr =  conv_img_offset_in_block[x] + img_idx_ff * 192;
-      'd3: s3_addr =  conv_img_offset_in_block[x] + img_idx_ff * 192;
-      'd4: s4_addr =  conv_img_offset_in_block[x] + img_idx_ff * 192;
+      // mult0 inputs
+      case(mult0_in0_sram_num)
+      'd0:  s0_addr =  mult0_in0_sram_addr;
+      'd1:  s1_addr =  mult0_in0_sram_addr;
+      'd2:  s2_addr =  mult0_in0_sram_addr;
+      'd3:  s3_addr =  mult0_in0_sram_addr;
+      'd4:  s4_addr =  mult0_in0_sram_addr;
       endcase
-    end
+  end
+end
+
+always @(*)
+begin
+  wen_k0 = 1;
+  wen_k1 = 1;
+  wen_k2 = 1;
+  wen_k3 = 1;
+  wen_k4 = 1;
+
+  for(x=0;x<5;x=x+1)
+  begin
+    kernal_sram_addr[x] = 0;
   end
 
-  // KERNALS ADDRS
+ // KERNALS ADDRS
   if(in_valid && (ST_P_IDLE || ST_P_RD_DATA))
   begin
       for(x=0;x<5;x=x+1)
@@ -615,35 +624,29 @@ begin
     k_sram_num = k_xptr;
   end
 
-  if(ST_P_PROCESSING)
+  if(in_valid && read_img_done_ff && (ST_P_IDLE || ST_P_RD_DATA))
   begin
-    for(x=0;x<5;x=x+1)
+    case(k_sram_num)
+    'd0:
     begin
-      if(mode_ff == 0)
-      begin
-        kernal_sram_num[x]  = x;
-        kernal_sram_addr[x] = k_yptr + 5 * kernal_idx_ff * 5;
-      end
-      else
-      begin
-        // Reversed kernals
-        kernal_sram_num[x] = (4 - x);
-        kernal_sram_addr[x]   =  (4-k_yptr) + 5 * kernal_idx_ff * 5;
-      end
+      wen_k0 = 0;
     end
-  end
-
-
-
-  if(ST_P_PROCESSING)
-  begin
-    for(x=0;x<5;x=x+1)
-    case(kernal_sram_num[x])
-    'd0: kernal_sram_addr[0] = kernal_sram_addr[x];
-    'd1: kernal_sram_addr[1] = kernal_sram_addr[x];
-    'd2: kernal_sram_addr[2] = kernal_sram_addr[x];
-    'd3: kernal_sram_addr[3] = kernal_sram_addr[x];
-    'd4: kernal_sram_addr[4] = kernal_sram_addr[x];
+    'd1:
+    begin
+      wen_k1 = 0;
+    end
+    'd2:
+    begin
+      wen_k2 = 0;
+    end
+    'd3:
+    begin
+      wen_k3 = 0;
+    end
+    'd4:
+    begin
+      wen_k4 = 0;
+    end
     endcase
   end
 end
