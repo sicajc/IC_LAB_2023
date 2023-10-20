@@ -317,6 +317,7 @@ begin
     begin
       if(mode_ff == 0)
       begin
+        valid <= 1;
         // Convolution + MP
         if(img_processed_f)
         begin
@@ -423,7 +424,6 @@ begin
   begin
     valid_d1 <= valid;
     valid_d2 <= valid_d1;
-    valid_d3 <= valid_d2;
 
     mp_window_x_cnt_d1 <= mp_window_x_cnt;
     mp_window_x_cnt_d2 <= mp_window_x_cnt_d1;
@@ -509,7 +509,7 @@ end
 // CONV MAC       //
 //================//
 reg[3:0] conv_cnt;
-wire conv_done_f = conv_cnt == 4;
+// wire conv_done_f = conv_cnt == 4;
 
 reg[19:0] mac_result;
 always @(*)
@@ -522,19 +522,24 @@ begin
 end
 
 reg[19:0] conv_ff;
+reg[4:0] conv_cnt;
+wire  conv_accumulated = conv_cnt == 4;
 always @(posedge clk or negedge rst_n)
 begin
   if(~rst_n)
   begin
     conv_ff <= 0;
+    conv_cnt <= 0;
   end
-  else if(local_kernal_processed_d2)
+  else if(conv_accumulated)
   begin
-    conv_ff <= mac_result;
+    conv_cnt <= 0;
+    conv_ff <= 0;
   end
-  else
+  else if(valid_d1)
   begin
-    conv_ff <= mac_result + conv_ff;
+    conv_cnt <= conv_cnt + 1;
+    conv_ff <= conv_ff + mac_result;
   end
 end
 
@@ -542,25 +547,21 @@ end
 // MAX POOLING       //
 //===================//
 reg[19:0] temp_max_ff;
-reg temp_max_first_ff;
+reg[4:0] mp_cnt;
 
 always @(posedge clk or negedge rst_n)
 begin
   if(~rst_n)
   begin
-    temp_max_first_ff <= 0;
     temp_max_ff <= 0;
   end
-  else if(local_kernal_processed_d2)
+  else if(conv_accumulated)
   begin
-    if(local_mp_processed_d2)
-    begin
-      temp_max_ff <= (mac_result + conv_ff);
-    end
-    else
-    begin
-      temp_max_ff <=  ((mac_result + conv_ff) > temp_max_ff) ? (mac_result + conv_ff) : temp_max_ff;
-    end
+    temp_max_ff <= mac_result+conv_ff;
+  end
+  else
+  begin
+    temp_max_ff <=  ((mac_result+conv_ff) > temp_max_ff) ? mac_result + conv_ff : temp_max_ff;
   end
 end
 
