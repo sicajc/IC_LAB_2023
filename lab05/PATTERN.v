@@ -17,7 +17,7 @@
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //############################################################################
 
-`define CYCLE_TIME      40.0
+`define CYCLE_TIME      20.0
 
 module PATTERN(
   //Output Port
@@ -77,8 +77,8 @@ always #(CYCLE/2.0) clk = ~clk;
 // initial
 //================================================================
 initial begin
-  pat_read = $fopen("C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab05/input.txt", "r");
-  ans_read = $fopen("C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab05/output.txt", "r");
+  pat_read = $fopen("../00_TESTBED/input.txt", "r");
+  ans_read = $fopen("../00_TESTBED/output.txt", "r");
   reset_signal_task;
 
   i_pat = 0;
@@ -159,7 +159,7 @@ begin
   #(CYCLE);  release clk;
 end
 endtask
-
+reg mode_list[0:15];
 task input_task;
 begin
   // Read in the matrix size
@@ -212,17 +212,19 @@ begin
   repeat(2)@(negedge clk);
 
   // reads mode in
-  file = $fscanf( pat_read, "%d", mode );
+
   in_valid2 = 1'b1;
 
   // Reads the index into a matrix
   for(i = 0; i < 16; i = i+1)
   begin
-    file = $fscanf(pat_read,"%h",index_pair[i][0]);
-    file = $fscanf(pat_read,"%h",index_pair[i][1]);
+    file = $fscanf(pat_read,"%d",mode_list[i]);
+    file = $fscanf(pat_read,"%d",index_pair[i][0]);
+    file = $fscanf(pat_read,"%d",index_pair[i][1]);
   end
 
   matrix_idx = index_pair[0][0];
+  mode       = mode_list[0];
   @(negedge clk);
   mode       = 'bx;
   matrix_idx = index_pair[0][1];
@@ -253,16 +255,20 @@ begin
 end
 endtask
 reg[19:0] golden_reversed_byte;
+reg[19:0] out_value_seq;
 
 task check_ans_task;
 begin
   file = $fscanf(ans_read,"%d",golden_size);
-
+  $display(golden_size);
+  out_value_seq = 'bx;
   for(i=0; i<golden_size ; i=i+1)
   begin
     file = $fscanf(ans_read,"%h",golden_reversed_byte);
-    $display("%h",golden_reversed_byte);
+
     for(j=0 ; j < 20; j=j+1)
+    begin
+      // out_value_seq[i] = out_value;
       if(out_valid !== 1)
       begin
         $display("***********************************************************************");
@@ -274,31 +280,48 @@ begin
         $finish;
       end
 
+      $display("i = %d,j = %d ,out_value = %d, golden = %d",i,j,out_value,golden_reversed_byte[j]);
       if(out_value !== golden_reversed_byte[j])
       begin
          $display("***********************************************************************");
          $display("*  Error                                                              *");
          $display("*  The out_data should be correct when out_valid is high              *");
-         $display("*  Bit Reversed Golden      : %5h               *",golden_reversed_byte);
+         $display("*  Golden       : 0x%5h                    *",golden_reversed_byte);
+         $display("*  Golden       : %5d                    *",golden_reversed_byte);
+         $display("*  Golden       : 0b%20b                   *",golden_reversed_byte);
          $display("***********************************************************************");
          repeat(2)@(negedge clk);
          $finish;
       end
-    @(negedge clk);
+      @(negedge clk);
+    end
   end
 
-  repeat(3)@(negedge clk);
+
+  if(out_valid !== 0  || out_value !== 0)
+      begin
+          $display("***********************************************************************");
+          $display("*  Error                                                              *");
+          $display("*  Output signal should reset after outputting the data               *");
+          $display("***********************************************************************");
+          repeat(2)@(negedge clk);
+          $finish;
+  end
+  repeat(4)@(negedge clk);
 end
 endtask
 
 task give_idx_task;
 begin
     in_valid2 = 1'b1;
+    mode      = mode_list[idx_count];
     matrix_idx = index_pair[idx_count][0];
     @(negedge clk);
     matrix_idx = index_pair[idx_count][1];
+    mode   = 'bx;
     @(negedge clk);
     in_valid2  = 1'b0;
+    matrix_idx = 'bx;
 end
 endtask
 

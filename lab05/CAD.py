@@ -105,6 +105,8 @@ with open('lab05/output.txt', 'w') as file:
       mode.append(int(file_in[1 + 65 * i +(33+idx*2)])) #0 2 4
       matrix_idx.append(np.array([int(val) for val in file_in[1 + 65 * i + (34+idx*2)].split()]))# 1 3 5
 
+
+      # print("Mode index",mode)
       if mode[idx] == 0:
         conv_result = conv(img_16[matrix_idx[idx][0]],kernal_16[matrix_idx[idx][1]],matrix_size)
         result = max_pooling(conv_result)
@@ -114,19 +116,10 @@ with open('lab05/output.txt', 'w') as file:
       result = np.array(result,dtype='int32')
 
       # Turn all value into bits representation, reverse them then convert into hex
+      # print(result[0][0],result[0][1],result[1][0],result[1][1])
       two_comp_bit_result = vf_two_comp(result,20)
 
-      # if i == 0:
-      #    print(two_comp_bit_result[0][0])
-
-
-      # reversed_result = vf_reverse(two_comp_bit_result)
-
-      # print(reversed_result[0][0])
       hex_result = vf_bin2hex(two_comp_bit_result)
-      if i == 0:
-        print(hex_result[0][0])
-        break
 
       file.write(f"{result.size}\n")
       for value in np.nditer(hex_result):

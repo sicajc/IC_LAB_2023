@@ -27,7 +27,7 @@ if __name__ == '__main__':
         f.write(f"{PATTERN_NUM}\n")
         for i in range(PATTERN_NUM):
             # Matrix size 8,16,32
-            if i == 0:
+            if i <= 10:
                 matrix_size = 8
             else:
                 matrix_size =  random.choice([8,16,32])
@@ -46,11 +46,11 @@ if __name__ == '__main__':
                     if i ==0:
                         matrix_value = random.randint(1,2)
                     elif i==1:
-                        matrix_value = 127
+                        matrix_value = 1
                     elif i==2:
                         matrix_value = random.randint(0,1)
-                    elif i == 3:
-                        matrix_value = -128
+                    elif i==3:
+                        matrix_value = random.randint(-1,1)
                     else:
                         matrix_value = random.randint(LOWER_BOUND,UPPER_BOUND)
                     matrix_value_hex = int2hex(matrix_value,BIT_WIDTH)
@@ -62,13 +62,13 @@ if __name__ == '__main__':
             for _ in range(16):
                 for _ in range(5*5):
                     if   i==0:
-                        kernal_value = random.randint(1,2)
+                        kernal_value = 1
                     elif i==1:
-                        kernal_value = 127
+                        kernal_value = 2
                     elif i==2:
-                        kernal_value = random.randint(-1,0)
+                        kernal_value = random.randint(-1,1)
                     elif i==3:
-                        kernal_value = -128
+                        kernal_value = 2
                     else:
                         kernal_value = random.randint(LOWER_BOUND,UPPER_BOUND)
                     kernal_value_hex = int2hex(kernal_value,BIT_WIDTH)
@@ -79,10 +79,10 @@ if __name__ == '__main__':
             # 16 ops for in_valid 2
             for k in range(16):
                 # mode
-                if(k == 0):
-                    f.write(f"{0}\n")
-                else:
-                    f.write(f"{random.randint(0,1)}\n")
+                # if(k == 0):
+                f.write(f"{0}\n")
+                # else:
+                    # f.write(f"{random.randint(0,1)}\n")
                 i_matrix = random.randint(0,15)
                 k_matrix = random.randint(0,15)
                 f.write(f"{i_matrix} {k_matrix}")
