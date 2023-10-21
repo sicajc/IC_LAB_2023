@@ -119,6 +119,21 @@ end
 wire rd_data_done_f  = rd_cnt == read_img_upper_bound;
 wire idx_read_done_f = rd_cnt == 1;
 wire img_processed_f = (img_xptr == (matrix_size_ff - 6)) && (img_yptr == (matrix_size_ff - 6)) && local_mp_processed_f && ST_P_PROCESSING;
+reg img_processed_d1,img_processed_d2;
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
+    img_processed_d2 <= 0; img_processed_d1 <= 0;
+  end
+  else
+  begin
+    img_processed_d1 <= img_processed_f;
+    img_processed_d2 <= img_processed_d1;
+  end
+end
+
+
 wire img_read_f     = (img_xptr == (matrix_size_ff - 1)) && (img_yptr == (matrix_size_ff - 1)) && ST_P_RD_DATA;
 wire img16_read_f   = (img_num_cnt ==  15) &&(img_xptr == (matrix_size_ff - 1))
 && (img_yptr == (matrix_size_ff - 1)) && ST_P_RD_DATA;
@@ -129,7 +144,10 @@ wire kernal16_read_f = (kernal_num_cnt == 15) &&(k_xptr == 4) && (k_yptr == 4) &
 wire proecssed_16_imgs_f = img_num_cnt == 15 && ST_P_PROCESSING;
 
 wire output_stall_f =  (out_valid == 1) && output_cnt < 15 && (mode_ff == 1) && ST_P_PROCESSING;
+wire deconv_img_processed_f = (img_xptr == (matrix_size_ff + 3)) && (img_yptr == (matrix_size_ff+3)) && (k_yptr == 4)
+&& ST_P_PROCESSING;
 
+reg zero_pad_f[0:4];
 
 //---------------------------------------------------------------------
 //      MAIN FSM
@@ -164,6 +182,8 @@ begin
     end
     P_PROCESSING:
     begin
+      if(mode_ff == 0)
+      begin
         if(img_processed_f)
         begin
           if(proecssed_16_imgs_f)
@@ -171,11 +191,23 @@ begin
           else
             p_next_st = P_WAIT_IDX;
         end
+      end
+      else
+      begin
+        if(deconv_img_processed_f)
+        begin
+          if(proecssed_16_imgs_f)
+            p_next_st = P_IDLE;
+          else
+            p_next_st = P_WAIT_IDX;
+        end
+      end
     end
     endcase
 end
 
 reg read_img_done_ff;
+
 //---------------------------------------------------------------------
 //      SUB CTRS
 //---------------------------------------------------------------------
@@ -361,14 +393,15 @@ begin
       end
       else if(mode_ff == 1)
       begin
+        valid <= 1;
         // Deconvolution
-        if(img_processed_f)
+        if(deconv_img_processed_f)
         begin
           img_yptr <= 0;
           img_xptr <= 0;
           img_num_cnt <= img_num_cnt + 1;
         end
-        else if((img_xptr == (matrix_size_ff -5)))
+        else if((img_xptr == (matrix_size_ff+4-1)) && (k_yptr == 4))
         begin
           img_yptr <= img_yptr + 1;
           img_xptr <= 0;
@@ -394,6 +427,7 @@ begin
     end
 end
 
+reg[5:0] kernal_sram_num[0:4];
 //==============================================//
 //               DATAPATH                       //
 //==============================================//
@@ -483,8 +517,7 @@ begin
   end
   else
   begin
-
-    for(x=0;x<5;x=x+1)
+    if(mode_ff == 0)
     begin
       mult_in1_ff[0] <= k0_out_data;
       mult_in1_ff[1] <= k1_out_data;
@@ -492,15 +525,40 @@ begin
       mult_in1_ff[3] <= k3_out_data;
       mult_in1_ff[4] <= k4_out_data;
 
-      mult_in0_sram_num_d[x] <= mult_in0_sram_num[x];
 
-      case(mult_in0_sram_num_d[x])
-      'd0: mult_in0_ff[x] <= s0_out_data;
-      'd1: mult_in0_ff[x] <= s1_out_data;
-      'd2: mult_in0_ff[x] <= s2_out_data;
-      'd3: mult_in0_ff[x] <= s3_out_data;
-      'd4: mult_in0_ff[x] <= s4_out_data;
-      endcase
+      for(x=0;x<5;x=x+1)
+      begin
+        mult_in0_sram_num_d[x] <= mult_in0_sram_num[x];
+        case(mult_in0_sram_num_d[x])
+        'd0: mult_in0_ff[x] <= s0_out_data;
+        'd1: mult_in0_ff[x] <= s1_out_data;
+        'd2: mult_in0_ff[x] <= s2_out_data;
+        'd3: mult_in0_ff[x] <= s3_out_data;
+        'd4: mult_in0_ff[x] <= s4_out_data;
+        endcase
+      end
+    end
+    else
+    begin
+      for(x=0;x<5;x=x+1)
+      begin
+        case(kernal_sram_num[x])
+        'd0: mult_in1_ff[x] <= zero_pad_f[x] ? 0 : k0_out_data;
+        'd1: mult_in1_ff[x] <= zero_pad_f[x] ? 0 : k1_out_data;
+        'd2: mult_in1_ff[x] <= zero_pad_f[x] ? 0 : k2_out_data;
+        'd3: mult_in1_ff[x] <= zero_pad_f[x] ? 0 : k3_out_data;
+        'd4: mult_in1_ff[x] <= zero_pad_f[x] ? 0 : k4_out_data;
+        endcase
+
+        mult_in0_sram_num_d[x] <= mult_in0_sram_num[x];
+        case(mult_in0_sram_num_d[x])
+          'd0: mult_in0_ff[x] <= s0_out_data;
+          'd1: mult_in0_ff[x] <= s1_out_data;
+          'd2: mult_in0_ff[x] <= s2_out_data;
+          'd3: mult_in0_ff[x] <= s3_out_data;
+          'd4: mult_in0_ff[x] <= s4_out_data;
+        endcase
+      end
     end
   end
 end
@@ -579,15 +637,75 @@ begin
   end
 end
 
+reg[19:0] result_buf;
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
+    result_buf <= 0;
+  end
+  else if(mp_done_f)
+  begin
+    result_buf <= temp_max_ff;
+  end
+  else
+  begin
+    result_buf <= result_buf >> 1;
+  end
+end
+reg mp_done_f_d1;
+
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
+    mp_done_f_d1 <= 0;
+  end
+  else
+  begin
+    mp_done_f_d1 <= mp_done_f;
+  end
+end
+
 //---------------------------------------------------------------------
 //      Output CTR
 //---------------------------------------------------------------------
+reg output_ans_f;
+always @(posedge clk or negedge rst_n)
+begin
+  if(~rst_n)
+  begin
+    output_ans_f <= 0;
+  end
+  else if(img_processed_d2)
+  begin
+    output_ans_f <= 0;
+  end
+  else if(mp_done_f_d1)
+  begin
+    output_ans_f <= 1;
+  end
+end
 always @(posedge clk or negedge rst_n)
 begin
   if(~rst_n)
   begin
     out_value <= 0;
     out_valid <= 0;
+  end
+  else if(img_processed_d2)
+  begin
+    out_valid <= 0;
+    out_value <= 0;
+  end
+  else if(output_ans_f)
+  begin
+    out_value <= result_buf[0];
+  end
+  else if(mp_done_f_d1)
+  begin
+    out_valid <= 1;
+    out_value <= result_buf[0];
   end
 end
 
@@ -619,11 +737,36 @@ reg[8:0]  k_sram_addr;
 reg[19:0] deconv_out_data;
 reg k_sram_en;
 reg[15:0] offset_in_block;
-reg[5:0] kernal_sram_num[0:4];
 
 
 reg[11:0] mult_in0_sram_addr[0:4];
 reg[11:0] mult0_in1_sram_addr;
+
+reg[15:0] lower_bound0,lower_bound1,lower_bound2,lower_bound3;
+
+// Zeropad flags
+always @(*)
+begin
+  lower_bound0 = matrix_size_ff + 4;
+  lower_bound1 = matrix_size_ff + 5;
+  lower_bound2 = matrix_size_ff + 6;
+  lower_bound3 = matrix_size_ff + 7;
+  for(x=0;x<5;x=x+1)
+  begin
+    if(idx_x[x] == 0 || idx_x[x] == 1 || idx_x[x] == 2 || idx_x[x] == 3 || idx_y == 0 || idx_y == 1 || idx_y == 2||
+    idx_y == 3 || idx_y == lower_bound0 || idx_y == lower_bound1 || idx_y == lower_bound2 || idx_y == lower_bound3||
+    idx_x[x] == lower_bound0 || idx_x[x] == lower_bound1 || idx_x[x] == lower_bound2 || idx_x[x] == lower_bound3)
+    begin
+      zero_pad_f[x] = 1;
+    end
+    else
+    begin
+      zero_pad_f[x] = 0;
+    end
+  end
+end
+
+
 always @(*)
 begin
   wen_0 = 1;
@@ -677,13 +820,35 @@ begin
   // Processings
   // Needs to do these for mult0~4 inputs
   // Its address, uses this address to access sram
-  for(x=0;x<5;x=x+1)
+  if(mode_ff == 0)
   begin
-    mult_in0_sram_num[x] = (idx_x[x] + x)%5;
-    if(mult_in0_sram_num[x] == 0 || mult_in0_sram_num[x] == 1)
-       mult_in0_sram_addr[x]= ((idx_x[x]+x)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 224;
-    else
-       mult_in0_sram_addr[x]= ((idx_x[x]+x)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 192;
+    for(x=0;x<5;x=x+1)
+    begin
+      mult_in0_sram_num[x] = (idx_x[x] + x)%5;
+      if(mult_in0_sram_num[x] == 0 || mult_in0_sram_num[x] == 1)
+         mult_in0_sram_addr[x]= ((idx_x[x]+x)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 224;
+      else
+         mult_in0_sram_addr[x]= ((idx_x[x]+x)/5) * matrix_size_ff + (idx_y + k_yptr) + img_idx_ff * 192;
+    end
+  end
+  else
+  begin
+    for(x=0;x<5;x=x+1)
+    begin
+      if(zero_pad_f[x])
+      begin
+        mult_in0_sram_num[x] = 5;
+        mult_in0_sram_addr[x] = 0;
+      end
+      else
+      begin
+        mult_in0_sram_num[x] = (idx_x[x]-4) % 5;
+         if(mult_in0_sram_num[x] == 0 || mult_in0_sram_num[x] == 1)
+            mult_in0_sram_addr[x]= ((idx_x[x]-4)/5) * matrix_size_ff + (idx_y - 4) + img_idx_ff * 224;
+         else
+            mult_in0_sram_addr[x]= ((idx_x[x]-4)/5) * matrix_size_ff + (idx_y - 4) + img_idx_ff * 192;
+      end
+    end
   end
 
   if(in_valid && (ST_P_RD_DATA || ST_P_IDLE) && ~read_img_done_ff)
@@ -736,6 +901,7 @@ begin
   end
 end
 
+// KERNALS
 always @(*)
 begin
   wen_k0 = 1;
@@ -758,14 +924,28 @@ begin
 
     k_sram_num = k_xptr;
   end
-  else
+  else if(ST_P_PROCESSING)
   begin
-    // Kernals address
-    kernal_sram_addr[0] = k_yptr + kernal_idx_ff * 5;
-    kernal_sram_addr[1] = k_yptr + kernal_idx_ff * 5;
-    kernal_sram_addr[2] = k_yptr + kernal_idx_ff * 5;
-    kernal_sram_addr[3] = k_yptr + kernal_idx_ff * 5;
-    kernal_sram_addr[4] = k_yptr + kernal_idx_ff * 5;
+    if(mode_ff == 0)
+    begin
+      // Kernals address
+      kernal_sram_addr[0] = k_yptr + kernal_idx_ff * 5;
+      kernal_sram_addr[1] = k_yptr + kernal_idx_ff * 5;
+      kernal_sram_addr[2] = k_yptr + kernal_idx_ff * 5;
+      kernal_sram_addr[3] = k_yptr + kernal_idx_ff * 5;
+      kernal_sram_addr[4] = k_yptr + kernal_idx_ff * 5;
+    end
+    else
+    begin
+      for(x=0;x<5;x=x+1)
+        kernal_sram_num[x] = (4-x) %5;
+      // Kernals address
+      kernal_sram_addr[0] = (4-k_yptr) + kernal_idx_ff * 5;
+      kernal_sram_addr[1] = (4-k_yptr) + kernal_idx_ff * 5;
+      kernal_sram_addr[2] = (4-k_yptr) + kernal_idx_ff * 5;
+      kernal_sram_addr[3] = (4-k_yptr) + kernal_idx_ff * 5;
+      kernal_sram_addr[4] = (4-k_yptr) + kernal_idx_ff * 5;
+    end
   end
 
   if(in_valid && read_img_done_ff && (ST_P_IDLE || ST_P_RD_DATA))

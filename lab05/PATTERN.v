@@ -261,6 +261,7 @@ begin
   for(i=0; i<golden_size ; i=i+1)
   begin
     file = $fscanf(ans_read,"%h",golden_reversed_byte);
+    $display("%h",golden_reversed_byte);
     for(j=0 ; j < 20; j=j+1)
       if(out_valid !== 1)
       begin
@@ -278,7 +279,7 @@ begin
          $display("***********************************************************************");
          $display("*  Error                                                              *");
          $display("*  The out_data should be correct when out_valid is high              *");
-         $display("*  Bit Reversed Golden      : %20h               *",golden_reversed_byte);
+         $display("*  Bit Reversed Golden      : %5h               *",golden_reversed_byte);
          $display("***********************************************************************");
          repeat(2)@(negedge clk);
          $finish;

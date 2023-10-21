@@ -116,12 +116,17 @@ with open('lab05/output.txt', 'w') as file:
       # Turn all value into bits representation, reverse them then convert into hex
       two_comp_bit_result = vf_two_comp(result,20)
 
-      # print(two_comp_bit_result[0][0])
+      # if i == 0:
+      #    print(two_comp_bit_result[0][0])
 
-      reversed_result = vf_reverse(two_comp_bit_result)
+
+      # reversed_result = vf_reverse(two_comp_bit_result)
+
       # print(reversed_result[0][0])
-      hex_result = vf_bin2hex(reversed_result)
-      # print(hex_result[0][0])
+      hex_result = vf_bin2hex(two_comp_bit_result)
+      if i == 0:
+        print(hex_result[0][0])
+        break
 
       file.write(f"{result.size}\n")
       for value in np.nditer(hex_result):

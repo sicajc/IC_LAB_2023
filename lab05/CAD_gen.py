@@ -76,8 +76,6 @@ if __name__ == '__main__':
                     f.write(f"{kernal_value_hex} ")
                 f.write("\n")
 
-
-
             # 16 ops for in_valid 2
             for k in range(16):
                 # mode
