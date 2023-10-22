@@ -55,7 +55,7 @@ localparam  P_RD_IMG      = 6'b000010;
 localparam  P_RD_KERNEL   = 6'b000100;
 localparam  P_WAIT_IDX    = 6'b001000;
 localparam  P_PROCESSING  = 6'b010000;
-localparam P_MOVE_KERNAL_IMG =6'b100000;
+localparam  P_MOVE_KERNAL_IMG =6'b100000;
 
 wire ST_P_IDLE          = p_cur_st[0];
 wire ST_P_RD_IMG       = p_cur_st[1];
@@ -811,7 +811,6 @@ SRAM_KERNAL u_KERNAL(.A0(kernal_mem_addr[0]),.A1(kernal_mem_addr[1]),
 .DI0(kernal_data_in[0]),.DI1(kernal_data_in[1]),.DI2(kernal_data_in[2]),.DI3(kernal_data_in[3]),
 .DI4(kernal_data_in[4]),.DI5(kernal_data_in[5]),.DI6(kernal_data_in[6]),.DI7(kernal_data_in[7]),
                     .CK(clk),.WEB(kernal_wen),.OE(1'b1),.CS(1'b1));
-
 
 
 endmodule
