@@ -69,16 +69,16 @@ wire ST_OUTPUT_MODE0   = out_cur_st[1];
 wire ST_OUTPUT_MODE1_STALL   = out_cur_st[2];
 wire ST_OUTPUT_MODE1   = out_cur_st[3];
 
-reg[14:0] rd_cnt;
-reg[7:0] kernal_idx_ff;
-reg[7:0] img_idx_ff;
-reg[5:0] img_num_cnt;
-reg[5:0] kernal_num_cnt;
+reg[9:0] rd_cnt;
+reg[3:0] kernal_idx_ff;
+reg[3:0] img_idx_ff;
+reg[3:0] img_num_cnt;
+reg[3:0] kernal_num_cnt;
 
-reg[8:0] img_xptr,img_yptr,
+reg[5:0] img_xptr,img_yptr,
 img_xptr_d0,img_yptr_d0,img_xptr_d1,img_yptr_d1,img_xptr_d2,img_yptr_d2,img_xptr_d3,img_yptr_d3;
 
-reg[8:0] k_xptr,k_yptr,k_xptr_d0,k_yptr_d0,k_xptr_d1,k_yptr_d1,k_yptr_d2,k_yptr_d3;
+reg[5:0] k_xptr,k_yptr,k_yptr_d0,k_xptr_d1,k_yptr_d1,k_yptr_d2,k_yptr_d3;
 
 reg[2:0] mp_window_x_cnt ,mp_window_y_cnt,mp_window_x_cnt_d0,mp_window_y_cnt_d0,mp_window_x_cnt_d1
 ,mp_window_y_cnt_d1,mp_window_x_cnt_d2,mp_window_y_cnt_d2,mp_window_x_cnt_d3 ,mp_window_y_cnt_d3;
@@ -91,11 +91,8 @@ reg[8:0] idx_y;
 //      REGs and FFs
 //---------------------------------------------------------------------
 reg[2:0] mode_ff;
-reg[7:0] img_size_ff;
-reg signed[7:0] img_rf[31:0][31:0];
-reg signed[7:0] kernal_rf[0:4][0:4];
+reg[5:0] img_size_ff;
 
-reg[15:0] offset;
 reg[13:0] img_mem_addr;
 reg[8:0] kernal_mem_addr;
 
@@ -107,6 +104,21 @@ wire conv_accumulated_d2 = (k_yptr_d2 == 4);
 
 integer x,y,i,j;
 
+reg[3:0] sram_num;
+reg[14:0] sram_addr;
+reg k_wen[0:4];
+wire[7:0] img_data_out[0:4];
+reg img_wen[0:4];
+
+reg[6:0] kernal_sram_addr;
+wire[7:0] k_out_data[0:4];
+reg kernal_wen[0:4];
+
+reg[11:0] s0_img_mem_addr;
+reg[11:0] s1_img_mem_addr;
+reg[11:0] s2_img_mem_addr;
+reg[11:0] s3_img_mem_addr;
+reg[11:0] s4_img_mem_addr;
 //---------------------------------------------------------------------
 //      flags
 //---------------------------------------------------------------------
@@ -215,7 +227,8 @@ end
 
 wire processed_four_times_f = (local_conv_processed_cnt == 3) && local_kernal_processed_f && ST_P_PROCESSING;
 reg[5:0] rd_img_cnt;
-reg[8:0] wr_img_xptr,wr_img_yptr,wr_k_xptr,wr_k_yptr;
+reg[4:0] wr_img_xptr,wr_img_yptr;
+reg[2:0] wr_k_xptr,wr_k_yptr;
 wire processed_16_img_f = img_num_cnt == 15 && ST_P_PROCESSING;
 wire one_img_rd_f = rd_cnt == ((img_size_ff * img_size_ff) -1);
 wire rd_img_done_f      = one_img_rd_f && (img_num_cnt == 15);
@@ -601,14 +614,14 @@ begin
     if(mode_ff == 0)
     begin
       //Convolution + MP
-      idx_x[x] = img_xptr_d0+mp_window_x_cnt_d0;
-      idx_y = img_yptr_d0+mp_window_y_cnt_d0;
+      idx_x[x] = img_xptr+mp_window_x_cnt;
+      idx_y = img_yptr+mp_window_y_cnt;
     end
     else
     begin
       // Deconvolution
-      idx_x[x] = img_xptr_d0 + x;
-      idx_y = img_yptr_d0+k_yptr_d0;
+      idx_x[x] = img_xptr + x;
+      idx_y = img_yptr+k_yptr;
     end
   end
 end
@@ -639,12 +652,63 @@ begin
   end
 end
 
+reg zero_pad_d1[0:4];
+always @(posedge clk)
+begin
+  for(x=0;x<5;x=x+1)
+    zero_pad_d1[x] <= zero_pad_f[x];
+end
+
 //============================//
 //          Mults in          //
 //============================//
 reg signed[DATA_WIDTH-1:0] mult_in0_d1[0:4];
 reg signed[DATA_WIDTH-1:0] mult_in1_d1[0:4];
+reg[11:0] mult_in0_sram_num[0:4];
+reg[11:0] mult_in0_sram_addr[0:4];
 genvar x_idx;
+
+reg[11:0] offsets[0:4];
+
+always @(*)
+begin
+  if(mode_ff == 0)
+  begin
+    for(x=0;x<5;x=x+1)
+    begin
+      mult_in0_sram_num[x]  = (idx_x[x] + x) % 5;
+      mult_in0_sram_addr[x] = (((idx_x[x] + x) / 5)*img_size_ff) + (idx_y + k_yptr) + (img_idx_ff * 224);
+    end
+  end
+  else
+  begin
+    for(x=0;x<5;x=x+1)
+    begin
+      if(zero_pad_f[x])
+      begin
+        mult_in0_sram_num[x]  = 5;
+        mult_in0_sram_addr[x] = 0;
+      end
+      else
+      begin
+         offsets[x] = (idx_x[x] - 4);
+         mult_in0_sram_num[x] =  offsets[x]% 5;
+         mult_in0_sram_addr[x]= (offsets[x]/5) * img_size_ff + (idx_y - 4) + img_idx_ff * 224;
+      end
+    end
+  end
+end
+
+reg[7:0] mult_in0_sram_num_d0[0:4];
+reg[7:0] kernal_sram_num[0:4];
+
+always @(posedge clk)
+begin
+  for(x=0;x<5;x=x+1)
+  begin
+    mult_in0_sram_num_d0[x] <= mult_in0_sram_num[x];
+  end
+end
 
 generate
   for(x_idx=0;x_idx<5;x_idx=x_idx+1)
@@ -652,13 +716,31 @@ generate
     begin
         if(mode_ff == 0)
         begin
-          mult_in0_d1[x_idx] <= k_out_data[k_yptr_d0][x_idx];
-          mult_in1_d1[x_idx] <= [idx_y + k_yptr_d0][idx_x[x_idx] + x_idx];
+          mult_in1_d1[x_idx] <= k_out_data[x_idx];
+
+          case(mult_in0_sram_num_d0[x_idx])
+          'd0:mult_in0_d1[x_idx] <= img_data_out[0];
+          'd1:mult_in0_d1[x_idx] <= img_data_out[1];
+          'd2:mult_in0_d1[x_idx] <= img_data_out[2];
+          'd3:mult_in0_d1[x_idx] <= img_data_out[3];
+          'd4:mult_in0_d1[x_idx] <= img_data_out[4];
+          default:mult_in0_d1[x_idx] <= 0;
+          endcase
         end
         else
         begin
-          mult_in0_d1[x_idx] <= zero_pad_f[x_idx] ? 0 : kernal_rf[4-k_yptr][4-x_idx];
-          mult_in1_d1[x_idx] <= zero_pad_f[x_idx] ? 0 : img_rf[idx_y-4][idx_x[x_idx]-4];
+
+        case(mult_in0_sram_num_d0[x_idx])
+          'd0: mult_in0_d1[x_idx] <= zero_pad_d1[x_idx] ? 0 : img_data_out[0];
+          'd1: mult_in0_d1[x_idx] <= zero_pad_d1[x_idx] ? 0 : img_data_out[1];
+          'd2: mult_in0_d1[x_idx] <= zero_pad_d1[x_idx] ? 0 : img_data_out[2];
+          'd3: mult_in0_d1[x_idx] <= zero_pad_d1[x_idx] ? 0 : img_data_out[3];
+          'd4: mult_in0_d1[x_idx] <= zero_pad_d1[x_idx] ? 0 : img_data_out[4];
+          default: mult_in0_d1[x_idx] <= 0;
+        endcase
+
+        mult_in1_d1[x_idx] <= zero_pad_d1[x_idx] ? 0 : k_out_data[4-x_idx];
+
         end
     end
 endgenerate
@@ -799,30 +881,21 @@ end
 //---------------------------------------------------------------------
 //      SRAM ADDR CALCULATOR
 //---------------------------------------------------------------------
-reg[3:0] sram_num;
-reg[14:0] sram_addr;
-reg k_wen[0:4];
-reg[11:0] img_mem_addr;
-wire[7:0] img_data_out[0:4];
-reg img_wen[0:4];
 
-reg k_access_num[0:4];
-reg img_access_num[0:4];
-
-
-reg[6:0] kernal_sram_addr;
-wire[7:0] k_out_data[0:4];
-reg kernal_wen[0:4];
 
 always @(*)
 begin
   sram_num   = 0;
-  offset     = img_size_ff * img_size_ff;
   img_mem_data_in = 0;
   kernal_data_in = 0;
   sram_num  = 0;
   sram_addr = 0;
-  img_mem_addr = 0;
+  s0_img_mem_addr = 0;
+  s1_img_mem_addr = 0;
+  s2_img_mem_addr = 0;
+  s3_img_mem_addr = 0;
+  s4_img_mem_addr = 0;
+
   kernal_sram_addr = 0;
 
   for(x=0;x<5;x=x+1)
@@ -834,7 +907,7 @@ begin
   if(ST_P_RD_IMG)
   begin
     sram_num  = wr_img_xptr % 5;
-    sram_addr = (wr_img_xptr / 5)*img_size_ff + wr_img_yptr + img_num_cnt * 225;
+    sram_addr = (wr_img_xptr / 5)*img_size_ff + wr_img_yptr + img_num_cnt * 224;
   end
   if(ST_P_RD_KERNEL)
   begin
@@ -847,7 +920,11 @@ begin
     if(in_valid)
       img_wen[sram_num] = 0;
 
-    img_mem_addr = sram_addr;
+    s0_img_mem_addr = sram_addr;
+    s1_img_mem_addr = sram_addr;
+    s2_img_mem_addr = sram_addr;
+    s3_img_mem_addr = sram_addr;
+    s4_img_mem_addr = sram_addr;
   end
 
   if(ST_P_RD_KERNEL)
@@ -860,10 +937,24 @@ begin
 
   if(ST_P_PROCESSING)
   begin
-    img_mem_addr = ;
+    for(x=0;x<5;x=x+1)
+      case(mult_in0_sram_num[x])
+      'd0:s0_img_mem_addr = mult_in0_sram_addr[x];
+      'd1:s1_img_mem_addr = mult_in0_sram_addr[x];
+      'd2:s2_img_mem_addr = mult_in0_sram_addr[x];
+      'd3:s3_img_mem_addr = mult_in0_sram_addr[x];
+      'd4:s4_img_mem_addr = mult_in0_sram_addr[x];
+      endcase
 
+    if(mode_ff == 0)
+    begin
+      kernal_sram_addr = k_yptr + kernal_idx_ff * 5;
+    end
+    else
+    begin
+      kernal_sram_addr = 4 + kernal_idx_ff * 5 - k_yptr;
+    end
   end
-
 end
 
 //==============================================//
