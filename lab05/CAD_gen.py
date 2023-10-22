@@ -2,7 +2,7 @@ import random
 import struct
 
 BIT_WIDTH = 8
-PATTERN_NUM = 50
+PATTERN_NUM = 10
 UPPER_BOUND = 127
 LOWER_BOUND = -128
 NUM_OF_MATRICES = 16
@@ -44,9 +44,9 @@ if __name__ == '__main__':
                 for _ in range(matrix_size*matrix_size):
                     # Extreme cases all 127 and all -128
                     if i ==0:
-                        matrix_value = 127
+                        matrix_value = random.randint(-3,3)
                     elif i==1:
-                        matrix_value = -128
+                        matrix_value = random.randint(5,8)
                     elif i==2:
                         matrix_value = random.randint(0,1)
                     elif i==3:
@@ -62,9 +62,9 @@ if __name__ == '__main__':
             for _ in range(16):
                 for _ in range(5*5):
                     if   i==0:
-                        kernal_value = 127
+                        kernal_value = random.randint(-3,3)
                     elif i==1:
-                        kernal_value = -128
+                        kernal_value = random.randint(5,8)
                     elif i==2:
                         kernal_value = 0
                     elif i==3:
