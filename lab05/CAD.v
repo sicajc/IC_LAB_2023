@@ -274,10 +274,6 @@ begin
     begin
         if(idx_read_done_f) p_next_st = P_PROCESSING;
     end
-    P_MOVE_KERNAL_IMG:
-    begin
-      if(img_moved_f)  p_next_st = P_PROCESSING;
-    end
     P_PROCESSING:
     begin
       if(mode_ff == 0)
@@ -406,55 +402,6 @@ begin
           rd_cnt <= 0;
         else if(in_valid2)
           rd_cnt <= rd_cnt + 1;
-      end
-      P_MOVE_KERNAL_IMG:
-      begin
-        // Maximum 1024 cycles
-        if(p_cur_st != p_next_st)
-        begin
-          wr_img_xptr <= 0;
-          wr_img_yptr <= 0;
-        end
-        if(img_moved_f)
-        begin
-          wr_img_xptr <= 0;
-          wr_img_yptr <= 0;
-        end
-        else
-        begin
-          if(wr_img_xptr == (img_size_ff-1))
-          begin
-            wr_img_yptr <= wr_img_yptr + 1;
-            wr_img_xptr <= 0;
-          end
-          else if(st_p_move_d1)
-          begin
-            wr_img_xptr <=  wr_img_xptr + 1;
-          end
-        end
-
-        if(p_cur_st!=p_next_st)
-        begin
-          wr_k_xptr <= 0;
-          wr_k_yptr <= 0;
-        end
-        else if(kernal_moved_f)
-        begin
-          wr_k_xptr <= 0;
-          wr_k_yptr <= 0;
-        end
-        else
-        begin
-          if(wr_k_xptr == 4)
-          begin
-            wr_k_yptr <= wr_k_yptr + 1;
-            wr_k_xptr <= 0;
-          end
-          else if(st_p_move_d1)
-          begin
-            wr_k_xptr <= wr_k_xptr + 1;
-          end
-        end
       end
       P_PROCESSING:
       begin
