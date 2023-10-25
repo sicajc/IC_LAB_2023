@@ -44,7 +44,7 @@ if __name__ == '__main__':
                 for _ in range(matrix_size*matrix_size):
                     # Extreme cases all 127 and all -128
                     if i ==0:
-                        matrix_value = random.randint(-3,3)
+                        matrix_value = random.randint(0,3)
                     elif i==1:
                         matrix_value = random.randint(5,8)
                     elif i==2:

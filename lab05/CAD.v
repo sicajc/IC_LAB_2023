@@ -657,7 +657,9 @@ begin
 
 
       mult_in0_sram_num[x]  =  mod5s_out[x];
-      mult_in0_sram_addr[x] = div5s_out[x]*img_size_ff + (idx_y + k_yptr) + (img_idx_ff * 224);
+      // Since img_size_ff can be saved, it is 8,16,32
+      // First selection and use additional info to do optimization.
+      mult_in0_sram_addr[x] = (div5s_out[x]*img_size_ff) + (idx_y + k_yptr) + (img_idx_ff * 224);
     end
   end
   else

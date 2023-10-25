@@ -55,7 +55,7 @@ localparam  P_RD_IMG      = 6'b000010;
 localparam  P_RD_KERNEL   = 6'b000100;
 localparam  P_WAIT_IDX    = 6'b001000;
 localparam  P_PROCESSING  = 6'b010000;
-localparam P_MOVE_KERNAL_IMG =6'b100000;
+localparam  P_MOVE_KERNAL_IMG =6'b100000;
 
 wire ST_P_IDLE          = p_cur_st[0];
 wire ST_P_RD_IMG       = p_cur_st[1];
@@ -66,8 +66,8 @@ wire ST_P_MOVE_KERNAL_IMG    = p_cur_st[5];
 
 wire ST_OUTPUT_IDLE   = out_cur_st[0];
 wire ST_OUTPUT_MODE0   = out_cur_st[1];
-wire ST_OUTPUT_MODE1_STALL   = out_cur_st[2];
 wire ST_OUTPUT_MODE1   = out_cur_st[3];
+// wire ST_OUTPUT_MODE1_STALL   = out_cur_st[2];
 
 reg[14:0] rd_cnt;
 reg[7:0] kernal_idx_ff;
@@ -97,9 +97,9 @@ reg[15:0] offset;
 reg      img_wen, kernal_wen;
 reg[13:0] img_mem_addr;
 reg[8:0] kernal_mem_addr;
-
 wire signed[7:0] img_mem_data_out,kernal_data_out;
 reg signed[7:0] img_mem_data_in,kernal_data_in;
+
 reg[15:0] lower_bound0,lower_bound1,lower_bound2,lower_bound3;
 reg signed[19:0] conv_ff;
 wire conv_accumulated_d2 = (k_yptr_d2 == 4);
@@ -576,7 +576,8 @@ end
 reg zero_pad_f[0:4];
 always @(*)
 begin
-  lower_bound0 = img_size_ff + 4;
+  lower_bo
+  und0 = img_size_ff + 4;
   lower_bound1 = img_size_ff + 5;
   lower_bound2 = img_size_ff + 6;
   lower_bound3 = img_size_ff + 7;
@@ -613,7 +614,7 @@ generate
         end
         else
         begin
-          mult_in0_d1[x_idx] <= zero_pad_f[x_idx] ? 0 : kernal_rf[4-k_yptr][4-x_idx];
+          mult_in0_d1[x_idx] <= kernal_rf[4-k_yptr][4-x_idx];
           mult_in1_d1[x_idx] <= zero_pad_f[x_idx] ? 0 : img_rf[idx_y-4][idx_x[x_idx]-4];
         end
     end
@@ -679,18 +680,18 @@ begin
   if(~rst_n)
   begin
     result_buf1 <= 0;
-    result_buf2 <= 0;
+    // result_buf2 <= 0;
   end
   else if(mode_ff == 0)
   begin
     result_buf1 <= mp_done_d2 ? ((conv_ff + mac_result_d2) > temp_max_ff)?(conv_ff + mac_result_d2):
     temp_max_ff:result_buf1;
-    result_buf2 <= temp_max_ff;
+    // result_buf2 <= temp_max_ff;
   end
   else if(mode_ff == 1)
   begin
     result_buf1 <= conv_accumulated_d2 ? (conv_ff + mac_result_d2) : result_buf1;
-    result_buf2 <= conv_accumulated_d2 ? (conv_ff + mac_result_d2) : result_buf1;
+    // result_buf2 <= conv_accumulated_d2 ? (conv_ff + mac_result_d2) : result_buf1;
   end
 end
 

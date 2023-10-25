@@ -71,10 +71,10 @@ vf_two_comp = np.vectorize(twocomplement)
 vf_reverse = np.vectorize(reverse_str)
 vf_bin2hex = np.vectorize(bin2hex)
 
-with open('lab05/input.txt', 'r') as file1:
+with open('input.txt', 'r') as file1:
   file_in = file1.readlines()
 
-with open('lab05/output.txt', 'w') as file:
+with open('output.txt', 'w') as file:
   NUM = int(file_in[0])
 
   for i in range(NUM):
@@ -92,6 +92,7 @@ with open('lab05/output.txt', 'w') as file:
     else:
        matrix_size = 32
 
+    print("hi")
     for j in range(16):
       img_in = (np.array([int(toDec(val,8)) for val in file_in[1 + 65 * i + (1+j)].split()]))
       img_16.append(np.reshape(img_in,(matrix_size,matrix_size)))
@@ -104,7 +105,6 @@ with open('lab05/output.txt', 'w') as file:
     for idx in range(16):
       mode.append(int(file_in[1 + 65 * i +(33+idx*2)])) #0 2 4
       matrix_idx.append(np.array([int(val) for val in file_in[1 + 65 * i + (34+idx*2)].split()]))# 1 3 5
-
 
       # print("Mode index",mode)
       if mode[idx] == 0:
