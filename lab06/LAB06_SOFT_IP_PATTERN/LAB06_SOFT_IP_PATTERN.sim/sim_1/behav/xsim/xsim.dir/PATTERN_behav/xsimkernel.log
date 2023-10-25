@@ -2,3 +2,6 @@ Running: xsim.dir/PATTERN_behav/xsimk.exe -simmode gui -wdb PATTERN_behav.wdb -s
 Design successfully loaded
 Design Loading Memory Usage: 7912 KB (Peak: 7912 KB)
 Design Loading CPU Usage: 15 ms
+Simulation completed
+Simulation Memory Usage: 9528 KB (Peak: 9528 KB)
+Simulation CPU Usage: 46 ms

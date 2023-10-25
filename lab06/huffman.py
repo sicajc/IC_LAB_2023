@@ -66,10 +66,10 @@ with open('lab06/output.txt', 'w') as file:
         tree.append(node2)
         node2_idx = tree_ptr
         tree_ptr += 1
-        # Create dummy queue
+        # Create dummy nodes
         sub_tree = [dummy_node_name[cnt],node2_idx,node1_idx,node1[3]+node2[3],'']
         cnt += 1
-        # Push dummy queue into queue list
+        # Push dummy nodes into queue list
         queue.append(sub_tree)
 
     #3. Tree postOrder traversal and produce the codebook
@@ -92,14 +92,14 @@ with open('lab06/output.txt', 'w') as file:
         right_child_idx = cur_node[2]
 
         # Visit left child, concatenate the encode bits, and put it into stack
-        # Check if the child has left child
+        # Check if the left child is a leaf
         if left_child_idx != -1:
             tree[left_child_idx][4] = cur_encode_bit + '0'
             # Push its idx into stack
             stack.append(left_child_idx)
 
         # Visit right child, concatenate the encode bits, and put its children into stack
-        # Check if the child has right child
+        # Check if the right child is a leaf
         if right_child_idx != -1:
             tree[right_child_idx][4] = cur_encode_bit + '1'
             # Push its idx into stack
