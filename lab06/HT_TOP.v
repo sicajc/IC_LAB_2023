@@ -68,7 +68,7 @@ wire[6:0] cur_char_bit_count;
 reg[6:0] cnt;
 reg[6:0] tree_ptr;
 reg[6:0] bit_cnt;
-wire data_rd_f = cnt == 7 && ST_RD_DATA;
+wire data_rd_f = cnt == 0 && ST_RD_DATA;
 wire tree_built_f = cnt == 7 && ST_BUILD_TREE;
 wire tree_encoded_f = cnt == 0 && ST_ENCODE;
 wire char_outputted_f = bit_cnt == cur_char_bit_count;
@@ -76,9 +76,33 @@ wire output_done_f  = cnt == 4 &&  char_outputted_f && ST_OUTPUT;
 
 reg[4:0] current_char;
 
+reg[4:0] char_rf[0:14];
+reg[4:0] left_child_idx_rf[0:14];
+reg[4:0] right_child_idx_rf[0:14];
+reg[5:0] weight_rf[0:14];
+reg[7:0] encode_bits_rf[0:14];
+reg[5:0] bit_counts_rf[0:14];
+
+reg[4:0] sorter_in_weight_rf[0:7];
+reg[5:0] sorter_in_weight_wr[0:7];
+reg[3:0] sorter_in_char_rf[0:7];
+reg[5:0] char_out_rf[0:7];
+wire[5:0] merged_node_weight = weight_rf[char_out_rf[6]] + weight_rf[char_out_rf[7]];
+
+reg [IP_WIDTH*4-1:0]  IN_character;
+reg [IP_WIDTH*5-1:0]  IN_weight;
+wire [IP_WIDTH*4-1:0]  OUT_character;
+
+reg[5:0] left_child_idx,right_child_idx,cur_bit_count,cur_code;
 
 
-integer i,j;
+wire is_leaf_f = left_child_idx == LEAF && right_child_idx == LEAF;
+reg[5:0] char_in_index[0:5];
+reg[6:0] left_child_code;
+reg[6:0] right_child_code;
+
+
+integer i,j,idx,jdx;
 reg out_mode_ff;
 //---------------------------------------------------------------------
 //      MAIN FSM
@@ -99,7 +123,7 @@ always @(*)
 begin
     next_st = cur_st;
     case(cur_st)
-    P_IDLE:
+    IDLE:
     begin
        if(in_valid) next_st = RD_DATA;
     end
@@ -114,9 +138,9 @@ begin
     BUILD_TREE:
     begin
        if(tree_built_f)
-            next_st = SORT;
-       else
             next_st = ENCODE;
+       else
+            next_st = SORT;
     end
     ENCODE:
     begin
@@ -136,7 +160,7 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        cnt <= 0;
+        cnt <= 7;
         tree_ptr  <= 8;
         bit_cnt   <= 0;
         out_valid <= 0;
@@ -146,11 +170,11 @@ begin
     begin
         if(in_valid)
         begin
-            cnt <= cnt + 1;
+            cnt <= cnt - 1;
         end
         else
         begin
-            cnt <= 0;
+            cnt <= 7;
         end
 
         tree_ptr <= 8;
@@ -160,13 +184,13 @@ begin
     end
     else if(ST_RD_DATA)
     begin
-        if(rd_data_done_f)
+        if(data_rd_f)
         begin
-            rd_cnt <= 0;
+            cnt <= 0;
         end
         else if(in_valid)
         begin
-            rd_cnt <= rd_cnt + 1;
+            cnt <= cnt - 1;
         end
     end
     else if(ST_BUILD_TREE)
@@ -190,7 +214,7 @@ begin
         end
         else
         begin
-            cnt <= cnt + 1;
+            cnt <= cnt - 1;
         end
     end
     else if(ST_OUTPUT)
@@ -237,20 +261,6 @@ end
 //---------------------------------------------------------------------
 //      DATAPATH
 //---------------------------------------------------------------------
-reg[4:0] char_rf[0:14];
-reg[4:0] left_child_idx_rf[0:14];
-reg[4:0] right_child_idx_rf[0:14];
-reg[5:0] weight_rf[0:14];
-reg[7:0] encode_bits_rf[0:14];
-reg[5:0] bit_counts_rf[0:14];
-
-reg[5:0] sorter_in_weight_rf[0:7];
-reg[5:0] sorter_in_weight_wr[0:7];
-reg[5:0] sorter_in_char_rf[0:7];
-reg[5:0] char_out_rf[0:7];
-wire[IP_WIDTH*4-1:0] character_out;
-wire[5:0] merged_node_weight = weight_rf[char_out_rf[6]] + weight_rf[char_out_rf[7]];
-
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -269,10 +279,12 @@ begin
 
         for(i=0;i<8;i=i+1)
         begin
-            sorter_in_char_rf[i]  <=i;
+            sorter_in_char_rf[i]  <= 7 - i;
             sorter_in_weight_rf[i]<=0;
             char_out_rf[i] <= 0;
         end
+
+        out_mode_ff <= 0;
     end
     else
     begin
@@ -283,7 +295,8 @@ begin
             begin
                 char_rf[0]   <= 0;
                 weight_rf[0] <= in_weight;
-                sorter_in_weight_rf[0] <= in_weight;
+                sorter_in_weight_rf[7] <= in_weight;
+                out_mode_ff <= out_mode;
             end
             else
             begin
@@ -299,7 +312,7 @@ begin
                 end
                 for(i=0;i<8;i=i+1)
                 begin
-                    sorter_in_char_rf[i]  <=i;
+                    sorter_in_char_rf[i]  <= 7 -i;
                     sorter_in_weight_rf[i]<=0;
                     char_out_rf[i] <= 0;
                 end
@@ -309,7 +322,7 @@ begin
         begin
             if(in_valid)
             begin
-                weight_rf[cnt]           <= in_weight;
+                weight_rf[7-cnt]           <= in_weight;
                 sorter_in_weight_rf[cnt] <= in_weight;
             end
         end
@@ -325,22 +338,22 @@ begin
         begin
             // update sort weight in
             for(i=0;i<6;i=i+1)
-                sorter_in_weight_rf[i] <= sorter_in_weight_wr[i];
+                sorter_in_weight_rf[i] <= sorter_in_weight_rf[char_in_index[i]];
 
             // update sort char in
             for(i=0;i<6;i=i+1)
                 sorter_in_char_rf[i] <= char_out_rf[i];
 
-            sorter_in_char_rf[6] <= LEAF;
-            sorter_in_weight_rf[6] <= 31;
+            sorter_in_char_rf[1] <= LEAF;
+            sorter_in_weight_rf[1] <= 31;
 
-            sorter_in_char_rf[7]   <= tree_ptr;
-            sorter_in_weight_rf[7] <= merged_node_weight;
+            sorter_in_char_rf[0]   <= tree_ptr;
+            sorter_in_weight_rf[0] <= merged_node_weight;
 
             // Sub-tree
             char_rf[tree_ptr]            <= tree_ptr;
-            left_child_idx_rf[tree_ptr]  <= char_out_rf[6];
-            right_child_idx_rf[tree_ptr] <= char_out_rf[7];
+            left_child_idx_rf[tree_ptr]  <= char_out_rf[1];
+            right_child_idx_rf[tree_ptr] <= char_out_rf[0];
             weight_rf[tree_ptr]          <= merged_node_weight;
         end
         ENCODE:
@@ -365,10 +378,6 @@ begin
         endcase
     end
 end
-wire is_leaf_f = left_child_idx == LEAF && right_child_idx == LEAF;
-reg[5:0] char_in_index[0:5];
-reg[6:0] left_child_code;
-reg[6:0] right_child_code;
 
 always @(*)
 begin
@@ -384,7 +393,6 @@ begin
     right_child_code[cur_bit_count] = 1;
 end
 
-
 always @(*)
 begin
     // Initailization
@@ -399,21 +407,13 @@ begin
         for(j=0;j<8;j=j+1)
             if(char_out_rf[i] == sorter_in_char_rf[j])
                 char_in_index[i] = j;
-
-    for(i=0;i<6;i=i+1)
-    begin
-        sorter_in_weight_rf[i] = sorter_in_weight_rf[char_in_index[i]];
-    end
 end
 
 // ======================================================
 // Input & Output Declaration
 // ======================================================
-reg [IP_WIDTH*4-1:0]  IN_character;
-reg [IP_WIDTH*5-1:0]  IN_weight;
-wire [IP_WIDTH*4-1:0]  OUT_character;
 
-// Probably bug here
+// Note for the sorter,
 always @(*)
 begin
     for(idx = 0;idx < IP_WIDTH; idx = idx+1)
