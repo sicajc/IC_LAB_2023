@@ -42,14 +42,14 @@ generate
             cg_temp = 0;
             w_temp  = 0;
 
-            for(idx = 0;idx < 8; idx = idx+1)
-                character_golden[idx] = IN_character[idx*4 +:4];
-            for(jdx = 0; jdx < 8; jdx = jdx+1)
-                weight_temp[jdx]      = IN_weight[jdx*5 +:5];
+            for(idx = 0;idx < IP_WIDTH; idx = idx+1)
+                character_golden[IP_WIDTH-1-idx] = IN_character[idx*4 +:4];
+            for(jdx = 0; jdx < IP_WIDTH; jdx = jdx+1)
+                weight_temp[IP_WIDTH-1-jdx]      = IN_weight[jdx*5 +:5];
 
             //golden,uses bubble sort
-            for(idx=0;idx<8;idx=idx+1)
-                for(jdx=0;jdx<8;jdx=jdx+1)
+            for(idx=0;idx<IP_WIDTH-1;idx=idx+1)
+                for(jdx=0;jdx<IP_WIDTH-idx-1;jdx=jdx+1)
                     if(weight_temp[jdx] < weight_temp[jdx+1])
                     begin
                     // Weight swapped also characters get swapped
@@ -62,9 +62,9 @@ generate
                     character_golden[jdx+1] = cg_temp;
                     end
 
-            for(idx=0;idx<8;idx=idx+1)
+            for(idx=0;idx<IP_WIDTH;idx=idx+1)
             begin
-               OUT_character[idx*4 +:4] = character_golden[idx];
+               OUT_character[idx*4 +:4] = character_golden[(IP_WIDTH-1)-idx];
             end
         end
     end
@@ -79,14 +79,14 @@ generate
             cg_temp = 0;
             w_temp  = 0;
 
-            for(idx = 0;idx < 7; idx = idx+1)
-                character_golden[idx] = IN_character[idx*4 +:4];
-            for(jdx = 0; jdx < 7; jdx = jdx+1)
-                weight_temp[jdx]      = IN_weight[jdx*5 +:5];
+             for(idx = 0;idx < IP_WIDTH; idx = idx+1)
+                character_golden[IP_WIDTH-1-idx] = IN_character[idx*4 +:4];
+            for(jdx = 0; jdx < IP_WIDTH; jdx = jdx+1)
+                weight_temp[IP_WIDTH-1-jdx]      = IN_weight[jdx*5 +:5];
 
             //golden,uses bubble sort
-            for(idx=0;idx<7;idx=idx+1)
-                for(jdx=0;jdx<7;jdx=jdx+1)
+            for(idx=0;idx<IP_WIDTH-1;idx=idx+1)
+                for(jdx=0;jdx<IP_WIDTH-idx-1;jdx=jdx+1)
                     if(weight_temp[jdx] < weight_temp[jdx+1])
                     begin
                     // Weight swapped also characters get swapped
@@ -99,9 +99,9 @@ generate
                     character_golden[jdx+1] = cg_temp;
                     end
 
-            for(idx=0;idx<7;idx=idx+1)
+            for(idx=0;idx<IP_WIDTH;idx=idx+1)
             begin
-               OUT_character[idx*4 +:4] = character_golden[idx];
+               OUT_character[idx*4 +:4] = character_golden[(IP_WIDTH-1)-idx];
             end
         end
     end
@@ -116,14 +116,14 @@ generate
             cg_temp = 0;
             w_temp  = 0;
 
-            for(idx = 0;idx < 6; idx = idx+1)
-                character_golden[idx] = IN_character[idx*4 +:4];
-            for(jdx = 0; jdx < 6; jdx = jdx+1)
-                weight_temp[jdx]      = IN_weight[jdx*5 +:5];
+            for(idx = 0;idx < IP_WIDTH; idx = idx+1)
+                character_golden[IP_WIDTH-1-idx] = IN_character[idx*4 +:4];
+            for(jdx = 0; jdx < IP_WIDTH; jdx = jdx+1)
+                weight_temp[IP_WIDTH-1-jdx]      = IN_weight[jdx*5 +:5];
 
             //golden,uses bubble sort
-            for(idx=0;idx<6;idx=idx+1)
-                for(jdx=0;jdx<6;jdx=jdx+1)
+            for(idx=0;idx<IP_WIDTH-1;idx=idx+1)
+                for(jdx=0;jdx<IP_WIDTH-idx-1;jdx=jdx+1)
                     if(weight_temp[jdx] < weight_temp[jdx+1])
                     begin
                     // Weight swapped also characters get swapped
@@ -136,9 +136,9 @@ generate
                     character_golden[jdx+1] = cg_temp;
                     end
 
-            for(idx=0;idx<6;idx=idx+1)
+            for(idx=0;idx<IP_WIDTH;idx=idx+1)
             begin
-               OUT_character[idx*4 +:4] = character_golden[idx];
+               OUT_character[idx*4 +:4] = character_golden[(IP_WIDTH-1)-idx];
             end
         end
     end
@@ -153,14 +153,14 @@ generate
             cg_temp = 0;
             w_temp  = 0;
 
-            for(idx = 0;idx < 5; idx = idx+1)
-                character_golden[idx] = IN_character[idx*4 +:4];
-            for(jdx = 0; jdx < 5; jdx = jdx+1)
-                weight_temp[jdx]      = IN_weight[jdx*5 +:5];
+             for(idx = 0;idx < IP_WIDTH; idx = idx+1)
+                character_golden[IP_WIDTH-1-idx] = IN_character[idx*4 +:4];
+            for(jdx = 0; jdx < IP_WIDTH; jdx = jdx+1)
+                weight_temp[IP_WIDTH-1-jdx]      = IN_weight[jdx*5 +:5];
 
             //golden,uses bubble sort
-            for(idx=0;idx<5;idx=idx+1)
-                for(jdx=0;jdx<5;jdx=jdx+1)
+            for(idx=0;idx<IP_WIDTH-1;idx=idx+1)
+                for(jdx=0;jdx<IP_WIDTH-idx-1;jdx=jdx+1)
                     if(weight_temp[jdx] < weight_temp[jdx+1])
                     begin
                     // Weight swapped also characters get swapped
@@ -173,9 +173,9 @@ generate
                     character_golden[jdx+1] = cg_temp;
                     end
 
-            for(idx=0;idx<5;idx=idx+1)
+            for(idx=0;idx<IP_WIDTH;idx=idx+1)
             begin
-               OUT_character[idx*4 +:4] = character_golden[idx];
+               OUT_character[idx*4 +:4] = character_golden[(IP_WIDTH-1)-idx];
             end
         end
     end
@@ -190,14 +190,14 @@ generate
             cg_temp = 0;
             w_temp  = 0;
 
-            for(idx = 0;idx < 4; idx = idx+1)
-                character_golden[idx] = IN_character[idx*4 +:4];
-            for(jdx = 0; jdx < 4; jdx = jdx+1)
-                weight_temp[jdx]      = IN_weight[jdx*5 +:5];
+            for(idx = 0;idx < IP_WIDTH; idx = idx+1)
+                character_golden[IP_WIDTH-1-idx] = IN_character[idx*4 +:4];
+            for(jdx = 0; jdx < IP_WIDTH; jdx = jdx+1)
+                weight_temp[IP_WIDTH-1-jdx]      = IN_weight[jdx*5 +:5];
 
             //golden,uses bubble sort
-            for(idx=0;idx<4;idx=idx+1)
-                for(jdx=0;jdx<4;jdx=jdx+1)
+            for(idx=0;idx<IP_WIDTH-1;idx=idx+1)
+                for(jdx=0;jdx<IP_WIDTH-idx-1;jdx=jdx+1)
                     if(weight_temp[jdx] < weight_temp[jdx+1])
                     begin
                     // Weight swapped also characters get swapped
@@ -210,9 +210,9 @@ generate
                     character_golden[jdx+1] = cg_temp;
                     end
 
-            for(idx=0;idx<4;idx=idx+1)
+            for(idx=0;idx<IP_WIDTH;idx=idx+1)
             begin
-               OUT_character[idx*4 +:4] = character_golden[idx];
+               OUT_character[idx*4 +:4] = character_golden[(IP_WIDTH-1)-idx];
             end
         end
     end
@@ -227,15 +227,15 @@ generate
             cg_temp = 0;
             w_temp  = 0;
 
-            for(idx = 0;idx < 3; idx = idx+1)
-                character_golden[idx] = IN_character[idx*4 +:4];
-            for(jdx = 0; jdx < 3; jdx = jdx+1)
-                weight_temp[jdx]      = IN_weight[jdx*5 +:5];
+            for(idx = 0;idx < IP_WIDTH; idx = idx+1)
+                character_golden[IP_WIDTH-1-idx] = IN_character[idx*4 +:4];
+            for(jdx = 0; jdx < IP_WIDTH; jdx = jdx+1)
+                weight_temp[IP_WIDTH-1-jdx]      = IN_weight[jdx*5 +:5];
 
             //golden,uses bubble sort
-            for(idx=0;idx<3;idx=idx+1)
-                for(jdx=0;jdx<3;jdx=jdx+1)
-                    if(weight_temp[jdx] <= weight_temp[jdx+1])
+            for(idx=0;idx<IP_WIDTH-1;idx=idx+1)
+                for(jdx=0;jdx<IP_WIDTH-idx-1;jdx=jdx+1)
+                    if(weight_temp[jdx] < weight_temp[jdx+1])
                     begin
                     // Weight swapped also characters get swapped
                     w_temp = weight_temp[jdx];
@@ -247,7 +247,7 @@ generate
                     character_golden[jdx+1] = cg_temp;
                     end
 
-            for(idx=0;idx<3;idx=idx+1)
+            for(idx=0;idx<IP_WIDTH;idx=idx+1)
             begin
                OUT_character[idx*4 +:4] = character_golden[(IP_WIDTH-1)-idx];
             end
