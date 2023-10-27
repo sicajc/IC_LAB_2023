@@ -23,6 +23,9 @@ char = ['A','B','C','E','I','L','O','V']
 with open('lab06/input.txt', 'r') as file1:
   file_in = file1.readlines()
 
+extreme_weight = []
+extreme_output = []
+
 with open('lab06/output.txt', 'w') as file:
   NUM = int(file_in[0])
 
@@ -68,6 +71,11 @@ with open('lab06/output.txt', 'w') as file:
         tree_ptr += 1
         # Create dummy nodes
         sub_tree = [dummy_node_name[cnt],node2_idx,node1_idx,node1[3]+node2[3],'']
+
+        if node1[3]+node2[3] == 28 and queue != []:
+            # print(in_weights)
+            extreme_weight.append([in_weights,node1[3]+node2[3]])
+
         cnt += 1
         # Push dummy nodes into queue list
         queue.append(sub_tree)
@@ -119,3 +127,7 @@ with open('lab06/output.txt', 'w') as file:
         file.write(f"{encoded_bits} ")
 
     file.write(f"\n")
+
+
+print(extreme_weight)
+# print(extreme_output)
