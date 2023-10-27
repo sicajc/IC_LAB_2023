@@ -1,6 +1,6 @@
 `define CYCLE_TIME 20.0
 
-module PATTERN #(parameter IP_WIDTH = 8)(
+module PATTERN #(parameter IP_WIDTH = 3)(
     //Output Port
     IN_character,
 	IN_weight,
@@ -69,33 +69,39 @@ begin
     end
 
     for(i = 0;i < IP_WIDTH; i = i+1)
-        character_golden[i] = IN_character[i*4 +:4];
+        character_golden[IP_WIDTH-1-i] = IN_character[i*4 +:4];
     for(j = 0; j < IP_WIDTH; j = j+1)
-        weight_temp[j]      = IN_weight[j*5 +:5];
+        weight_temp[IP_WIDTH-1-j]      = IN_weight[j*5 +:5];
 end
 endtask
-//
+
+reg[3:0] w_temp;
+reg[4:0] cg_temp;
+
 task gen_golden;
 begin
+    //weight[7] is the smallest one
     //golden,uses bubble sort
-    for(i=0;i<IP_WIDTH;i=i+1)
-        for(j=0;j<IP_WIDTH;j=j+1)
+    for(i=0;i<IP_WIDTH-1;i=i+1)
+        for(j=0;j<IP_WIDTH-i-1;j=j+1)
             if(weight_temp[j] < weight_temp[j+1])
             begin
                 // Weight swapped also characters get swapped
-                weight_temp[j] <= weight_temp[j+1];
-                weight_temp[j+1] <= weight_temp[j];
+                w_temp = weight_temp[j];
+                weight_temp[j] = weight_temp[j+1];
+                weight_temp[j+1] = w_temp;
 
-                character_golden[j] <= character_golden[j+1];
-                character_golden[j+1] <= character_golden[j];
+                cg_temp   = character_golden[j];
+                character_golden[j] = character_golden[j+1];
+                character_golden[j+1] = cg_temp;
             end
 end
 endtask
-///
+
 task check_ans; begin
     for(i=0;i<IP_WIDTH;i=i+1)
     begin
-       golden[i*4 +:4] = character_golden[i];
+       golden[i*4 +:4] = character_golden[(IP_WIDTH-1)-i];
     end
 
     if(OUT_character!==golden)
@@ -106,7 +112,7 @@ task check_ans; begin
         $display ("             answer should be : %h , your answer is : %h           ",golden, OUT_character);
         $display ("-------------------------------------------------------------------");
         #(100);
-        // $finish;
+        $finish;
     end
     else
         $display ("             Pass Pattern NO. %d          ", patcount);

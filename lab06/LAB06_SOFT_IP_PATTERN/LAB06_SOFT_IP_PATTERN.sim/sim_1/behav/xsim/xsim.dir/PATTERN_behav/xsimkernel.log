@@ -1,7 +1,7 @@
-Running: xsim.dir/PATTERN_behav/xsimk.exe -simmode gui -wdb PATTERN_behav.wdb -simrunnum 0 -socket 51590
+Running: xsim.dir/PATTERN_behav/xsimk.exe -simmode gui -wdb PATTERN_behav.wdb -simrunnum 0 -socket 57649
 Design successfully loaded
-Design Loading Memory Usage: 7912 KB (Peak: 7912 KB)
-Design Loading CPU Usage: 15 ms
+Design Loading Memory Usage: 7880 KB (Peak: 7880 KB)
+Design Loading CPU Usage: 30 ms
 Simulation completed
-Simulation Memory Usage: 9528 KB (Peak: 9528 KB)
+Simulation Memory Usage: 8588 KB (Peak: 8588 KB)
 Simulation CPU Usage: 46 ms

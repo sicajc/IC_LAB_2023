@@ -1,0 +1,198 @@
+#-----------------------------------------------------------
+# Vivado v2023.1 (64-bit)
+# SW Build 3865809 on Sun May  7 15:05:29 MDT 2023
+# IP Build 3864474 on Sun May  7 20:36:21 MDT 2023
+# SharedData Build 3865790 on Sun May 07 13:33:03 MDT 2023
+# Start of session at: Thu Oct 26 21:19:41 2023
+# Process ID: 4132
+# Current directory: C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/LAB06_SOFT_IP_PATTERN/LAB06_SOFT_IP_PATTERN.runs/synth_1
+# Command line: vivado.exe -log SORT_IP.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source SORT_IP.tcl
+# Log file: C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/LAB06_SOFT_IP_PATTERN/LAB06_SOFT_IP_PATTERN.runs/synth_1/SORT_IP.vds
+# Journal file: C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/LAB06_SOFT_IP_PATTERN/LAB06_SOFT_IP_PATTERN.runs/synth_1\vivado.jou
+# Running On: LAPTOP-JJHABV97, OS: Windows, CPU Frequency: 2496 MHz, CPU Physical cores: 10, Host memory: 16803 MB
+#-----------------------------------------------------------
+source SORT_IP.tcl -notrace
+create_project: Time (s): cpu = 00:00:04 ; elapsed = 00:00:16 . Memory (MB): peak = 449.730 ; gain = 164.895
+Command: read_checkpoint -auto_incremental -incremental C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/LAB06_SOFT_IP_PATTERN/LAB06_SOFT_IP_PATTERN.srcs/utils_1/imports/synth_1/SORT_IP.dcp
+INFO: [Vivado 12-5825] Read reference checkpoint from C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/LAB06_SOFT_IP_PATTERN/LAB06_SOFT_IP_PATTERN.srcs/utils_1/imports/synth_1/SORT_IP.dcp for incremental synthesis
+INFO: [Vivado 12-7989] Please ensure there are no constraint changes
+Command: synth_design -top SORT_IP -part xc7k70tfbv676-1
+Starting synth_design
+Attempting to get a license for feature 'Synthesis' and/or device 'xc7k70t'
+INFO: [Common 17-349] Got license for feature 'Synthesis' and/or device 'xc7k70t'
+INFO: [Designutils 20-5440] No compile time benefit to using incremental synthesis; A full resynthesis will be run
+INFO: [Designutils 20-4379] Flow is switching to default flow due to incremental criteria not met. If you would like to alter this behaviour and have the flow terminate instead, please set the following parameter config_implementation {autoIncr.Synth.RejectBehavior Terminate}
+INFO: [Synth 8-7079] Multithreading enabled for synth_design using a maximum of 2 processes.
+INFO: [Synth 8-7078] Launching helper process for spawning children vivado processes
+INFO: [Synth 8-7075] Helper process launched with PID 23432
+---------------------------------------------------------------------------------
+Starting Synthesize : Time (s): cpu = 00:00:03 ; elapsed = 00:00:13 . Memory (MB): peak = 894.902 ; gain = 412.633
+---------------------------------------------------------------------------------
+INFO: [Synth 8-6157] synthesizing module 'SORT_IP' [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/SORT_IP.v:11]
+WARNING: [Synth 8-324] index 8 out of range [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/SORT_IP.v:52]
+WARNING: [Synth 8-324] index 8 out of range [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/SORT_IP.v:52]
+WARNING: [Synth 8-324] index 8 out of range [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/SORT_IP.v:52]
+WARNING: [Synth 8-324] index 8 out of range [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/SORT_IP.v:52]
+WARNING: [Synth 8-324] index 8 out of range [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/SORT_IP.v:52]
+WARNING: [Synth 8-324] index 8 out of range [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/SORT_IP.v:52]
+WARNING: [Synth 8-324] index 8 out of range [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/SORT_IP.v:52]
+WARNING: [Synth 8-324] index 8 out of range [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/SORT_IP.v:52]
+INFO: [Synth 8-6155] done synthesizing module 'SORT_IP' (0#1) [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/SORT_IP.v:11]
+---------------------------------------------------------------------------------
+Finished Synthesize : Time (s): cpu = 00:00:05 ; elapsed = 00:00:18 . Memory (MB): peak = 989.359 ; gain = 507.090
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Constraint Validation : Time (s): cpu = 00:00:06 ; elapsed = 00:00:20 . Memory (MB): peak = 989.359 ; gain = 507.090
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Loading Part and Timing Information
+---------------------------------------------------------------------------------
+Loading part: xc7k70tfbv676-1
+---------------------------------------------------------------------------------
+Finished Loading Part and Timing Information : Time (s): cpu = 00:00:06 ; elapsed = 00:00:20 . Memory (MB): peak = 989.359 ; gain = 507.090
+---------------------------------------------------------------------------------
+INFO: [Device 21-403] Loading part xc7k70tfbv676-1
+---------------------------------------------------------------------------------
+Finished RTL Optimization Phase 2 : Time (s): cpu = 00:00:08 ; elapsed = 00:00:22 . Memory (MB): peak = 989.961 ; gain = 507.691
+---------------------------------------------------------------------------------
+No constraint files found.
+---------------------------------------------------------------------------------
+Start RTL Component Statistics 
+---------------------------------------------------------------------------------
+Detailed RTL Component Info : 
++---Muxes : 
+	   2 Input    5 Bit        Muxes := 104   
+	   2 Input    4 Bit        Muxes := 112   
+---------------------------------------------------------------------------------
+Finished RTL Component Statistics 
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Part Resource Summary
+---------------------------------------------------------------------------------
+Part Resources:
+DSPs: 240 (col length:80)
+BRAMs: 270 (col length: RAMB18 80 RAMB36 40)
+---------------------------------------------------------------------------------
+Finished Part Resource Summary
+---------------------------------------------------------------------------------
+No constraint files found.
+---------------------------------------------------------------------------------
+Start Cross Boundary and Area Optimization
+---------------------------------------------------------------------------------
+WARNING: [Synth 8-7080] Parallel synthesis criteria is not met
+---------------------------------------------------------------------------------
+Finished Cross Boundary and Area Optimization : Time (s): cpu = 00:00:15 ; elapsed = 00:01:02 . Memory (MB): peak = 1423.590 ; gain = 941.320
+---------------------------------------------------------------------------------
+No constraint files found.
+---------------------------------------------------------------------------------
+Start Timing Optimization
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Timing Optimization : Time (s): cpu = 00:00:15 ; elapsed = 00:01:02 . Memory (MB): peak = 1423.590 ; gain = 941.320
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Technology Mapping
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Technology Mapping : Time (s): cpu = 00:00:16 ; elapsed = 00:01:04 . Memory (MB): peak = 1423.590 ; gain = 941.320
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Flattening Before IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Flattening Before IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Final Netlist Cleanup
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Final Netlist Cleanup
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished IO Insertion : Time (s): cpu = 00:00:20 ; elapsed = 00:01:15 . Memory (MB): peak = 1423.590 ; gain = 941.320
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Instances
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Instances : Time (s): cpu = 00:00:20 ; elapsed = 00:01:15 . Memory (MB): peak = 1423.590 ; gain = 941.320
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Rebuilding User Hierarchy
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Rebuilding User Hierarchy : Time (s): cpu = 00:00:20 ; elapsed = 00:01:15 . Memory (MB): peak = 1423.590 ; gain = 941.320
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Ports
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Ports : Time (s): cpu = 00:00:20 ; elapsed = 00:01:15 . Memory (MB): peak = 1423.590 ; gain = 941.320
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Handling Custom Attributes
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Handling Custom Attributes : Time (s): cpu = 00:00:20 ; elapsed = 00:01:15 . Memory (MB): peak = 1423.590 ; gain = 941.320
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Nets
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Nets : Time (s): cpu = 00:00:20 ; elapsed = 00:01:15 . Memory (MB): peak = 1423.590 ; gain = 941.320
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Writing Synthesis Report
+---------------------------------------------------------------------------------
+
+Report BlackBoxes: 
++-+--------------+----------+
+| |BlackBox name |Instances |
++-+--------------+----------+
++-+--------------+----------+
+
+Report Cell Usage: 
++------+-----+------+
+|      |Cell |Count |
++------+-----+------+
+|1     |LUT2 |     5|
+|2     |LUT3 |   505|
+|3     |LUT4 |    36|
+|4     |LUT5 |   249|
+|5     |LUT6 |   121|
+|6     |IBUF |    72|
+|7     |OBUF |    32|
++------+-----+------+
+
+Report Instance Areas: 
++------+---------+-------+------+
+|      |Instance |Module |Cells |
++------+---------+-------+------+
+|1     |top      |       |  1020|
++------+---------+-------+------+
+---------------------------------------------------------------------------------
+Finished Writing Synthesis Report : Time (s): cpu = 00:00:20 ; elapsed = 00:01:15 . Memory (MB): peak = 1423.590 ; gain = 941.320
+---------------------------------------------------------------------------------
+Synthesis finished with 0 errors, 0 critical warnings and 9 warnings.
+Synthesis Optimization Runtime : Time (s): cpu = 00:00:21 ; elapsed = 00:01:15 . Memory (MB): peak = 1423.590 ; gain = 941.320
+Synthesis Optimization Complete : Time (s): cpu = 00:00:21 ; elapsed = 00:01:15 . Memory (MB): peak = 1423.590 ; gain = 941.320
+INFO: [Project 1-571] Translating synthesized netlist
+Netlist sorting complete. Time (s): cpu = 00:00:00 ; elapsed = 00:00:00.023 . Memory (MB): peak = 1423.590 ; gain = 0.000
+WARNING: [Netlist 29-101] Netlist 'SORT_IP' is not ideal for floorplanning, since the cellview 'SORT_IP' contains a large number of primitives.  Please consider enabling hierarchy in synthesis if you want to do floorplanning.
+INFO: [Project 1-570] Preparing netlist for logic optimization
+INFO: [Opt 31-138] Pushed 0 inverter(s) to 0 load pin(s).
+Netlist sorting complete. Time (s): cpu = 00:00:00 ; elapsed = 00:00:00 . Memory (MB): peak = 1423.590 ; gain = 0.000
+INFO: [Project 1-111] Unisim Transformation Summary:
+No Unisim elements were transformed.
+
+Synth Design complete | Checksum: f6fd20ef
+INFO: [Common 17-83] Releasing license: Synthesis
+16 Infos, 10 Warnings, 0 Critical Warnings and 0 Errors encountered.
+synth_design completed successfully
+synth_design: Time (s): cpu = 00:00:24 ; elapsed = 00:01:20 . Memory (MB): peak = 1423.590 ; gain = 950.012
+INFO: [Common 17-1381] The checkpoint 'C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/lab06/LAB06_SOFT_IP_PATTERN/LAB06_SOFT_IP_PATTERN.runs/synth_1/SORT_IP.dcp' has been generated.
+INFO: [runtcl-4] Executing : report_utilization -file SORT_IP_utilization_synth.rpt -pb SORT_IP_utilization_synth.pb
+INFO: [Common 17-206] Exiting Vivado at Thu Oct 26 21:21:25 2023...

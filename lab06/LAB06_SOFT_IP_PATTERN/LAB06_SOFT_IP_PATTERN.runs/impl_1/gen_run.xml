@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GenRun Id="impl_1" LaunchPart="xc7k70tfbv676-1" LaunchTime="1698326374">
+  <File Type="ROUTE-PWR" Name="SORT_IP_power_routed.rpt"/>
+  <File Type="PA-TCL" Name="SORT_IP.tcl"/>
+  <File Type="ROUTE-PWR-SUM" Name="SORT_IP_power_summary_routed.pb"/>
+  <File Type="REPORTS-TCL" Name="SORT_IP_reports.tcl"/>
+  <File Type="OPT-RQA-PB" Name="SORT_IP_rqa_opted.pb"/>
+  <File Type="BITSTR-MMI" Name="SORT_IP.mmi"/>
+  <File Type="OPT-METHODOLOGY-DRC" Name="SORT_IP_methodology_drc_opted.rpt"/>
+  <File Type="INIT-TIMING" Name="SORT_IP_timing_summary_init.rpt"/>
+  <File Type="OPT-TIMING" Name="SORT_IP_timing_summary_opted.rpt"/>
+  <File Type="OPT-DCP" Name="SORT_IP_opt.dcp"/>
+  <File Type="OPT-DRC" Name="SORT_IP_drc_opted.rpt"/>
+  <File Type="OPT-HWDEF" Name="SORT_IP.hwdef"/>
+  <File Type="PWROPT-DCP" Name="SORT_IP_pwropt.dcp"/>
+  <File Type="PWROPT-DRC" Name="SORT_IP_drc_pwropted.rpt"/>
+  <File Type="PWROPT-TIMING" Name="SORT_IP_timing_summary_pwropted.rpt"/>
+  <File Type="PLACE-DCP" Name="SORT_IP_placed.dcp"/>
+  <File Type="PLACE-IO" Name="SORT_IP_io_placed.rpt"/>
+  <File Type="PLACE-CLK" Name="SORT_IP_clock_utilization_placed.rpt"/>
+  <File Type="PLACE-UTIL" Name="SORT_IP_utilization_placed.rpt"/>
+  <File Type="PLACE-UTIL-PB" Name="SORT_IP_utilization_placed.pb"/>
+  <File Type="PLACE-CTRL" Name="SORT_IP_control_sets_placed.rpt"/>
+  <File Type="PLACE-SIMILARITY" Name="SORT_IP_incremental_reuse_placed.rpt"/>
+  <File Type="PLACE-PRE-SIMILARITY" Name="SORT_IP_incremental_reuse_pre_placed.rpt"/>
+  <File Type="BG-BIN" Name="SORT_IP.bin"/>
+  <File Type="PLACE-TIMING" Name="SORT_IP_timing_summary_placed.rpt"/>
+  <File Type="ROUTE-PWR-RPX" Name="SORT_IP_power_routed.rpx"/>
+  <File Type="PLACE-RQA-PB" Name="SORT_IP_rqa_placed.pb"/>
+  <File Type="POSTPLACE-PWROPT-DCP" Name="SORT_IP_postplace_pwropt.dcp"/>
+  <File Type="BITSTR-MSK" Name="SORT_IP.msk"/>
+  <File Type="POSTPLACE-PWROPT-TIMING" Name="SORT_IP_timing_summary_postplace_pwropted.rpt"/>
+  <File Type="PHYSOPT-DCP" Name="SORT_IP_physopt.dcp"/>
+  <File Type="PHYSOPT-DRC" Name="SORT_IP_drc_physopted.rpt"/>
+  <File Type="BITSTR-RBT" Name="SORT_IP.rbt"/>
+  <File Type="PHYSOPT-TIMING" Name="SORT_IP_timing_summary_physopted.rpt"/>
+  <File Type="ROUTE-ERROR-DCP" Name="SORT_IP_routed_error.dcp"/>
+  <File Type="ROUTE-DCP" Name="SORT_IP_routed.dcp"/>
+  <File Type="ROUTE-BLACKBOX-DCP" Name="SORT_IP_routed_bb.dcp"/>
+  <File Type="ROUTE-DRC" Name="SORT_IP_drc_routed.rpt"/>
+  <File Type="ROUTE-DRC-PB" Name="SORT_IP_drc_routed.pb"/>
+  <File Type="ROUTE-DRC-RPX" Name="SORT_IP_drc_routed.rpx"/>
+  <File Type="ROUTE-METHODOLOGY-DRC" Name="SORT_IP_methodology_drc_routed.rpt"/>
+  <File Type="ROUTE-METHODOLOGY-DRC-RPX" Name="SORT_IP_methodology_drc_routed.rpx"/>
+  <File Type="ROUTE-METHODOLOGY-DRC-PB" Name="SORT_IP_methodology_drc_routed.pb"/>
+  <File Type="ROUTE-RQS-PB" Name="SORT_IP_rqs_routed.pb"/>
+  <File Type="ROUTE-STATUS" Name="SORT_IP_route_status.rpt"/>
+  <File Type="ROUTE-STATUS-PB" Name="SORT_IP_route_status.pb"/>
+  <File Type="ROUTE-TIMINGSUMMARY" Name="SORT_IP_timing_summary_routed.rpt"/>
+  <File Type="ROUTE-TIMING-PB" Name="SORT_IP_timing_summary_routed.pb"/>
+  <File Type="ROUTE-TIMING-RPX" Name="SORT_IP_timing_summary_routed.rpx"/>
+  <File Type="ROUTE-SIMILARITY" Name="SORT_IP_incremental_reuse_routed.rpt"/>
+  <File Type="ROUTE-CLK" Name="SORT_IP_clock_utilization_routed.rpt"/>
+  <File Type="ROUTE-BUS-SKEW" Name="SORT_IP_bus_skew_routed.rpt"/>
+  <File Type="ROUTE-BUS-SKEW-PB" Name="SORT_IP_bus_skew_routed.pb"/>
+  <File Type="ROUTE-BUS-SKEW-RPX" Name="SORT_IP_bus_skew_routed.rpx"/>
+  <File Type="POSTROUTE-PHYSOPT-DCP" Name="SORT_IP_postroute_physopt.dcp"/>
+  <File Type="POSTROUTE-PHYSOPT-BLACKBOX-DCP" Name="SORT_IP_postroute_physopt_bb.dcp"/>
+  <File Type="POSTROUTE-PHYSOPT-TIMING" Name="PATTERN_timing_summary_postroute_physopted.rpt"/>
+  <File Type="POSTROUTE-PHYSOPT-TIMING-PB" Name="PATTERN_timing_summary_postroute_physopted.pb"/>
+  <File Type="POSTROUTE-PHYSOPT-TIMING-RPX" Name="PATTERN_timing_summary_postroute_physopted.rpx"/>
+  <File Type="POSTROUTE-PHYSOPT-BUS-SKEW" Name="PATTERN_bus_skew_postroute_physopted.rpt"/>
+  <File Type="BG-BIT" Name="SORT_IP.bit"/>
+  <File Type="POSTROUTE-PHYSOPT-BUS-SKEW-PB" Name="PATTERN_bus_skew_postroute_physopted.pb"/>
+  <File Type="POSTROUTE-PHYSOPT-BUS-SKEW-RPX" Name="PATTERN_bus_skew_postroute_physopted.rpx"/>
+  <File Type="BITSTR-NKY" Name="SORT_IP.nky"/>
+  <File Type="BITSTR-BMM" Name="SORT_IP_bd.bmm"/>
+  <File Type="PDI-FILE" Name="SORT_IP.pdi"/>
+  <File Type="BOOT-PDI-FILE" Name="SORT_IP_soc.pdi"/>
+  <File Type="PL-PDI-FILE" Name="SORT_IP_pld.pdi"/>
+  <File Type="RCFI_FILE" Name="SORT_IP.rcfi"/>
+  <File Type="CFI_FILE" Name="SORT_IP.cfi"/>
+  <File Type="RNPI_FILE" Name="SORT_IP.rnpi"/>
+  <File Type="NPI_FILE" Name="SORT_IP.npi"/>
+  <File Type="RBD_FILE" Name="SORT_IP.rbd"/>
+  <File Type="BITSTR-LTX" Name="debug_nets.ltx"/>
+  <File Type="BITSTR-LTX" Name="SORT_IP.ltx"/>
+  <File Type="BITSTR-SYSDEF" Name="SORT_IP.sysdef"/>
+  <File Type="BG-BGN" Name="SORT_IP.bgn"/>
+  <File Type="BG-DRC" Name="SORT_IP.drc"/>
+  <File Type="RDI-RDI" Name="SORT_IP.vdi"/>
+  <File Type="WBT-USG" Name="usage_statistics_webtalk.html"/>
+  <File Type="ROUTE-RQS" Name="SORT_IP_routed.rqs"/>
+  <File Type="POSTROUTE-PHYSOPT-RQS" Name="SORT_IP_postroute_physopted.rqs"/>
+  <File Type="ROUTE-RQS-RPT" Name="route_report_qor_suggestions_0.rpt"/>
+  <File Type="POSTROUTE-PHYSOPT-RQS-RPT" Name="postroute_physopt_report_qor_suggestions_0.rpt"/>
+  <FileSet Name="sources" Type="DesignSrcs" RelSrcDir="$PSRCDIR/sources_1" RelGenDir="$PGENDIR/sources_1">
+    <Filter Type="Srcs"/>
+    <File Path="$PPRDIR/../SORT_IP.v">
+      <FileInfo>
+        <Attr Name="UsedIn" Val="synthesis"/>
+        <Attr Name="UsedIn" Val="implementation"/>
+        <Attr Name="UsedIn" Val="simulation"/>
+      </FileInfo>
+    </File>
+    <Config>
+      <Option Name="DesignMode" Val="RTL"/>
+      <Option Name="TopModule" Val="SORT_IP"/>
+      <Option Name="TopAutoSet" Val="TRUE"/>
+    </Config>
+  </FileSet>
+  <FileSet Name="constrs_in" Type="Constrs" RelSrcDir="$PSRCDIR/constrs_1" RelGenDir="$PGENDIR/constrs_1">
+    <Filter Type="Constrs"/>
+    <Config>
+      <Option Name="ConstrsType" Val="XDC"/>
+    </Config>
+  </FileSet>
+  <FileSet Name="utils" Type="Utils" RelSrcDir="$PSRCDIR/utils_1" RelGenDir="$PGENDIR/utils_1">
+    <Filter Type="Utils"/>
+    <File Path="$PSRCDIR/utils_1/imports/synth_1/SORT_IP.dcp">
+      <FileInfo>
+        <Attr Name="UsedIn" Val="synthesis"/>
+        <Attr Name="UsedIn" Val="implementation"/>
+        <Attr Name="UsedInSteps" Val="synth_1"/>
+        <Attr Name="AutoDcp" Val="1"/>
+      </FileInfo>
+    </File>
+    <Config>
+      <Option Name="TopAutoSet" Val="TRUE"/>
+    </Config>
+  </FileSet>
+  <Strategy Version="1" Minor="2">
+    <StratHandle Name="Vivado Implementation Defaults" Flow="Vivado Implementation 2023"/>
+    <Step Id="init_design"/>
+    <Step Id="opt_design"/>
+    <Step Id="power_opt_design"/>
+    <Step Id="place_design"/>
+    <Step Id="post_place_power_opt_design"/>
+    <Step Id="phys_opt_design"/>
+    <Step Id="route_design"/>
+    <Step Id="post_route_phys_opt_design"/>
+    <Step Id="write_bitstream"/>
+  </Strategy>
+</GenRun>

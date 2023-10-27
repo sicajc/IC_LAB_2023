@@ -10,7 +10,7 @@ rd.seed(1234)
 ex1_in_weight = [3,7,6,5,3,3,5,7]
 ex2_in_weight = [0,0,0,0,0,0,0,0]
 ex3_in_weight = [7,7,7,7,7,7,7,7]
-ex4_in_weight = [7,7,7,3,3,3,1,1]
+ex4_in_weight = [1,1,2,2,4,4,6,6]
 
 if __name__ == '__main__':
     with open('lab06/input.txt', 'w') as f:
