@@ -129,5 +129,5 @@ with open('lab06/output.txt', 'w') as file:
     file.write(f"\n")
 
 
-print(extreme_weight)
+# print(extreme_weight)
 # print(extreme_output)

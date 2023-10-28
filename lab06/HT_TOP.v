@@ -97,7 +97,6 @@ reg[5:0] left_child_idx,right_child_idx,cur_bit_count,cur_code;
 
 
 wire is_leaf_f = left_child_idx == LEAF && right_child_idx == LEAF;
-reg[5:0] char_in_index[0:7];
 reg[6:0] left_child_code;
 reg[6:0] right_child_code;
 
@@ -342,7 +341,16 @@ begin
             begin
                 // update sort weight in
                 for(i=2;i<8;i=i+1)
-                    sorter_in_weight_rf[i] <= sorter_in_weight_rf[char_in_index[i]];
+                begin
+                    if(char_out_rf[i] == LEAF)
+                    begin
+                        sorter_in_weight_rf[i] <= 31;
+                    end
+                    else
+                    begin
+                        sorter_in_weight_rf[i] <= weight_rf[char_out_rf[i]];
+                    end
+                end
 
                 // update sort char in
                 for(i=2;i<8;i=i+1)
@@ -396,21 +404,6 @@ begin
 
     right_child_code = cur_code;
     right_child_code[cur_bit_count] = 1;
-end
-
-always @(*)
-begin
-    // Initailization
-    for(i=0;i<8;i=i+1)
-    begin
-        char_in_index[i] = 0;
-    end
-
-    // Find the index location for the weight after sortin
-    for(i=0;i<8;i=i+1)
-        for(j=0;j<8;j=j+1)
-            if(char_out_rf[i] == sorter_in_char_rf[j])
-                char_in_index[i] = j;
 end
 
 // ======================================================

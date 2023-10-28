@@ -3,7 +3,7 @@ import random as rd
 # in_weight 3 bits
 UPPER_BOUND = 7
 LOWER_BOUND = 0
-PATTERN_NUM = 100
+PATTERN_NUM = 100000
 
 rd.seed(1234)
 
