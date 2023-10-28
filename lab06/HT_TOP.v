@@ -70,7 +70,7 @@ reg[6:0] tree_ptr;
 reg[6:0] bit_cnt;
 wire data_rd_f = cnt == 0 && ST_RD_DATA;
 wire tree_built_f = cnt == 7 && ST_BUILD_TREE;
-wire tree_encoded_f = cnt == 7 && ST_ENCODE;
+wire tree_encoded_f = cnt == 8 && ST_ENCODE;
 wire char_outputted_f = bit_cnt == (cur_char_bit_count-1);
 wire output_done_f  = cnt == 4 &&  char_outputted_f && ST_OUTPUT;
 
@@ -82,6 +82,9 @@ reg[4:0] right_child_idx_rf[0:14];
 reg[5:0] weight_rf[0:14];
 reg[6:0] encode_bits_rf[0:14];
 reg[5:0] bit_counts_rf[0:14];
+
+reg[5:0] broadcast_flag[0:6];
+reg[5:0] broadcast_flag_wr[0:6];
 
 reg[4:0] sorter_in_weight_rf[0:7];
 reg[5:0] sorter_in_weight_wr[0:7];
@@ -128,11 +131,18 @@ begin
     end
     RD_DATA:
     begin
-       if(data_rd_f) next_st = BUILD_TREE;
+       if(data_rd_f) next_st = SORT;
+    end
+    SORT:
+    begin
+       next_st = BUILD_TREE;
     end
     BUILD_TREE:
     begin
-       if(tree_built_f) next_st = ENCODE;
+       if(tree_built_f)
+            next_st = ENCODE;
+       else
+            next_st = SORT;
     end
     ENCODE:
     begin
@@ -157,6 +167,8 @@ begin
         bit_cnt   <= 0;
         out_valid <= 0;
         out_code  <= 0;
+        for(i=0;i<7;i=i+1)
+            broadcast_flag[i] <= 0;
     end
     else if(ST_IDLE)
     begin
@@ -173,6 +185,8 @@ begin
         bit_cnt <= 0;
         out_valid <= 0;
         out_code  <= 0;
+        for(i=0;i<7;i=i+1)
+            broadcast_flag[i] <= 0;
     end
     else if(ST_RD_DATA)
     begin
@@ -320,6 +334,14 @@ begin
                 sorter_in_weight_rf[cnt] <= in_weight;
             end
         end
+        SORT:
+        begin
+            for(i=0;i<8;i=i+1)
+            begin
+                // Higher index is smalle
+                char_out_rf[i] <= OUT_character[i*4 +: 4];
+            end
+        end
         BUILD_TREE:
         begin
             if(~tree_built_f)
@@ -391,12 +413,55 @@ begin
     right_child_code[cur_bit_count] = 1;
 end
 
-always @(*)
+reg[6:0] encode_bits_rf_wr[0:13];
+// ======================================================
+// Broadcast flag
+// ======================================================
+always@(*)
 begin
     for(i=0;i<8;i=i+1)
     begin
-        // Higher index is smalle
-        char_out_rf[i] = OUT_character[i*4 +: 4];
+        broadcast_flag_wr[i] = broadcast_flag[i];
+    end
+
+    if(ST_BUILD_TREE)
+    begin
+        // Left child
+        for( i= 0;i<8 ; i=i+1)
+        begin
+            // If normal node
+            if(char_out_rf[1] < 8)
+            begin
+                broadcast_flag_wr[char_out_rf[1]][(tree_ptr-8)] = 1;
+                encode_bits_rf_wr[char_out_rf[1]]
+            end
+            else if(char_out_rf[1] >= 8 && char_out_rf[1] <= 14)
+            begin
+                // If dummy node
+                if(broadcast_flag[i][(char_out_rf[1]-8)] == 1)
+                begin
+                    broadcast_flag_wr[char_out_rf[1]][(tree_ptr-8)] = 1;
+                end
+            end
+        end
+
+        //Right child
+        for( i=0;i<8 ; i=i+1)
+        begin
+            // If normal node
+            if(char_out_rf[0] < 8)
+            begin
+                broadcast_flag_wr[char_out_rf[0]][(tree_ptr-8)] = 1;
+            end
+            else if(char_out_rf[0] >= 8 && char_out_rf[0] <= 14)
+            begin
+                // If dummy node
+                if(broadcast_flag[i][(char_out_rf[0]-8)] == 1)
+                begin
+                    broadcast_flag_wr[char_out_rf[0]][(tree_ptr-8)] = 1;
+                end
+            end
+        end
     end
 end
 
@@ -404,8 +469,7 @@ end
 // ======================================================
 // Input & Output Declaration
 // ======================================================
-
-// Note for the sorter,
+// Note for the sorter
 always @(*)
 begin
     for(idx = 0;idx < IP_WIDTH; idx = idx+1)
