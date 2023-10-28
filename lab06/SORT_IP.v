@@ -36,7 +36,6 @@ generate
         reg[3:0] cg_temp;
         reg[4:0] w_temp;
         integer idx,jdx;
-
         always @(*)
         begin
             cg_temp = 0;
@@ -73,7 +72,6 @@ generate
         reg[3:0] cg_temp;
         reg[4:0] w_temp;
         integer idx,jdx;
-
         always @(*)
         begin
             cg_temp = 0;
@@ -110,8 +108,7 @@ generate
         reg[3:0] cg_temp;
         reg[4:0] w_temp;
         integer idx,jdx;
-
-         always @(*)
+        always @(*)
         begin
             cg_temp = 0;
             w_temp  = 0;
@@ -147,7 +144,6 @@ generate
         reg[3:0] cg_temp;
         reg[4:0] w_temp;
         integer idx,jdx;
-
         always @(*)
         begin
             cg_temp = 0;
@@ -184,7 +180,6 @@ generate
         reg[3:0] cg_temp;
         reg[4:0] w_temp;
         integer idx,jdx;
-
         always @(*)
         begin
             cg_temp = 0;
@@ -221,7 +216,6 @@ generate
         reg[3:0] cg_temp;
         reg[4:0] w_temp;
         integer idx,jdx;
-
         always @(*)
         begin
             cg_temp = 0;

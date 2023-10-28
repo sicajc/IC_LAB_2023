@@ -332,7 +332,7 @@ begin
         begin
             for(i=0;i<8;i=i+1)
             begin
-                // Higher index is smalle
+                // Higher index is smaller
                 char_out_rf[i] <= OUT_character[i*4 +: 4];
             end
         end
