@@ -71,7 +71,7 @@ reg[6:0] bit_cnt;
 wire data_rd_f = cnt == 0 && ST_RD_DATA;
 wire tree_built_f = cnt == 7 && ST_BUILD_TREE;
 wire tree_encoded_f = cnt == 0 && ST_ENCODE;
-wire char_outputted_f = bit_cnt == cur_char_bit_count;
+wire char_outputted_f = bit_cnt == (cur_char_bit_count-1);
 wire output_done_f  = cnt == 4 &&  char_outputted_f && ST_OUTPUT;
 
 reg[4:0] current_char;
@@ -80,14 +80,14 @@ reg[4:0] char_rf[0:14];
 reg[4:0] left_child_idx_rf[0:14];
 reg[4:0] right_child_idx_rf[0:14];
 reg[5:0] weight_rf[0:14];
-reg[7:0] encode_bits_rf[0:14];
+reg[6:0] encode_bits_rf[0:14];
 reg[5:0] bit_counts_rf[0:14];
 
 reg[4:0] sorter_in_weight_rf[0:7];
 reg[5:0] sorter_in_weight_wr[0:7];
 reg[3:0] sorter_in_char_rf[0:7];
 reg[5:0] char_out_rf[0:7];
-wire[5:0] merged_node_weight = weight_rf[char_out_rf[6]] + weight_rf[char_out_rf[7]];
+wire[5:0] merged_node_weight = weight_rf[char_out_rf[0]] + weight_rf[char_out_rf[1]];
 
 reg [IP_WIDTH*4-1:0]  IN_character;
 reg [IP_WIDTH*5-1:0]  IN_weight;
@@ -97,7 +97,7 @@ reg[5:0] left_child_idx,right_child_idx,cur_bit_count,cur_code;
 
 
 wire is_leaf_f = left_child_idx == LEAF && right_child_idx == LEAF;
-reg[5:0] char_in_index[0:5];
+reg[5:0] char_in_index[0:7];
 reg[6:0] left_child_code;
 reg[6:0] right_child_code;
 
@@ -148,7 +148,7 @@ begin
     end
     OUTPUT:
     begin
-       if(output_done_f)  next_st = OUTPUT;
+       if(output_done_f)  next_st = IDLE;
     end
     endcase
 end
@@ -234,8 +234,10 @@ begin
     end
 end
 
+assign cur_char_bit_count = bit_counts_rf[current_char];
 always @(*)
 begin
+    current_char = 0;
     if(out_mode_ff == 0)
     begin
         case(cnt)
@@ -268,8 +270,8 @@ begin
         for(i=0;i<15;i=i+1)
         begin
             char_rf[i] <= i;
-            left_child_idx_rf[i] <= 0;
-            right_child_idx_rf[i] <= 0;
+            left_child_idx_rf[i] <= LEAF;
+            right_child_idx_rf[i] <= LEAF;
             weight_rf[i] <= 0;
             bit_counts_rf[i] <= 0;
 
@@ -302,8 +304,8 @@ begin
             begin
                 for(i=0;i<15;i=i+1)
                 begin
-                    left_child_idx_rf[i] <= 0;
-                    right_child_idx_rf[i] <= 0;
+                    left_child_idx_rf[i] <= LEAF;
+                    right_child_idx_rf[i] <= LEAF;
                     weight_rf[i] <= 0;
                     bit_counts_rf[i] <= 0;
 
@@ -336,19 +338,22 @@ begin
         end
         BUILD_TREE:
         begin
-            // update sort weight in
-            for(i=0;i<6;i=i+1)
-                sorter_in_weight_rf[i] <= sorter_in_weight_rf[char_in_index[i]];
+            if(~tree_built_f)
+            begin
+                // update sort weight in
+                for(i=2;i<8;i=i+1)
+                    sorter_in_weight_rf[i] <= sorter_in_weight_rf[char_in_index[i]];
 
-            // update sort char in
-            for(i=0;i<6;i=i+1)
-                sorter_in_char_rf[i] <= char_out_rf[i];
+                // update sort char in
+                for(i=2;i<8;i=i+1)
+                    sorter_in_char_rf[i] <= char_out_rf[i];
 
-            sorter_in_char_rf[1] <= LEAF;
-            sorter_in_weight_rf[1] <= 31;
+                sorter_in_char_rf[1] <= LEAF;
+                sorter_in_weight_rf[1] <= 31;
 
-            sorter_in_char_rf[0]   <= tree_ptr;
-            sorter_in_weight_rf[0] <= merged_node_weight;
+                sorter_in_char_rf[0]   <= tree_ptr;
+                sorter_in_weight_rf[0] <= merged_node_weight;
+            end
 
             // Sub-tree
             char_rf[tree_ptr]            <= tree_ptr;
@@ -396,14 +401,14 @@ end
 always @(*)
 begin
     // Initailization
-    for(i=0;i<6;i=i+1)
+    for(i=0;i<8;i=i+1)
     begin
         sorter_in_weight_wr[i] = 0;
         char_in_index[i] = 0;
     end
 
     // Find the index location for the weight after sortin
-    for(i=0;i<6;i=i+1)
+    for(i=0;i<8;i=i+1)
         for(j=0;j<8;j=j+1)
             if(char_out_rf[i] == sorter_in_char_rf[j])
                 char_in_index[i] = j;
