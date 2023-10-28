@@ -332,7 +332,7 @@ begin
         begin
             for(i=0;i<8;i=i+1)
             begin
-                // Higher index is smaller
+                // Higher index is smalle
                 char_out_rf[i] <= OUT_character[i*4 +: 4];
             end
         end
@@ -403,7 +403,6 @@ begin
     // Initailization
     for(i=0;i<8;i=i+1)
     begin
-        sorter_in_weight_wr[i] = 0;
         char_in_index[i] = 0;
     end
 
