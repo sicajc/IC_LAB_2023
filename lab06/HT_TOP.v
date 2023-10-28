@@ -70,7 +70,7 @@ reg[6:0] tree_ptr;
 reg[6:0] bit_cnt;
 wire data_rd_f = cnt == 0 && ST_RD_DATA;
 wire tree_built_f = cnt == 7 && ST_BUILD_TREE;
-wire tree_encoded_f = cnt == 0 && ST_ENCODE;
+wire tree_encoded_f = cnt == 7 && ST_ENCODE;
 wire char_outputted_f = bit_cnt == (cur_char_bit_count-1);
 wire output_done_f  = cnt == 4 &&  char_outputted_f && ST_OUTPUT;
 
@@ -128,18 +128,11 @@ begin
     end
     RD_DATA:
     begin
-       if(data_rd_f) next_st = SORT;
-    end
-    SORT:
-    begin
-       next_st = BUILD_TREE;
+       if(data_rd_f) next_st = BUILD_TREE;
     end
     BUILD_TREE:
     begin
-       if(tree_built_f)
-            next_st = ENCODE;
-       else
-            next_st = SORT;
+       if(tree_built_f) next_st = ENCODE;
     end
     ENCODE:
     begin
@@ -327,14 +320,6 @@ begin
                 sorter_in_weight_rf[cnt] <= in_weight;
             end
         end
-        SORT:
-        begin
-            for(i=0;i<8;i=i+1)
-            begin
-                // Higher index is smalle
-                char_out_rf[i] <= OUT_character[i*4 +: 4];
-            end
-        end
         BUILD_TREE:
         begin
             if(~tree_built_f)
@@ -405,6 +390,16 @@ begin
     right_child_code = cur_code;
     right_child_code[cur_bit_count] = 1;
 end
+
+always @(*)
+begin
+    for(i=0;i<8;i=i+1)
+    begin
+        // Higher index is smalle
+        char_out_rf[i] = OUT_character[i*4 +: 4];
+    end
+end
+
 
 // ======================================================
 // Input & Output Declaration
