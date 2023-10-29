@@ -69,7 +69,7 @@ reg[6:0] cnt;
 reg[6:0] tree_ptr;
 reg[6:0] bit_cnt;
 wire data_rd_f = cnt == 0 && ST_RD_DATA;
-wire tree_built_f = cnt == 7 && ST_BUILD_TREE;
+wire tree_built_f = cnt == 6 && ST_BUILD_TREE;
 wire tree_encoded_f = cnt == 8 && ST_ENCODE;
 wire char_outputted_f = bit_cnt == 0;
 wire output_done_f  = cnt == 4 &&  char_outputted_f && ST_OUTPUT;
@@ -79,8 +79,10 @@ reg[4:0] current_char;
 reg[4:0] char_rf[0:14];
 reg[5:0] weight_rf[0:14];
 reg[6:0] encode_bits_rf[0:7];
-reg[5:0] bit_counts_rf[0:7];
+reg[6:0] encode_bits_rf_wr[0:7];
 
+reg[5:0] bit_counts_rf[0:7];
+reg[5:0] bit_counts_rf_wr[0:7];
 
 reg[4:0] sorter_in_weight_rf[0:7];
 reg[5:0] sorter_in_weight_wr[0:7];
@@ -100,11 +102,7 @@ reg[6:0] left_child_code;
 reg[6:0] right_child_code;
 
 reg[6:0] flag_map_rf[0:7];
-
-
-reg[6:0] encode_bits_rf_wr[0:6];
-reg[4:0] bit_counts_rf_wr[0:6];
-reg[4:0] flag_map_rf_wr[0:6];
+reg[6:0] flag_map_rf_wr[0:7];
 
 reg[6:0] flag_map;
 reg[7:0] encode_bits;
@@ -202,8 +200,9 @@ begin
     begin
         if(tree_built_f)
         begin
-            cnt <= 14;
+            cnt <= 0;
             tree_ptr <= 8;
+            bit_cnt  <= bit_counts_rf_wr[I]-1;
         end
         else
         begin
@@ -214,16 +213,30 @@ begin
     else if(ST_OUTPUT)
     begin
         out_valid <= 1;
-        if(bit_cnt == 0) // Handle the first load problem
-            out_code  <= encode_bits_rf[current_char][cur_char_bit_count-1];
-        else
-            out_code  <= encode_bits_rf[current_char][bit_cnt];
+        out_code  <= encode_bits_rf[current_char][bit_cnt];
 
         // Output the next char
         if(char_outputted_f)
         begin
             cnt <= cnt + 1;
-            bit_cnt <= cur_char_bit_count-2;
+            if(out_mode_ff == 0)
+            begin
+                case(cnt)
+                'd0:   bit_cnt <= bit_counts_rf[L]-1;
+                'd1:   bit_cnt <= bit_counts_rf[O]-1;
+                'd2:   bit_cnt <= bit_counts_rf[V]-1;
+                'd3:   bit_cnt <= bit_counts_rf[E]-1;
+                endcase
+            end
+            else
+            begin
+                case(cnt)
+                'd0:   bit_cnt <= bit_counts_rf[C]-1;
+                'd1:   bit_cnt <= bit_counts_rf[L]-1;
+                'd2:   bit_cnt <= bit_counts_rf[A]-1;
+                'd3:   bit_cnt <= bit_counts_rf[B]-1;
+                endcase
+            end
         end
         else
         begin
@@ -275,6 +288,7 @@ begin
             sorter_in_char_rf[i]  <= 7 - i;
             sorter_in_weight_rf[i]<=0;
             char_out_rf[i] <= 0;
+            flag_map_rf[i] <= 0;
         end
 
         out_mode_ff <= 0;
@@ -303,6 +317,7 @@ begin
                     sorter_in_char_rf[i]  <= 7-i;
                     sorter_in_weight_rf[i]<=0;
                     char_out_rf[i] <= 0;
+                    flag_map_rf[i] <= 0;
                 end
             end
         end
@@ -318,7 +333,7 @@ begin
         begin
             for(i=0;i<8;i=i+1)
             begin
-                // Higher index is smalle
+                // Higher index is small
                 char_out_rf[i] <= OUT_character[i*4 +: 4];
             end
         end
@@ -365,15 +380,14 @@ begin
 end
 
 
-
 always @(*)
 begin
     // Temp variables
     flag_map     = 0;
     encode_bits  = 0;
     bit_counts   = 0;
-    left_child_idx  = char_out_rf[0];
-    right_child_idx = char_out_rf[1];
+    left_child_idx  = char_out_rf[1];
+    right_child_idx = char_out_rf[0];
     offset_idx = tree_ptr - 8;
 
     // Initialization
@@ -384,7 +398,6 @@ begin
         bit_counts_rf_wr[i] = bit_counts_rf[i];
     end
 
-
     // Left child
     if(left_child_idx < 8)
     begin
@@ -392,7 +405,7 @@ begin
         encode_bits = encode_bits_rf[left_child_idx];
         bit_counts  = bit_counts_rf[left_child_idx];
 
-        flag_map[tree_ptr] = 1;
+        flag_map[offset_idx] = 1;
         encode_bits[bit_counts] = 0;
 
         flag_map_rf_wr[left_child_idx] = flag_map;
@@ -403,7 +416,7 @@ begin
     begin
         for(i=0;i<8;i=i+1)
         begin
-            flag_map = tree_flag_map_rf[i];
+            flag_map = flag_map_rf[i];
             if(flag_map[left_child_idx-8] == 1)
             begin
                 encode_bits = encode_bits_rf[i];
@@ -420,14 +433,14 @@ begin
     end
 
     // Right child
-    if(left_child_idx < 8)
+    if(right_child_idx < 8)
     begin
         flag_map    = flag_map_rf[right_child_idx];
         encode_bits = encode_bits_rf[right_child_idx];
         bit_counts  = bit_counts_rf[right_child_idx];
 
-        flag_map[tree_ptr] = 1;
-        encode_bits[bit_counts] = 0;
+        flag_map[offset_idx] = 1;
+        encode_bits[bit_counts] = 1;
 
         flag_map_rf_wr[right_child_idx] = flag_map;
         encode_bits_rf_wr[right_child_idx] = encode_bits;
@@ -437,14 +450,14 @@ begin
     begin
         for(i=0;i<8;i=i+1)
         begin
-            flag_map = tree_flag_map_rf[i];
+            flag_map = flag_map_rf[i];
             if(flag_map[right_child_idx-8] == 1)
             begin
                 encode_bits = encode_bits_rf[i];
                 bit_counts  = bit_counts_rf[i];
 
                 flag_map[offset_idx] = 1;
-                encode_bits[bit_counts] = 0;
+                encode_bits[bit_counts] = 1;
 
                 flag_map_rf_wr[i] = flag_map;
                 encode_bits_rf_wr[i] = encode_bits;
