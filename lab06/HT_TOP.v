@@ -77,11 +77,9 @@ wire output_done_f  = cnt == 4 &&  char_outputted_f && ST_OUTPUT;
 reg[4:0] current_char;
 
 reg[4:0] char_rf[0:14];
-reg[4:0] left_child_idx_rf[0:14];
-reg[4:0] right_child_idx_rf[0:14];
 reg[5:0] weight_rf[0:14];
-reg[6:0] encode_bits_rf[0:14];
-reg[5:0] bit_counts_rf[0:14];
+reg[6:0] encode_bits_rf[0:7];
+reg[5:0] bit_counts_rf[0:7];
 
 
 reg[4:0] sorter_in_weight_rf[0:7];
@@ -172,8 +170,6 @@ begin
         bit_cnt   <= 0;
         out_valid <= 0;
         out_code  <= 0;
-        for(i=0;i<7;i=i+1)
-            broadcast_flag[i] <= 0;
     end
     else if(ST_IDLE)
     begin
@@ -190,8 +186,6 @@ begin
         bit_cnt <= 0;
         out_valid <= 0;
         out_code  <= 0;
-        for(i=0;i<7;i=i+1)
-            broadcast_flag[i] <= 0;
     end
     else if(ST_RD_DATA)
     begin
@@ -272,19 +266,12 @@ begin
     if(~rst_n)
     begin
         for(i=0;i<15;i=i+1)
-        begin
-            char_rf[i] <= i;
-            left_child_idx_rf[i] <= LEAF;
-            right_child_idx_rf[i] <= LEAF;
             weight_rf[i] <= 31;
-            bit_counts_rf[i] <= 0;
-
-            for(j=0;j<7;j=j+1)
-                encode_bits_rf[i][j] <= 0;
-        end
 
         for(i=0;i<8;i=i+1)
         begin
+            bit_counts_rf[i] <= 0;
+            encode_bits_rf[i] <= 0;
             sorter_in_char_rf[i]  <= 7 - i;
             sorter_in_weight_rf[i]<=0;
             char_out_rf[i] <= 0;
@@ -307,18 +294,13 @@ begin
             else
             begin
                 for(i=0;i<15;i=i+1)
-                begin
-                    left_child_idx_rf[i] <= LEAF;
-                    right_child_idx_rf[i] <= LEAF;
                     weight_rf[i] <= 31;
-                    bit_counts_rf[i] <= 0;
 
-                    for(j=0;j<7;j=j+1)
-                        encode_bits_rf[i][j] <= 0;
-                end
                 for(i=0;i<8;i=i+1)
                 begin
-                    sorter_in_char_rf[i]  <= 7 -i;
+                    encode_bits_rf[i] <= 0;
+                    bit_counts_rf[i] <= 0;
+                    sorter_in_char_rf[i]  <= 7-i;
                     sorter_in_weight_rf[i]<=0;
                     char_out_rf[i] <= 0;
                 end
