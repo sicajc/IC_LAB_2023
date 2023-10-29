@@ -70,25 +70,22 @@ reg[6:0] tree_ptr;
 reg[6:0] bit_cnt;
 wire data_rd_f = cnt == 0 && ST_RD_DATA;
 wire tree_built_f = cnt == 6 && ST_BUILD_TREE;
-wire tree_encoded_f = cnt == 8 && ST_ENCODE;
 wire char_outputted_f = bit_cnt == 0;
 wire output_done_f  = cnt == 4 &&  char_outputted_f && ST_OUTPUT;
 
-reg[4:0] current_char;
+reg[3:0] current_char;
 
-reg[4:0] char_rf[0:14];
-reg[5:0] weight_rf[0:14];
+reg[4:0] weight_rf[0:14];
 reg[6:0] encode_bits_rf[0:7];
 reg[6:0] encode_bits_rf_wr[0:7];
-
-reg[5:0] bit_counts_rf[0:7];
-reg[5:0] bit_counts_rf_wr[0:7];
+reg[2:0] bit_counts_rf[0:7];
+reg[2:0] bit_counts_rf_wr[0:7];
 
 reg[4:0] sorter_in_weight_rf[0:7];
-reg[5:0] sorter_in_weight_wr[0:7];
+reg[4:0] sorter_in_weight_wr[0:7];
 reg[3:0] sorter_in_char_rf[0:7];
-reg[5:0] char_out_rf[0:7];
-wire[5:0] merged_node_weight = weight_rf[char_out_rf[0]] + weight_rf[char_out_rf[1]];
+reg[3:0] char_out_rf[0:7];
+wire[4:0] merged_node_weight = weight_rf[char_out_rf[0]] + weight_rf[char_out_rf[1]];
 
 reg [IP_WIDTH*4-1:0]  IN_character;
 reg [IP_WIDTH*5-1:0]  IN_weight;
@@ -136,18 +133,12 @@ begin
     end
     RD_DATA:
     begin
-       if(data_rd_f) next_st = SORT;
-    end
-    SORT:
-    begin
-       next_st = BUILD_TREE;
+       if(data_rd_f) next_st = BUILD_TREE;
     end
     BUILD_TREE:
     begin
        if(tree_built_f)
             next_st = OUTPUT;
-       else
-            next_st = SORT;
     end
     OUTPUT:
     begin
@@ -287,7 +278,7 @@ begin
             encode_bits_rf[i] <= 0;
             sorter_in_char_rf[i]  <= 7 - i;
             sorter_in_weight_rf[i]<=0;
-            char_out_rf[i] <= 0;
+            // char_out_rf[i] <= 0;
             flag_map_rf[i] <= 0;
         end
 
@@ -300,7 +291,6 @@ begin
         begin
             if(in_valid)
             begin
-                char_rf[0]   <= 0;
                 weight_rf[0] <= in_weight;
                 sorter_in_weight_rf[7] <= in_weight;
                 out_mode_ff <= out_mode;
@@ -316,7 +306,7 @@ begin
                     bit_counts_rf[i] <= 0;
                     sorter_in_char_rf[i]  <= 7-i;
                     sorter_in_weight_rf[i]<=0;
-                    char_out_rf[i] <= 0;
+                    // char_out_rf[i] <= 0;
                     flag_map_rf[i] <= 0;
                 end
             end
@@ -327,14 +317,6 @@ begin
             begin
                 weight_rf[7-cnt]           <= in_weight;
                 sorter_in_weight_rf[cnt] <= in_weight;
-            end
-        end
-        SORT:
-        begin
-            for(i=0;i<8;i=i+1)
-            begin
-                // Higher index is small
-                char_out_rf[i] <= OUT_character[i*4 +: 4];
             end
         end
         BUILD_TREE:
@@ -376,6 +358,15 @@ begin
             end
         end
         endcase
+    end
+end
+
+always @(*)
+begin
+    for(i=0;i<8;i=i+1)
+    begin
+        // Higher index is small
+        char_out_rf[i] = OUT_character[i*4 +: 4];
     end
 end
 

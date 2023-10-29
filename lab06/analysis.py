@@ -1,12 +1,6 @@
-latency = 15
-clock_cycle = 15
-area        = 110000
-
-print(latency*clock_cycle*area)
-
-latency = 23
-clock_cycle = 10
-area        = 99000
+latency = 7
+clock_cycle = 13
+area        = 100000
 
 print(latency*clock_cycle*area)
 
