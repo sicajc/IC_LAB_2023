@@ -71,7 +71,7 @@ reg[6:0] bit_cnt;
 wire data_rd_f = cnt == 0 && ST_RD_DATA;
 wire tree_built_f = cnt == 7 && ST_BUILD_TREE;
 wire tree_encoded_f = cnt == 8 && ST_ENCODE;
-wire char_outputted_f = bit_cnt == (cur_char_bit_count-1);
+wire char_outputted_f = bit_cnt == 0;
 wire output_done_f  = cnt == 4 &&  char_outputted_f && ST_OUTPUT;
 
 reg[4:0] current_char;
@@ -83,8 +83,6 @@ reg[5:0] weight_rf[0:14];
 reg[6:0] encode_bits_rf[0:14];
 reg[5:0] bit_counts_rf[0:14];
 
-reg[5:0] broadcast_flag[0:6];
-reg[5:0] broadcast_flag_wr[0:6];
 
 reg[4:0] sorter_in_weight_rf[0:7];
 reg[5:0] sorter_in_weight_wr[0:7];
@@ -103,6 +101,17 @@ wire is_leaf_f = left_child_idx == LEAF && right_child_idx == LEAF;
 reg[6:0] left_child_code;
 reg[6:0] right_child_code;
 
+reg[6:0] flag_map_rf[0:7];
+
+
+reg[6:0] encode_bits_rf_wr[0:6];
+reg[4:0] bit_counts_rf_wr[0:6];
+reg[4:0] flag_map_rf_wr[0:6];
+
+reg[6:0] flag_map;
+reg[7:0] encode_bits;
+reg[3:0] bit_counts;
+reg[4:0] offset_idx;
 
 integer i,j,idx,jdx;
 reg out_mode_ff;
@@ -140,13 +149,9 @@ begin
     BUILD_TREE:
     begin
        if(tree_built_f)
-            next_st = ENCODE;
+            next_st = OUTPUT;
        else
             next_st = SORT;
-    end
-    ENCODE:
-    begin
-      if(tree_encoded_f)  next_st = OUTPUT;
     end
     OUTPUT:
     begin
@@ -212,30 +217,23 @@ begin
             tree_ptr <= tree_ptr + 1;
         end
     end
-    else if(ST_ENCODE)
-    begin
-        if(tree_encoded_f)
-        begin
-            cnt <= 0;
-        end
-        else
-        begin
-            cnt <= cnt - 1;
-        end
-    end
     else if(ST_OUTPUT)
     begin
         out_valid <= 1;
-        out_code  <= encode_bits_rf[current_char][bit_cnt];
+        if(bit_cnt == 0) // Handle the first load problem
+            out_code  <= encode_bits_rf[current_char][cur_char_bit_count-1];
+        else
+            out_code  <= encode_bits_rf[current_char][bit_cnt];
 
+        // Output the next char
         if(char_outputted_f)
         begin
             cnt <= cnt + 1;
-            bit_cnt <= 0;
+            bit_cnt <= cur_char_bit_count-2;
         end
         else
         begin
-            bit_cnt <= bit_cnt + 1;
+            bit_cnt <= bit_cnt - 1;
         end
     end
 end
@@ -278,7 +276,7 @@ begin
             char_rf[i] <= i;
             left_child_idx_rf[i] <= LEAF;
             right_child_idx_rf[i] <= LEAF;
-            weight_rf[i] <= 0;
+            weight_rf[i] <= 31;
             bit_counts_rf[i] <= 0;
 
             for(j=0;j<7;j=j+1)
@@ -312,7 +310,7 @@ begin
                 begin
                     left_child_idx_rf[i] <= LEAF;
                     right_child_idx_rf[i] <= LEAF;
-                    weight_rf[i] <= 0;
+                    weight_rf[i] <= 31;
                     bit_counts_rf[i] <= 0;
 
                     for(j=0;j<7;j=j+1)
@@ -369,102 +367,110 @@ begin
                 sorter_in_char_rf[0]   <= tree_ptr;
                 sorter_in_weight_rf[0] <= merged_node_weight;
             end
-
             // Sub-tree
-            char_rf[tree_ptr]            <= tree_ptr;
-            left_child_idx_rf[tree_ptr]  <= char_out_rf[1];
-            right_child_idx_rf[tree_ptr] <= char_out_rf[0];
             weight_rf[tree_ptr]          <= merged_node_weight;
-        end
-        ENCODE:
-        begin
-            if(~is_leaf_f)
-            begin
-                if(left_child_idx != right_child_idx)
-                begin
-                    encode_bits_rf[left_child_idx] <= left_child_code;
-                    bit_counts_rf[left_child_idx]  <= cur_bit_count + 1;
 
-                    encode_bits_rf[right_child_idx] <= right_child_code;
-                    bit_counts_rf[right_child_idx]  <= cur_bit_count + 1;
-                end
-                else
-                begin
-                    encode_bits_rf[left_child_idx] <= left_child_code;
-                    bit_counts_rf[left_child_idx]  <= cur_bit_count + 1;
-                end
+            // Updates infos
+            for(i=0;i<8;i=i+1)
+            begin
+                encode_bits_rf[i] <= encode_bits_rf_wr[i];
+                bit_counts_rf[i] <= bit_counts_rf_wr[i];
+                flag_map_rf[i] <= flag_map_rf_wr[i];
             end
         end
         endcase
     end
 end
 
+
+
 always @(*)
 begin
-    left_child_idx  = left_child_idx_rf[cnt];
-    right_child_idx = right_child_idx_rf[cnt];
-    cur_code        = encode_bits_rf[cnt];
-    cur_bit_count   = bit_counts_rf[cnt];
+    // Temp variables
+    flag_map     = 0;
+    encode_bits  = 0;
+    bit_counts   = 0;
+    left_child_idx  = char_out_rf[0];
+    right_child_idx = char_out_rf[1];
+    offset_idx = tree_ptr - 8;
 
-    left_child_code = cur_code;
-    left_child_code[cur_bit_count]  = 0;
-
-    right_child_code = cur_code;
-    right_child_code[cur_bit_count] = 1;
-end
-
-reg[6:0] encode_bits_rf_wr[0:13];
-// ======================================================
-// Broadcast flag
-// ======================================================
-always@(*)
-begin
+    // Initialization
     for(i=0;i<8;i=i+1)
     begin
-        broadcast_flag_wr[i] = broadcast_flag[i];
+        flag_map_rf_wr[i] = flag_map_rf[i];
+        encode_bits_rf_wr[i] = encode_bits_rf[i];
+        bit_counts_rf_wr[i] = bit_counts_rf[i];
     end
 
-    if(ST_BUILD_TREE)
+
+    // Left child
+    if(left_child_idx < 8)
     begin
-        // Left child
-        for( i= 0;i<8 ; i=i+1)
+        flag_map    = flag_map_rf[left_child_idx];
+        encode_bits = encode_bits_rf[left_child_idx];
+        bit_counts  = bit_counts_rf[left_child_idx];
+
+        flag_map[tree_ptr] = 1;
+        encode_bits[bit_counts] = 0;
+
+        flag_map_rf_wr[left_child_idx] = flag_map;
+        encode_bits_rf_wr[left_child_idx] = encode_bits;
+        bit_counts_rf_wr[left_child_idx] = bit_counts + 1;
+    end
+    else
+    begin
+        for(i=0;i<8;i=i+1)
         begin
-            // If normal node
-            if(char_out_rf[1] < 8)
+            flag_map = tree_flag_map_rf[i];
+            if(flag_map[left_child_idx-8] == 1)
             begin
-                broadcast_flag_wr[char_out_rf[1]][(tree_ptr-8)] = 1;
-                encode_bits_rf_wr[char_out_rf[1]]
-            end
-            else if(char_out_rf[1] >= 8 && char_out_rf[1] <= 14)
-            begin
-                // If dummy node
-                if(broadcast_flag[i][(char_out_rf[1]-8)] == 1)
-                begin
-                    broadcast_flag_wr[char_out_rf[1]][(tree_ptr-8)] = 1;
-                end
+                encode_bits = encode_bits_rf[i];
+                bit_counts  = bit_counts_rf[i];
+
+                flag_map[offset_idx] = 1;
+                encode_bits[bit_counts] = 0;
+
+                flag_map_rf_wr[i] = flag_map;
+                encode_bits_rf_wr[i] = encode_bits;
+                bit_counts_rf_wr[i] = bit_counts + 1;
             end
         end
+    end
 
-        //Right child
-        for( i=0;i<8 ; i=i+1)
+    // Right child
+    if(left_child_idx < 8)
+    begin
+        flag_map    = flag_map_rf[right_child_idx];
+        encode_bits = encode_bits_rf[right_child_idx];
+        bit_counts  = bit_counts_rf[right_child_idx];
+
+        flag_map[tree_ptr] = 1;
+        encode_bits[bit_counts] = 0;
+
+        flag_map_rf_wr[right_child_idx] = flag_map;
+        encode_bits_rf_wr[right_child_idx] = encode_bits;
+        bit_counts_rf_wr[right_child_idx] = bit_counts + 1;
+    end
+    else
+    begin
+        for(i=0;i<8;i=i+1)
         begin
-            // If normal node
-            if(char_out_rf[0] < 8)
+            flag_map = tree_flag_map_rf[i];
+            if(flag_map[right_child_idx-8] == 1)
             begin
-                broadcast_flag_wr[char_out_rf[0]][(tree_ptr-8)] = 1;
-            end
-            else if(char_out_rf[0] >= 8 && char_out_rf[0] <= 14)
-            begin
-                // If dummy node
-                if(broadcast_flag[i][(char_out_rf[0]-8)] == 1)
-                begin
-                    broadcast_flag_wr[char_out_rf[0]][(tree_ptr-8)] = 1;
-                end
+                encode_bits = encode_bits_rf[i];
+                bit_counts  = bit_counts_rf[i];
+
+                flag_map[offset_idx] = 1;
+                encode_bits[bit_counts] = 0;
+
+                flag_map_rf_wr[i] = flag_map;
+                encode_bits_rf_wr[i] = encode_bits;
+                bit_counts_rf_wr[i] = bit_counts + 1;
             end
         end
     end
 end
-
 
 // ======================================================
 // Input & Output Declaration
