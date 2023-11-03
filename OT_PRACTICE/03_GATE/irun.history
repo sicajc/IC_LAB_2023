@@ -1,0 +1,3 @@
+s1(08Apr2023:20:04:41):  irun -timescale 1ns/1fs -override_precision -sdf_precision 1fs TESTBED.v -define GATE -debug -v /RAID2/COURSE/iclab/iclabta01/umc018/Verilog/umc18_neg.v -incdir ./../00_TESTBED/ -nontcglitch -loadpli1 debpli:novas_pli_boot 
+s2(10Apr2023:00:23:55):  irun -timescale 1ns/1fs -override_precision -sdf_precision 1fs TESTBED.v -define GATE -debug -v /RAID2/COURSE/iclab/iclabta01/umc018/Verilog/umc18_neg.v -incdir ./../00_TESTBED/ -nontcglitch -loadpli1 debpli:novas_pli_boot 
+s3(10Apr2023:11:35:42):  irun -timescale 1ns/1fs -override_precision -sdf_precision 1fs TESTBED.v -define GATE -debug -v /RAID2/COURSE/iclab/iclabta01/umc018/Verilog/umc18_neg.v -incdir ./../00_TESTBED/ -nontcglitch -loadpli1 debpli:novas_pli_boot 

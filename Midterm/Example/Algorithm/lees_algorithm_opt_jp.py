@@ -1,52 +1,15 @@
 # %%
 import numpy as np
 import copy
-MAP_SIZE = 16
+MAP_SIZE = 64
 
 # Do data structure augmentation on both map
 # Path map, 0 as passable, 1 as block, 2,3 as seq for further optimization
-path_map = np.array([[0 for y in range(MAP_SIZE+2)] for x in range(MAP_SIZE+2)])
+# Counting sequence 2->2->3->3
+path_map = np.array([[1 for y in range(MAP_SIZE+2)] for x in range(MAP_SIZE+2)])
 
 # Location map, 0 as passable, 1 as blocked
-location_map = np.array([[0 for y in range(MAP_SIZE+2)] for x in range(MAP_SIZE+2)])
-
-# Wall padding for boundary condition handling
-for y in range(MAP_SIZE+2):
-    for x in range(MAP_SIZE+2):
-        if y == 0 or x == 0 or y == MAP_SIZE+1 or x == MAP_SIZE+1:
-            path_map[y,x] = 1
-            location_map[y,x] = 1
-
-# Thus all target is offsetted by (1,1)
-# (x,y)
-# Assign example location map
-# Macro 1
-location_map[3:5,11:15] = 9
-location_map[11:13,5:7] = 9
-# Macro 2
-location_map[3:6,3:7] = 4
-location_map[13:15,12:15] = 4
-
-# %%
-def copy_loc_path(path_map,location_map):
-    for y in range(MAP_SIZE+2):
-        for x in range(MAP_SIZE+2):
-            if location_map[y,x] != 0:
-                path_map[y,x] = 1
-            else:
-                path_map[y,x] = 0
-    return
-
-# %%
-copy_loc_path(path_map,location_map)
-
-# %%
-location_map
-
-# %%
-path_map
-
-# %%
+location_map = np.array([[0 for y in range(MAP_SIZE)] for x in range(MAP_SIZE)])
 ## Given net_id,loc_x and loc_y
 net_id_1 = 9
 src_x_1 = 5  #source
@@ -60,8 +23,23 @@ src_y_2 = 2
 dst_x_2 = 13 # sink
 dst_y_2 = 13
 
-# %%
-path_map_nxt = copy.deepcopy(path_map)
+target_num_ff = 2
+
+# (x,y)
+# Assign example location map
+# Macro 1
+location_map[2:4,10:14] = 9
+location_map[10:12,4:6] = 9
+# Macro 2
+location_map[2:5,2:6] = 4
+location_map[12:14,11:14] = 4
+
+# Wall padding for boundary condition handling on only path map
+# Updates path map when reading in data from DRAM
+for y in range(1,MAP_SIZE+1):
+    for x in range(1,MAP_SIZE+1):
+        if location_map[y-1,x-1] == 0:
+            path_map[y,x] = 0
 
 # %%
 def adjacent_has_2_3(path_map,dst_y,dst_x):
@@ -122,7 +100,7 @@ path_map,cnt
 
 # %%
 def retrace_path(net_id,src_x,src_y,dst_x,dst_y,location_map,path_map,cnt):
-    # Find the first label and starting seq from dst, implement FSM in python
+    # Uses the cnt value finished at filling path for retrace
     cur_x   = dst_x + 1
     cur_y   = dst_y + 1
     target_x = src_x + 1
@@ -137,7 +115,8 @@ def retrace_path(net_id,src_x,src_y,dst_x,dst_y,location_map,path_map,cnt):
             nxt_count = cnt-1
 
         path_map[cur_y,cur_x] = 1
-        location_map[cur_y,cur_x] = net_id
+        # Writing into location map, notes must be offsetted by (1,1)
+        location_map[cur_y-1,cur_x-1] = net_id
 
         if nxt_count == 2 or nxt_count == 3: # Expect 3
             # Down
@@ -175,15 +154,6 @@ def retrace_path(net_id,src_x,src_y,dst_x,dst_y,location_map,path_map,cnt):
 retrace_path(net_id_1,src_x_1,src_y_1,dst_x_1,dst_y_1,location_map,path_map,cnt)
 
 # %%
-location_map
-
-# %%
-location_map
-
-# %%
-path_map
-
-# %%
 for y in range(MAP_SIZE+2):
     for x in range(MAP_SIZE+2):
         if path_map[y,x] != 1:
@@ -191,8 +161,8 @@ for y in range(MAP_SIZE+2):
 
 # %%
 def clear_pathmap(path_map):
-    for y in range(MAP_SIZE+2):
-        for x in range(MAP_SIZE+2):
+    for y in range(1,MAP_SIZE+1):
+        for x in range(1,MAP_SIZE+1):
             if path_map[y,x] != 1:
                 path_map[y,x] = 0
 
@@ -216,3 +186,15 @@ retrace_path(net_id_2,src_x_2,src_y_2,dst_x_2,dst_y_2,location_map,path_map,cnt)
 
 # %%
 location_map
+
+# 1. Setup Location map and Wall padded path map
+# 2. Read location map into padded path map
+# 3. for idx in range(target_num_ff):
+    # 1. Fill path map
+    # 2. From cnt of path map, retrace path map and update location map
+    # 3. Clear path map
+    # 4. Do these for all sources and destination
+
+# 4. Write back the location map
+# 5. Read out the weight matrix
+# 6. Do accumulation then output the golden cost
