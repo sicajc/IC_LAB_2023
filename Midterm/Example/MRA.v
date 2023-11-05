@@ -5,7 +5,7 @@
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 //   ICLAB 2021 Fall
-//   Midterm Proejct            : MRA  
+//   Midterm Proejct            : MRA
 //   Author                     : Lin-Hung, Lai
 //
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -19,14 +19,14 @@
 
 module MRA(
 	// CHIP IO
-	clk            	,	
-	rst_n          	,	
-	in_valid       	,	
-	frame_id        ,	
-	net_id         	,	  
-	loc_x          	,	  
+	clk            	,
+	rst_n          	,
+	in_valid       	,
+	frame_id        ,
+	net_id         	,
+	loc_x          	,
     loc_y         	,
-	cost	 		,		
+	cost	 		,
 	busy         	,
 
     // AXI4 IO
@@ -37,14 +37,14 @@ module MRA(
 	  arburst_m_inf,
 	  arvalid_m_inf,
 	  arready_m_inf,
-	
+
 	      rid_m_inf,
 	    rdata_m_inf,
 	    rresp_m_inf,
 	    rlast_m_inf,
 	   rvalid_m_inf,
 	   rready_m_inf,
-	
+
 	     awid_m_inf,
 	   awaddr_m_inf,
 	   awsize_m_inf,
@@ -52,50 +52,50 @@ module MRA(
 	    awlen_m_inf,
 	  awvalid_m_inf,
 	  awready_m_inf,
-	
+
 	    wdata_m_inf,
 	    wlast_m_inf,
 	   wvalid_m_inf,
 	   wready_m_inf,
-	
+
 	      bid_m_inf,
 	    bresp_m_inf,
 	   bvalid_m_inf,
-	   bready_m_inf 
+	   bready_m_inf
 );
 // ===============================================================
-//  					Parameter Declaration 
+//  					Parameter Declaration
 // ===============================================================
 parameter ID_WIDTH=4, DATA_WIDTH=128, ADDR_WIDTH=32;    // DO NOT modify AXI4 Parameter
-parameter NUM_ROW = 64, NUM_COLUMN = 64; 				
+parameter NUM_ROW = 64, NUM_COLUMN = 64;
 parameter MAX_NUM_MACRO = 15;
 
 
 // ===============================================================
-//  					Input / Output 
+//  					Input / Output
 // ===============================================================
 
 // << CHIP io port with system >>
 input 			  	clk,rst_n;
 input 			   	in_valid;
 input  [4:0] 		frame_id;
-input  [3:0]       	net_id;     
-input  [5:0]       	loc_x; 
-input  [5:0]       	loc_y; 
+input  [3:0]       	net_id;
+input  [5:0]       	loc_x;
+input  [5:0]       	loc_y;
 output wire [13:0] 	cost;
-output wire         busy;       
-  
+output wire         busy;
+
 // AXI Interface wire connecttion for pseudo DRAM read/write
 /* Hint:
        Your AXI-4 interface could be designed as a bridge in submodule,
-	   therefore I declared output of AXI as wire.  
+	   therefore I declared output of AXI as wire.
 	   Ex: AXI4_interface AXI4_INF(...);
 */
 
 // ------------------------
 // <<<<< AXI READ >>>>>
 // ------------------------
-// (1)	axi read address channel 
+// (1)	axi read address channel
 output wire [ID_WIDTH-1:0]      arid_m_inf;
 output wire [1:0]            arburst_m_inf;
 output wire [2:0]             arsize_m_inf;
@@ -104,7 +104,7 @@ output wire                  arvalid_m_inf;
 input  wire                  arready_m_inf;
 output reg  [ADDR_WIDTH-1:0]  araddr_m_inf;
 // ------------------------
-// (2)	axi read data channel 
+// (2)	axi read data channel
 input  wire [ID_WIDTH-1:0]       rid_m_inf;
 input  wire                   rvalid_m_inf;
 output wire                   rready_m_inf;
@@ -114,7 +114,7 @@ input  wire [1:0]              rresp_m_inf;
 // ------------------------
 // <<<<< AXI WRITE >>>>>
 // ------------------------
-// (1) 	axi write address channel 
+// (1) 	axi write address channel
 output wire [ID_WIDTH-1:0]      awid_m_inf;
 output wire [1:0]            awburst_m_inf;
 output wire [2:0]             awsize_m_inf;
@@ -123,13 +123,13 @@ output wire                  awvalid_m_inf;
 input  wire                  awready_m_inf;
 output reg  [ADDR_WIDTH-1:0]  awaddr_m_inf;
 // -------------------------
-// (2)	axi write data channel 
+// (2)	axi write data channel
 output wire                   wvalid_m_inf;
 input  wire                   wready_m_inf;
 output wire [DATA_WIDTH-1:0]   wdata_m_inf;
 output reg                     wlast_m_inf;
 // -------------------------
-// (3)	axi write response channel 
+// (3)	axi write response channel
 input  wire  [ID_WIDTH-1:0]      bid_m_inf;
 input  wire                   bvalid_m_inf;
 output wire                   bready_m_inf;
@@ -159,11 +159,9 @@ integer i, j, k;
 // ===============================================================
 //  					FLAGS
 // ===============================================================
-
-
 reg retrace_write_flag, retrace_write_flag_d1;
 reg read_weight_done, read_weight_done_d1;
-reg read_weight_done_and_retrace_d1, read_weight_done_and_retrace_d2, 
+reg read_weight_done_and_retrace_d1, read_weight_done_and_retrace_d2,
     read_weight_done_and_retrace_d3, read_weight_done_and_retrace_d4,read_weight_done_and_retrace_d5;
 reg step_flag, step_flag_d1;
 wire compute_done;
@@ -341,7 +339,7 @@ reg [13:0] total_cost;
 assign cost = total_cost;
 
 // ===============================================================
-//  					SRAM 
+//  					SRAM
 // ===============================================================
 
 wire [127:0] Q_w, Q_m;
@@ -363,9 +361,9 @@ RA1SH WEIGHT       (.Q(Q_w),.CLK(clk),.CEN(1'b0),.WEN(wen_w),.A(addr_w),.D(D_w),
 
 
 // << Burst & ID >>
-assign arid_m_inf    = 4'd0; 			// fixed id to 0 
-assign arburst_m_inf = 2'd1;		// fixed mode to INCR mode 
-assign arsize_m_inf  = 3'b100;		// fixed size to 2^4 = 16 Bytes 
+assign arid_m_inf    = 4'd0; 			// fixed id to 0
+assign arburst_m_inf = 2'd1;		// fixed mode to INCR mode
+assign arsize_m_inf  = 3'b100;		// fixed size to 2^4 = 16 Bytes
 assign arlen_m_inf   = 8'd127;
 
 // << Burst & ID >>
@@ -440,7 +438,7 @@ begin
 		begin
 			source_x_r[cnt] <= loc_x;
 			source_y_r[cnt] <= loc_y;
-		end 
+		end
 	end
 end
 
@@ -460,7 +458,7 @@ begin
 			sink_x_r[cnt] <= loc_x;
 			sink_y_r[cnt] <= loc_y;
 			net_id_r[cnt] <= net_id;
-		end 
+		end
 	end
 end
 
@@ -473,7 +471,7 @@ always@(posedge clk or negedge rst_n)
 begin
     if(!rst_n)
 		process_num <= 4'b0;
-	else 
+	else
 	    process_num <= process_num_nxt;
 end
 
@@ -493,7 +491,7 @@ always@(posedge clk or negedge rst_n)
 begin
     if(!rst_n)
 		target_num <= 4'b0;
-	else 
+	else
 	    if(in_valid)
 			target_num <= cnt;
 end
@@ -534,13 +532,6 @@ end
 // ===============================================================
 //  					64 x 64 2-bit XOR
 // ===============================================================
-
-
-
-
-
-
-
 always@(posedge clk or negedge rst_n)
 begin
     if(!rst_n)
@@ -578,7 +569,7 @@ begin
 			else
 				nxt_state = cur_state;
 		DRAM_WRITE:
-			if(bvalid_m_inf) 
+			if(bvalid_m_inf)
 				nxt_state = IDLE;
 			else
 				nxt_state = cur_state;
@@ -642,7 +633,7 @@ begin
 		for(i=62;i<64;i=i+1)
 			for(j=0;j<64;j=j+1)
 				map_state_nxt[i][j] = map_state_r[i][j];
-		
+
 		for(i=2;i<64;i=i+1)
 			for(j=0;j<2;j=j+1)
 				map_state_nxt[i][j] = map_state_r[i][j];
@@ -663,7 +654,7 @@ begin
 		for(i=62;i<64;i=i+1)
 			for(j=0;j<64;j=j+1)
 				map_state_nxt[i][j] = map_state_r[i][j];
-		
+
 		for(i=2;i<64;i=i+1)
 			for(j=0;j<2;j=j+1)
 				map_state_nxt[i][j] = map_state_r[i][j];
@@ -675,10 +666,10 @@ begin
 		for(i=0;i<64;i=i+1)
 			for(j=0;j<64;j=j+1)
 				map_state_nxt[i][j] = {1'b0, {(~map_state_r[i][j][1]) & map_state_r[i][j][0]}};//{2{&map_state_r[i][j]}};
-					
+
 	end else if(dram_read_map_flag && rvalid_m_inf)
 	begin
-				
+
 		for(i=32;i<64;i=i+1)
 			map_state_nxt[63][i] = {1'b0,|rdata_m_inf[(i-32)*4 +: 4]};
 
@@ -690,7 +681,7 @@ begin
 				map_state_nxt[i][j] = map_state_r[i+1][j-32];
 		for(i=0;i<32;i=i+1)
 			map_state_nxt[63][i] = map_state_r[63][i+32];
-		
+
 
 	end else if(compute_flag)  //Lee's Algorithm
 	begin
@@ -706,46 +697,46 @@ begin
 				map_state_nxt[0][j] = {1'b1,path_cnt};
 			else
 				map_state_nxt[0][j] = map_state_r[0][j];
-				
+
 			if(map_state_r[63][j] == 2'd0 && ( map_state_r[63][j-1][1] | map_state_r[63][j+1][1] | map_state_r[62][j][1]))
 				map_state_nxt[63][j] = {1'b1,path_cnt};
 			else
 				map_state_nxt[63][j] = map_state_r[63][j];
 		end
-		
+
 		for(i=1;i<63;i=i+1)
 		begin
 			if(map_state_r[i][0] == 2'd0 && ( map_state_r[i-1][0][1] | map_state_r[i+1][0][1] | map_state_r[i][1][1]))
 				map_state_nxt[i][0] = {1'b1,path_cnt};
 			else
 				map_state_nxt[i][0] = map_state_r[i][0];
-				
+
 			if(map_state_r[i][63] == 2'd0 && ( map_state_r[i-1][63][1] | map_state_r[i+1][63][1] | map_state_r[i][62][1]))
 				map_state_nxt[i][63] = {1'b1,path_cnt};
 			else
 				map_state_nxt[i][63] = map_state_r[i][63];
 		end
-		
+
 		if(map_state_r[0][0] == 2'd0 && ( map_state_r[0][1][1] | map_state_r[1][0][1]))
 			map_state_nxt[0][0] = {1'b1,path_cnt};
 		else
 			map_state_nxt[0][0] = map_state_r[0][0];
-			
+
 		if(map_state_r[0][63] == 2'd0 && ( map_state_r[0][62][1] | map_state_r[1][63][1]))
 			map_state_nxt[0][63] = {1'b1,path_cnt};
 		else
 			map_state_nxt[0][63] = map_state_r[0][63];
-			
+
 		if(map_state_r[63][0] == 2'd0 && ( map_state_r[62][0][1] | map_state_r[63][1][1]))
 			map_state_nxt[63][0] = {1'b1,path_cnt};
 		else
 			map_state_nxt[63][0] = map_state_r[63][0];
-			
+
 		if(map_state_r[63][63] == 2'd0 && ( map_state_r[62][63][1] | map_state_r[63][62][1]))
 			map_state_nxt[63][63] = {1'b1,path_cnt};
 		else
 			map_state_nxt[63][63] = map_state_r[63][63];
-			
+
 	end else if(retrace_flag && read_weight_done)
 		for(i=0;i<64;i=i+1)
 			for(j=0;j<64;j=j+1)
@@ -757,7 +748,7 @@ begin
 		for(i=0;i<64;i=i+1)
 			for(j=0;j<64;j=j+1)
 				map_state_nxt[i][j] = map_state_r[i][j];
-			
+
 end
 
 
@@ -799,7 +790,7 @@ always@(posedge clk or negedge rst_n)
 begin
 	if(!rst_n)
 		retrace_x_r <= 6'b0;
-	else 
+	else
 		retrace_x_r <= retrace_x_nxt;
 end
 
@@ -816,7 +807,7 @@ begin
 		direction = 2'b10;
 	else
 		direction = 2'b11;
-end 
+end
 
 
 
@@ -842,7 +833,7 @@ always@(posedge clk or negedge rst_n)
 begin
 	if(!rst_n)
 		retrace_y_r <= 6'b0;
-	else 
+	else
 		retrace_y_r <= retrace_y_nxt;
 end
 
@@ -900,7 +891,7 @@ begin
 		end
 	end
 end
-	
+
 
 // ===============================================================
 //  			             Weight SRAM Logic
@@ -909,7 +900,7 @@ end
 
 assign D_w = rdata_m_inf;
 assign wen_w  = !(rvalid_m_inf && !dram_read_map_flag);
-assign addr_w = wen_w ? {retrace_y_r,retrace_x_r[5]} : cnt;  
+assign addr_w = wen_w ? {retrace_y_r,retrace_x_r[5]} : cnt;
 
 
 always@(posedge clk or negedge rst_n)
@@ -931,7 +922,7 @@ end
 
 assign D_m = retrace_flag ? write_back_target : rdata_m_inf;
 assign wen_m  = !(rvalid_m_inf && dram_read_map_flag || retrace_flag && retrace_write_flag_d1);
-assign addr_m = retrace_flag ? {retrace_y_r,retrace_x_r[5]} : 
+assign addr_m = retrace_flag ? {retrace_y_r,retrace_x_r[5]} :
 				wready_m_inf ? location_map_cnt_nxt :
 				location_map_cnt;
 
@@ -1002,7 +993,7 @@ begin
 	else
 		araddr_m_inf = 32'b0;
 end
-	
+
 
 
 
@@ -1217,8 +1208,8 @@ begin
 			$display(" ");
 		end
 		$display(" -------------");
-		
-		
+
+
 		end else
 			$finish;
 	end
@@ -1227,5 +1218,3 @@ end
 */
 
 endmodule
-
-
