@@ -12,10 +12,10 @@ path_map = np.array([[1 for y in range(MAP_SIZE)] for x in range(MAP_SIZE)])
 location_map = np.array([[0 for y in range(MAP_SIZE)] for x in range(MAP_SIZE)])
 ## Given net_id,loc_x and loc_y
 net_id_1 = 9
-src_x_1 = 5  #source
-src_y_1 = 10
-dst_x_1 = 11 #sink
-dst_y_1 = 3
+src_x_1 = 32  #source
+src_y_1 = 15
+dst_x_1 = 16 #sink
+dst_y_1 = 40
 
 net_id_2 = 4
 src_x_2 = 2  #source
@@ -28,11 +28,11 @@ target_num_ff = 2
 # (x,y)
 # Assign example location map
 # Macro 1
-location_map[2:4,10:14] = 9
-location_map[10:12,4:6] = 9
+location_map[15:16+1,32:37+1] = 9
+location_map[40:42+1,13:16+1] = 9
 # Macro 2
-location_map[2:5,2:6] = 4
-location_map[12:14,11:14] = 4
+location_map[2:5,2:6] = 0
+location_map[12:14,11:14] = 0
 
 # Wall padding for boundary condition handling on only path map
 # Updates path map when reading in data from DRAM
@@ -145,7 +145,7 @@ def fillpath(src_x,src_y,dst_x,dst_y,path_map):
 
 
         # Coners cases vertices.
-        # Lower right
+        # Upper left
         if path_map[0,0] == 0:
               if path_map[0,1]//2 == 1 or path_map[1,0]//2 == 1:
                   if cnt == 0:
@@ -291,24 +291,22 @@ retrace_path(net_id_2,src_x_2,src_y_2,dst_x_2,dst_y_2,location_map,path_map,cnt)
 location_map
 
 # 0. Read in the target numbers and their indices.
-
-
 # 1. Setup Location map and path map and weight map
 #   1. 1 64x64x2 register files, 2 X 128 X 128 SRAMs
 #   2. Note that SRAM has 1 cycle of read out delay.
 #   3. Note the output logic of SRAM need buffer, thus total 2 cycles of Delay.
 
-# 2. Read location map into padded path map from DRAM using AXI-4
+# 2. Read location map into path map from DRAM using AXI-4
     # 1. Develop Control logic for AXI-4
     # 2. Address generation for readings
     # 3. Remember buffers when reading in Data from DRAM
+# 3. Read out the weight matrix
 
-# 3. for idx in range(target_num_ff):
+# 4. for idx in range(target_num_ff):
     # 1. Fill path map
     # 2. From cnt of path map, retrace path map and update location map
     # 3. Clear path map
     # 4. Do these for all sources and destination
 
-# 4. Write back the location map
-# 5. Read out the weight matrix
+# 5. Write back the location map SRAM->DRAM
 # 6. Do accumulation then output the golden cost
