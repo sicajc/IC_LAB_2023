@@ -663,6 +663,7 @@ begin
 				map_state_nxt[i][j] = map_state_r[i][j];
 	end else if(retrace_done)
 	begin
+		// This clears the location map
 		for(i=0;i<64;i=i+1)
 			for(j=0;j<64;j=j+1)
 				map_state_nxt[i][j] = {1'b0, {(~map_state_r[i][j][1]) & map_state_r[i][j][0]}};//{2{&map_state_r[i][j]}};
@@ -691,6 +692,8 @@ begin
 					map_state_nxt[i][j] = {1'b1,path_cnt};
 				else
 					map_state_nxt[i][j] = map_state_r[i][j];
+
+		// What are these for?
 		for(j=1;j<63;j=j+1)
 		begin
 			if(map_state_r[0][j] == 2'd0 && ( map_state_r[0][j-1][1] | map_state_r[0][j+1][1] | map_state_r[1][j][1]))
@@ -987,15 +990,14 @@ always@(*)
 begin
 	if(axi_arvalid)
 		if(dram_read_map_flag)
-			araddr_m_inf = {{16'b 0000_0000_0000_0001}, frame_id_r , 11'b0};
+			// Dram map reading
+			araddr_m_inf = {{16'b0000_0000_0000_0001}, frame_id_r , 11'b0};
 		else
-			araddr_m_inf = {{16'b 0000_0000_0000_0010}, frame_id_r , 11'b0};
+			// Weight map reading
+			araddr_m_inf = {{16'b0000_0000_0000_0010}, frame_id_r , 11'b0};
 	else
 		araddr_m_inf = 32'b0;
 end
-
-
-
 
 always@(posedge clk or negedge rst_n)
 begin
@@ -1018,9 +1020,6 @@ begin
 		else if(rlast_m_inf)
 			axi_rready <= 1'b0;
 end
-
-
-
 
 
 always@(posedge clk or negedge rst_n)
@@ -1085,8 +1084,7 @@ begin
 			first_write <= 1'b0;
 end
 
-
-
+// Wait for write back response
 always@(posedge clk or negedge rst_n)
 begin
 	if(!rst_n)
@@ -1138,11 +1136,6 @@ reg [10:0] read_map_cycle;
 reg [10:0] compute_cycle;
 reg [10:0] retrace_cycle;
 //reg [3:0] location [0:63][0:63];
-
-
-
-
-
 
 always@(posedge clk or negedge rst_n)
 begin
