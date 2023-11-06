@@ -12,10 +12,15 @@ path_map = np.array([[1 for y in range(MAP_SIZE)] for x in range(MAP_SIZE)])
 location_map = np.array([[0 for y in range(MAP_SIZE)] for x in range(MAP_SIZE)])
 ## Given net_id,loc_x and loc_y
 net_id_1 = 9
-src_x_1 = 32  #source
-src_y_1 = 15
-dst_x_1 = 16 #sink
-dst_y_1 = 40
+# src_x_1 = 32  #source
+# src_y_1 = 15
+# dst_x_1 = 16 #sink
+# dst_y_1 = 40
+
+src_x_1 = 16  #source
+src_y_1 = 40
+dst_x_1 = 32 #sink
+dst_y_1 = 15
 
 net_id_2 = 4
 src_x_2 = 2  #source
