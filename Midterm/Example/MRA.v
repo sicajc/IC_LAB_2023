@@ -571,6 +571,7 @@ begin
         begin
             if(retrace_replace_wb_f)
             begin
+				// The boundary condition must be considered
                 case(nxt_count)
                 'd2,'d3:
                 begin

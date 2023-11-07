@@ -142,15 +142,23 @@ parameter AXI_RD_DATA                  = 5'd3;
 parameter FILL_PATH                    = 5'd4;
 parameter RETRACE                      = 5'd5;
 parameter CLEAR_MAP_LOAD_TARGET        = 5'd6;
+parameter AXI_W_ADDR                   = 5'd7;
+parameter AXI_W_DATA                   = 5'd8;
+parameter AXI_W_RESP                   = 5'd9;
+parameter OUTPUT                       = 5'd10;
 
-wire st_IDLE = cur_state == IDLE;
+
+wire st_IDLE        = cur_state == IDLE;
 wire st_RD_NET_INFO = cur_state == RD_NET_INFO;
 wire st_AXI_RD_ADDR = cur_state == AXI_RD_ADDR;
 wire st_AXI_RD_DATA = cur_state == AXI_RD_DATA;
-wire st_FILL_PATH = cur_state == FILL_PATH;
-wire st_RETRACE = cur_state == RETRACE;
-wire st_CLEAR_MAP = cur_state == CLEAR_MAP_LOAD_TARGET;
-
+wire st_FILL_PATH   = cur_state == FILL_PATH;
+wire st_RETRACE     = cur_state == RETRACE;
+wire st_CLEAR_MAP   = cur_state == CLEAR_MAP_LOAD_TARGET;
+wire st_AXI_W_ADDR  = cur_state == AXI_W_ADDR;
+wire st_AXI_W_DATA  = cur_state == AXI_W_DATA;
+wire st_AXI_W_RESP  = cur_state == AXI_W_RESP;
+wire st_OUTPUT      = cur_state == OUTPUT;
 // ===============================================================
 //  					Variable Declare
 // ===============================================================
@@ -180,11 +188,43 @@ reg[1:0] path_map_matrix_wr[0:63][0:63];
 reg[5:0] cur_yptr,cur_xptr;
 reg[8:0] location_addr_cnt;
 
+reg[6:0] loc_mem_addr,weight_mem_addr;
+wire[127:0] loc_mem_rd,weight_mem_rd;
+reg[127:0] loc_mem_wr,weight_mem_wr;
+reg loc_mem_we,weight_mem_we;
+
+reg[1:0] sram_read_write_cnt;
+reg sram_read_d1;
+
+wire retrace_replace_wb_f = sram_read_write_cnt == 2;
+
+
+wire retrace_sram_give_addr_f = sram_read_write_cnt == 0 && st_RETRACE;
+wire[7:0] retrace_sram_rd_addr = (cur_yptr*64 + cur_xptr)/32;
+
+reg[127:0] retrace_sram_loc_wb;
+
+
+wire retrace_sram_give_addr_f = sram_read_write_cnt == 0 && st_RETRACE;
+wire[7:0] retrace_sram_rd_addr = (cur_yptr*64 + cur_xptr)/32;
+
+reg[127:0] retrace_sram_loc_wb;
+
+wire axi_wr_addr_tx_f   = awvalid_m_inf && awready_m_inf;
+wire axi_wr_data_tx_f   = wready_m_inf  && wvalid_m_inf;
+wire axi_wr_data_done_f = wlast_m_inf   && wready_m_inf && wvalid_m_inf;
+wire axi_wr_resp_f      = bvalid_m_inf  && bready_m_inf;
+
+reg loc_wb_valid_d1,wb_data_last_d1;
+
+wire wb_data_last_f = location_addr_cnt == 127 && st_AXI_W_DATA;
+wire loc_wb_valid_f = st_AXI_W_DATA;
+
 
 // ===============================================================
 //  					FLAGS
 // ===============================================================
-assign busy = ~in_valid_d1 && ~st_IDLE;
+assign busy = ~in_valid_d1 && ~st_IDLE && ~st_OUTPUT;
 wire axi_rd_addr_tx_f       = arvalid_m_inf && arready_m_inf;
 reg axi_rd_addr_tx_d1;
 
@@ -199,7 +239,7 @@ end
 
 wire fill_path_done_f       = path_map_matrix_rf[cur_sink_y][cur_sink_x][1] == 1;
 wire retrace_path_done_f    = path_map_matrix_rf[cur_source_y][cur_source_x] == 1;
-wire routing_done_f         = cur_target_cnt == num_of_target_ff;
+wire routing_done_f         = cur_target_cnt == (num_of_target_ff-1);
 reg rd_weight_map_f;
 reg[1:0] cnt;
 
@@ -282,11 +322,39 @@ begin
     end
     CLEAR_MAP_LOAD_TARGET:
     begin
-       if(routing_done_f) ;
+       if(routing_done_f)
+       begin
+            nxt_state = AXI_W_ADDR;
+       end
+       else
+       begin
+            nxt_state = FILL_PATH;
+       end
+    end
+    AXI_W_ADDR:
+    begin
+        if(axi_wr_addr_tx_f) nxt_state = AXI_W_DATA;
+    end
+    AXI_W_DATA:
+    begin
+        if(axi_wr_data_done_f) nxt_state = AXI_W_RESP;
+    end
+    AXI_W_RESP:
+    begin
+        if(axi_wr_resp_f) nxt_state = OUTPUT;
+    end
+    OUTPUT:
+    begin
+
     end
     endcase
 end
 reg fill_path_map_d1,fill_path_map_d2, fill_path_map_d3;
+reg rd_weight_map_d1;
+always @(posedge clk)
+begin
+    rd_weight_map_d1 <= rd_weight_map_f;
+end
 
 // ===============================================================
 //  					AXI READ
@@ -297,11 +365,7 @@ assign arburst_m_inf = 2'd1;		// fixed mode to INCR mode
 assign arsize_m_inf  = 3'b100;		// fixed size to 2^4 = 16 Bytes
 assign arlen_m_inf   = 8'd127;
 
-// << Burst & ID >>
-assign awid_m_inf    = 4'd0;
-assign awburst_m_inf = 2'd1;
-assign awsize_m_inf  = 3'b100;
-assign awlen_m_inf   = 8'd127;
+
 wire axi_rd_data_tx_f = rvalid_m_inf && rready_m_inf;
 reg  axi_rd_data_tx_d1;
 always @(posedge clk or negedge rst_n) begin
@@ -364,11 +428,85 @@ begin
 
     end
 end
+// ===============================================================
+//  					AXI WRITE
+// ===============================================================
+// << Burst & ID >>
+assign awid_m_inf    = 4'd0;
+assign awburst_m_inf = 2'd1;
+assign awsize_m_inf  = 3'b100;
+assign awlen_m_inf   = 8'd127;
 
-reg[1:0] sram_read_write_cnt;
-reg sram_read_d1;
 
-wire retrace_replace_wb_f = sram_read_write_cnt == 3;
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        // AXI wr addr
+        awaddr_m_inf <= 0;
+        awvalid_m_inf <= 0;
+
+        // AXI wr data
+        wdata_m_inf  <= 0;
+        wlast_m_inf  <= 0;
+        wvalid_m_inf <= 0;
+
+        // wr resp
+        bready_m_inf <= 0;
+    end
+    else if(st_AXI_W_ADDR)
+    begin
+        if(axi_wr_addr_tx_f)
+        begin
+            awaddr_m_inf  <= 0;
+            awvalid_m_inf <= 0;
+        end
+        else
+        begin
+            awaddr_m_inf  <= {{16'b0000_0000_0000_0001}, frame_id_ff , 11'b0};
+            awvalid_m_inf <= 1;
+        end
+    end
+    else if(st_AXI_W_DATA)
+    begin
+        if(axi_wr_data_done_f)
+        begin
+            wvalid_m_inf <= 0;
+            wdata_m_inf  <= 0;
+            wlast_m_inf  <= 0;
+        end
+        else
+        begin
+            wvalid_m_inf <= loc_wb_valid_d1;
+            wdata_m_inf  <= loc_wb_valid_d1 ? loc_mem_rd : 0;
+            wlast_m_inf  <= wb_data_last_d1;
+        end
+    end
+    else if(st_AXI_W_RESP)
+    begin
+        bready_m_inf <= axi_wr_resp_f ? 0 : 1;
+    end
+end
+
+reg[7:0] location_addr_cnt_d1;
+wire loc_wb_wait_dram_f = ((location_addr_cnt == 2) && ~axi_wr_data_tx_f);
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        loc_wb_valid_d1 <= 0;
+        wb_data_last_d1 <= 0;
+        location_addr_cnt_d1 <= 0;
+    end
+    else if(st_AXI_W_DATA)
+    begin
+        loc_wb_valid_d1 <=       loc_wb_valid_f;
+        wb_data_last_d1 <=       wb_data_last_f;
+        location_addr_cnt_d1 <=  loc_wb_wait_dram_f ? location_addr_cnt_d1:
+        location_addr_cnt;
+    end
+end
 
 // ===============================================================
 //  				    SUB CONTROL
@@ -429,13 +567,22 @@ begin
         end
         FILL_PATH:
         begin
-            if(~fill_path_done_f)
+            if(fill_path_done_f)
+            begin
+                cnt <= cnt - 1;
+            end
+            else if(~fill_path_done_f && fill_path_map_d3)
+            begin
                 cnt <= cnt + 1;
+            end
         end
         RETRACE:
         begin
             // Give addr, SRAM delay1, SRAM delay2, Fill data then WB
-            sram_read_write_cnt <= sram_read_write_cnt + 1;
+            if(sram_read_write_cnt == 2)
+                sram_read_write_cnt <= 0;
+            else
+                sram_read_write_cnt <= sram_read_write_cnt + 1;
             //fill data and write back
             if(retrace_replace_wb_f)
             begin
@@ -597,9 +744,33 @@ begin
                 endcase
             end
         end
+        AXI_W_ADDR:
+        begin
+            location_addr_cnt <= 0;
+        end
+        AXI_W_DATA:
+        begin
+            if(wb_data_last_f)
+            begin
+                location_addr_cnt <= location_addr_cnt;
+            end
+            else if(axi_wr_addr_tx_f)
+            begin
+                location_addr_cnt <= location_addr_cnt + 1;
+            end
+            else if(loc_wb_wait_dram_f)
+            begin
+                location_addr_cnt <= location_addr_cnt;
+            end
+            else
+            begin
+                location_addr_cnt <= location_addr_cnt + 1;
+            end
+        end
         endcase
     end
 end
+
 // ===============================================================
 //  					PATH MAP
 // ===============================================================
@@ -608,38 +779,34 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        path_rd_cnt <= 0;
         for(i=0;i<64;i=i+1)
             for(j=0;j<64;j=j+1)
                 path_map_matrix_rf[i][j] <= 0;
     end
     else if(st_IDLE)
     begin
-        path_rd_cnt <= 0;
         for(i=0;i<64;i=i+1)
             for(j=0;j<64;j=j+1)
                 path_map_matrix_rf[i][j] <= 0;
     end
-    else if(axi_rd_data_tx_d1)
-    begin
-        path_rd_cnt <= ~path_rd_cnt;
-        for(i=0;i<64;i=i+1)
-            for(j=0;j<64;j=j+1)
-                path_map_matrix_rf[i][j] <= path_map_matrix_wr[i][j];
-    end
-    else if(fill_path_map_d1 || fill_path_map_d2 || fill_path_map_d3)
+    else
     begin
         for(i=0;i<64;i=i+1)
             for(j=0;j<64;j=j+1)
                 path_map_matrix_rf[i][j] <= path_map_matrix_wr[i][j];
-    end
-    else if(st_RETRACE)
-    begin
-        for(i=0;i<64;i=i+1)
-          for(j=0;j<64;j=j+1)
-              path_map_matrix_rf[i][j] <= path_map_matrix_wr[i][j];
     end
 end
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+        path_rd_cnt <= 0;
+    else if(st_IDLE)
+        path_rd_cnt <= 0;
+    else if(axi_rd_data_tx_d1)
+        path_rd_cnt <= ~path_rd_cnt;
+end
+
 reg[1:0] cur_encode_val;
 always @(*)
 begin
@@ -727,10 +894,19 @@ begin
     end
 
     // Retrace
-    if(st_RETRACE)
+    if(st_RETRACE && retrace_replace_wb_f)
     begin
         path_map_matrix_wr[cur_yptr][cur_xptr] <= 1;
     end
+
+    if(st_CLEAR_MAP)
+    begin
+         for(i=0;i<64;i=i+1)
+            for(j=0;j<64;j=j+1)
+                if(path_map_matrix_rf[i][j][1]==1'b1)
+                    path_map_matrix_wr[i][j] = 0;
+    end
+
 end
 
 
@@ -747,25 +923,56 @@ end
 
 
 reg[127:0] loc_data_out_ff;
+reg[127:0] weight_data_out_ff;
 
+wire loc_sram_output_f = sram_read_write_cnt == 1;
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
-        loc_data_out_ff <= 0;
-    else if(sram_read_write_cnt==2)
+    begin
+        weight_data_out_ff <= 0;
+        loc_data_out_ff    <= 0;
+    end
+    else if(loc_sram_output_f)
+    begin
+        weight_data_out_ff <= weight_mem_rd;
         loc_data_out_ff <= loc_mem_rd;
+    end
 end
+
+reg[3:0] weight;
 
 // Fill replace wb
 always @(*)
 begin
+    weight = 0;
+
     for(i=0;i<32;i=i+1)
 		if(cur_xptr[4:0] == i)
+        begin
 			retrace_sram_loc_wb[i*4 +: 4] = cur_net_id;
+            weight       = weight_data_out_ff[i*4+:4];
+        end
 		else
+        begin
 			retrace_sram_loc_wb[i*4 +: 4] = loc_data_out_ff[i*4 +: 4];
+        end
 end
+// ===============================================================
+//  					weight MAC_ff
+// ===============================================================
+reg[8:0] weight_mac_ff;
 
+wire current_is_source_dst_f = (cur_xptr == cur_source_x && cur_yptr == cur_source_y)
+|| (cur_xptr == cur_sink_x && cur_yptr == cur_sink_y);
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+        weight_mac_ff <= 0;
+    else if(retrace_replace_wb_f && ~current_is_source_dst_f)
+        weight_mac_ff <= weight_mac_ff + weight;
+end
 
 // ===============================================================
 //  					Output signals
@@ -777,23 +984,12 @@ always @(posedge clk or negedge rst_n) begin
 	end
 	else
 	begin
-
+        cost <= weight_mac_ff;
 	end
 end
 // ===============================================================
-//  					MEM
-// ===============================================================
-reg[6:0] loc_mem_addr,weight_mem_addr;
-wire[127:0] loc_mem_rd,weight_mem_rd;
-reg[127:0] loc_mem_wr,weight_mem_wr;
-reg loc_mem_we,weight_mem_we;
-// ===============================================================
 //  					Memory addr
 // ===============================================================
-wire retrace_sram_give_addr_f = sram_read_write_cnt == 0 && st_RETRACE;
-wire[7:0] retrace_sram_rd_addr = (cur_yptr*64 + cur_xptr)/32;
-
-reg[127:0] retrace_sram_loc_wb;
 
 always@(*)
 begin
@@ -806,7 +1002,7 @@ begin
 
     if(axi_rd_data_tx_d1)
     begin
-        if(~rd_weight_map_f)
+        if(~rd_weight_map_d1)
         begin
             loc_mem_we = 0;
             loc_mem_addr = location_addr_cnt;
@@ -816,21 +1012,35 @@ begin
         begin
             weight_mem_we = 0;
             weight_mem_addr = location_addr_cnt;
-            weight_mem_wr = dram_data_in_ff;
+            weight_mem_wr   = dram_data_in_ff;
         end
     end
 
     // Retrace
     if(retrace_sram_give_addr_f)
     begin
-        loc_mem_we   = 1;
+        loc_mem_we    = 1;
         loc_mem_addr = retrace_sram_rd_addr;
     end
+
     if(retrace_replace_wb_f)
     begin
         loc_mem_we   = 0;
         loc_mem_addr = retrace_sram_rd_addr;
         loc_mem_wr   = retrace_sram_loc_wb;
+    end
+
+    if(st_RETRACE)
+    begin
+        weight_mem_we = 1;
+        weight_mem_addr = retrace_sram_rd_addr;
+    end
+
+    // Location map WB DRAM
+    if(st_AXI_W_DATA)
+    begin
+        loc_mem_we   = 1;
+        loc_mem_addr = location_addr_cnt;
     end
 end
 
