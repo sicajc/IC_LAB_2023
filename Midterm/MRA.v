@@ -1,22 +1,3 @@
-//############################################################################
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//   (C) Copyright Si2 LAB @NYCU ED430
-//   All Right Reserved
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//
-//   ICLAB 2023 Fall
-//   Midterm Proejct            : MRA
-//   Author                     : Lin-Hung, Lai
-//
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//
-//   File Name   : MRA.v
-//   Module Name : MRA
-//   Release version : V1.0 (Release Date: 2021-10)
-//
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//############################################################################
-
 module MRA(
 	// CHIP IO
 	clk            	,
@@ -164,6 +145,7 @@ wire st_OUTPUT      = cur_state == OUTPUT;
 // ===============================================================
 integer i, j, k;
 reg in_valid_d1;
+reg[1:0] cnt;
 
 reg [4:0] frame_id_ff;
 reg [5:0] cur_target_cnt;
@@ -203,27 +185,36 @@ wire[7:0] retrace_sram_rd_addr = (cur_yptr*64 + cur_xptr)/32;
 
 reg[127:0] retrace_sram_loc_wb;
 
-
+// ===============================================================
+//  					FLAGS
+// ===============================================================
 wire axi_wr_addr_tx_f   = awvalid_m_inf && awready_m_inf;
 wire axi_wr_data_tx_f   = wready_m_inf  && wvalid_m_inf;
 wire axi_wr_data_done_f = wlast_m_inf   && wready_m_inf && wvalid_m_inf;
 wire axi_wr_resp_f      = bvalid_m_inf  && bready_m_inf;
 
-reg loc_wb_valid_d1,wb_data_last_d1;
-
 wire wb_data_last_f = location_addr_cnt == 127 && st_AXI_W_DATA;
 wire loc_wb_valid_f = st_AXI_W_DATA;
+reg loc_wb_valid_d1,wb_data_last_d1;
 
-
-// ===============================================================
-//  					FLAGS
-// ===============================================================
-assign busy = ~in_valid_d1 && ~st_IDLE && ~st_OUTPUT;
 wire axi_rd_addr_tx_f       = arvalid_m_inf && arready_m_inf;
 reg axi_rd_addr_tx_d1;
 
 wire axi_rd_data_done_f     = rlast_m_inf && rvalid_m_inf && rready_m_inf;
 reg axi_rd_data_done_d1;
+
+wire fill_path_done_f       = path_map_matrix_rf[cur_sink_y][cur_sink_x][1] == 1;
+wire retrace_path_done_f    = path_map_matrix_rf[cur_source_y][cur_source_x] == 1;
+wire routing_done_f         = cur_target_cnt == (num_of_target_ff);
+reg rd_weight_map_f;
+
+reg fill_path_map_d1,fill_path_map_d2, fill_path_map_d3;
+reg rd_weight_map_d1;
+
+reg[7:0] location_addr_cnt_d1;
+wire loc_wb_wait_dram_f = ((location_addr_cnt == 2) && ~axi_wr_data_tx_f);
+
+assign busy = ~in_valid_d1 && ~st_IDLE && ~st_OUTPUT;
 always @(posedge clk or negedge rst_n) begin
     if(~rst_n)
         axi_rd_data_done_d1 <= 0;
@@ -231,19 +222,12 @@ always @(posedge clk or negedge rst_n) begin
         axi_rd_data_done_d1 <= axi_rd_data_done_f;
 end
 
-wire fill_path_done_f       = path_map_matrix_rf[cur_sink_y][cur_sink_x][1] == 1;
-wire retrace_path_done_f    = path_map_matrix_rf[cur_source_y][cur_source_x] == 1;
-wire routing_done_f         = cur_target_cnt == (num_of_target_ff);
-reg rd_weight_map_f;
-reg[1:0] cnt;
-
-
 always@(posedge clk or negedge rst_n)
 begin
 	if(!rst_n)
     begin
-		in_valid_d1 <= 1'b0;
-        axi_rd_addr_tx_d1 <= 0;
+		in_valid_d1       <= 1'b0;
+        axi_rd_addr_tx_d1 <= 1'b0;
     end
 	else
     begin
@@ -255,11 +239,11 @@ end
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
-        rd_weight_map_f <= 0;
+        rd_weight_map_f <= 1'b0;
     else if(st_IDLE)
-        rd_weight_map_f <= 0;
+        rd_weight_map_f <= 1'b0;
     else if(axi_rd_data_done_f)
-        rd_weight_map_f <= 1;
+        rd_weight_map_f <= 1'b1;
 end
 
 // ===============================================================
@@ -345,11 +329,14 @@ begin
     end
     endcase
 end
-reg fill_path_map_d1,fill_path_map_d2, fill_path_map_d3;
-reg rd_weight_map_d1;
-always @(posedge clk)
+
+
+always @(posedge clk or negedge rst_n)
 begin
-    rd_weight_map_d1 <= rd_weight_map_f;
+    if(~rst_n)
+        rd_weight_map_d1 <= 0;
+    else
+        rd_weight_map_d1 <= rd_weight_map_f;
 end
 
 // ===============================================================
@@ -364,6 +351,8 @@ assign arlen_m_inf   = 8'd127;
 
 wire axi_rd_data_tx_f = rvalid_m_inf && rready_m_inf;
 reg  axi_rd_data_tx_d1;
+reg[127:0] dram_data_in_ff;
+
 always @(posedge clk or negedge rst_n) begin
     if(~rst_n)
         axi_rd_addr_tx_d1 <= 0;
@@ -371,25 +360,20 @@ always @(posedge clk or negedge rst_n) begin
         axi_rd_data_tx_d1 <= axi_rd_data_tx_f;
 end
 
-reg[127:0] dram_data_in_ff;
 
+//AXI read addr
 always @(posedge clk or negedge rst_n)
 begin
-    if(~rst_n)
+     if(~rst_n)
     begin
         // AXI read addr
         arvalid_m_inf <= 0;
         araddr_m_inf  <= 0;
-
-        // AXI read data
-        rready_m_inf  <= 0;
-        dram_data_in_ff <= 0;
     end
     else if(st_IDLE)
     begin
         arvalid_m_inf <= 0;
         araddr_m_inf  <= 0;
-        dram_data_in_ff <= 0;
     end
     else if(st_AXI_RD_ADDR)
     begin
@@ -411,6 +395,22 @@ begin
             end
         end
     end
+end
+
+// AXI read data
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        // AXI read data
+        rready_m_inf  <= 0;
+        dram_data_in_ff <= 0;
+    end
+    else if(st_IDLE)
+    begin
+        rready_m_inf    <= 0;
+        dram_data_in_ff <= 0;
+    end
     else if(st_AXI_RD_DATA)
     begin
         rready_m_inf <= 1;
@@ -418,10 +418,6 @@ begin
         begin
             dram_data_in_ff <= rdata_m_inf;
         end
-    end
-    else
-    begin
-
     end
 end
 // ===============================================================
@@ -433,7 +429,7 @@ assign awburst_m_inf = 2'd1;
 assign awsize_m_inf  = 3'b100;
 assign awlen_m_inf   = 8'd127;
 
-
+//AXI wr addr
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -441,14 +437,6 @@ begin
         // AXI wr addr
         awaddr_m_inf <= 0;
         awvalid_m_inf <= 0;
-
-        // AXI wr data
-        wdata_m_inf  <= 0;
-        wlast_m_inf  <= 0;
-        wvalid_m_inf <= 0;
-
-        // wr resp
-        bready_m_inf <= 0;
     end
     else if(st_AXI_W_ADDR)
     begin
@@ -462,6 +450,18 @@ begin
             awaddr_m_inf  <= {{16'b0000_0000_0000_0001}, frame_id_ff , 11'b0};
             awvalid_m_inf <= 1;
         end
+    end
+end
+
+//AXI wr data
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        // AXI wr data
+        wdata_m_inf  <= 0;
+        wlast_m_inf  <= 0;
+        wvalid_m_inf <= 0;
     end
     else if(st_AXI_W_DATA)
     begin
@@ -478,14 +478,21 @@ begin
             wlast_m_inf  <= wb_data_last_d1;
         end
     end
+end
+
+// AXI wr response
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        // wr resp
+        bready_m_inf <= 0;
+    end
     else if(st_AXI_W_RESP)
     begin
         bready_m_inf <= axi_wr_resp_f ? 0 : 1;
     end
 end
-
-reg[7:0] location_addr_cnt_d1;
-wire loc_wb_wait_dram_f = ((location_addr_cnt == 2) && ~axi_wr_data_tx_f);
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -499,14 +506,14 @@ begin
     begin
         loc_wb_valid_d1 <=       loc_wb_valid_f;
         wb_data_last_d1 <=       wb_data_last_f;
-        location_addr_cnt_d1 <=  loc_wb_wait_dram_f ? location_addr_cnt_d1:
-        location_addr_cnt;
+        location_addr_cnt_d1 <=  loc_wb_wait_dram_f ? location_addr_cnt_d1: location_addr_cnt;
     end
 end
 
 // ===============================================================
 //  				    SUB CONTROL
 // ===============================================================
+// Input reading controls
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -630,7 +637,7 @@ begin
     begin
         frame_id_ff <= 0;
 
-        for(i=0;i<16;i=i+1)
+        for(i=0;i<15;i=i+1)
         begin
             net_id_rf[i] <= 0;
             sink_x_rf[i] <= 0;
@@ -644,8 +651,8 @@ begin
         if(in_valid)
         begin
             frame_id_ff <= frame_id;
-            source_x_rf[num_of_target_ff] <= loc_x;
-            source_y_rf[num_of_target_ff] <= loc_y;
+            source_x_rf[0] <= loc_x;
+            source_y_rf[0] <= loc_y;
         end
     end
     else if(st_RD_NET_INFO && in_valid)
@@ -776,26 +783,32 @@ begin
 end
 
 reg[1:0] cur_encode_val;
+wire[8:0] path_map_y_idx = location_addr_cnt/2;
+
 always @(*)
 begin
     //Initilization
-     for(i=0;i<64;i=i+1)
-            for(j=0;j<64;j=j+1)
-                path_map_matrix_wr[i][j] = path_map_matrix_rf[i][j];
+    for(i=0;i<64;i=i+1)
+        for(j=0;j<64;j=j+1)
+            path_map_matrix_wr[i][j] = path_map_matrix_rf[i][j];
 
     // Fill path
     if(axi_rd_data_tx_d1 && ~rd_weight_map_f)
     begin
         if(~path_rd_cnt)
+        begin
             for(j=0;j<32;j=j+1)
             begin
-                path_map_matrix_wr[location_addr_cnt/2][j] = {1'b0,|dram_data_in_ff[j*4 +: 4]};
+                path_map_matrix_wr[path_map_y_idx][j] = {1'b0,|dram_data_in_ff[j*4 +: 4]};
             end
+        end
         else
+        begin
             for(j=0;j<32;j=j+1)
             begin
-                path_map_matrix_wr[location_addr_cnt/2][j+32] = {1'b0,|dram_data_in_ff[j*4 +: 4]};
+                path_map_matrix_wr[path_map_y_idx][j+32] = {1'b0,|dram_data_in_ff[j*4 +: 4]};
             end
+        end
     end
     else if(fill_path_map_d3 && st_FILL_PATH)
     begin
@@ -860,14 +873,12 @@ begin
     begin
         path_map_matrix_wr[cur_source_y][cur_source_x] = 2;
     end
-
-    // Retrace
-    if(st_RETRACE && retrace_replace_wb_f)
+    else if(st_RETRACE && retrace_replace_wb_f)
     begin
+        // Retrace
         path_map_matrix_wr[cur_yptr][cur_xptr] = 1;
     end
-
-    if(st_CLEAR_MAP)
+    else if(st_CLEAR_MAP)
     begin
          for(i=0;i<64;i=i+1)
             for(j=0;j<64;j=j+1)
@@ -918,7 +929,6 @@ reg[3:0] weight;
 always @(*)
 begin
     weight = 0;
-
     for(i=0;i<32;i=i+1)
 		if(cur_xptr[4:0] == i)
         begin
@@ -933,7 +943,7 @@ end
 // ===============================================================
 //  					weight MAC_ff
 // ===============================================================
-reg[14:0] weight_mac_ff;
+reg[13:0] weight_mac_ff;
 
 wire current_is_source_dst_f = (cur_xptr == cur_source_x && cur_yptr == cur_source_y)
 || (cur_xptr == cur_sink_x && cur_yptr == cur_sink_y);
@@ -968,57 +978,57 @@ end
 // ===============================================================
 //  					Memory addr
 // ===============================================================
-
-always@(*)
+always @(*)
 begin
-    loc_mem_addr = 0;
     weight_mem_addr = 0;
-    loc_mem_we = 1;
     weight_mem_we = 1;
-    loc_mem_wr = 0;
     weight_mem_wr = 0;
-
-    if(axi_rd_data_tx_d1)
-    begin
-        if(~rd_weight_map_d1)
-        begin
-            loc_mem_we = 0;
-            loc_mem_addr = location_addr_cnt;
-            loc_mem_wr   = dram_data_in_ff;
-        end
-        else
-        begin
-            weight_mem_we = 0;
-            weight_mem_addr = location_addr_cnt;
-            weight_mem_wr   = dram_data_in_ff;
-        end
-    end
-
-    // Retrace
-    if(retrace_sram_give_addr_f)
-    begin
-        loc_mem_we    = 1;
-        loc_mem_addr = retrace_sram_rd_addr;
-    end
-
-    if(retrace_replace_wb_f)
-    begin
-        loc_mem_we   = 0;
-        loc_mem_addr = retrace_sram_rd_addr;
-        loc_mem_wr   = retrace_sram_loc_wb;
-    end
 
     if(st_RETRACE)
     begin
         weight_mem_we = 1;
         weight_mem_addr = retrace_sram_rd_addr;
+        weight_mem_wr   = 0;
     end
+    else if(axi_rd_data_tx_d1 && rd_weight_map_d1)
+    begin
+        weight_mem_we   = 0;
+        weight_mem_addr = location_addr_cnt;
+        weight_mem_wr   = dram_data_in_ff;
+    end
+end
 
-    // Location map WB DRAM
+always@(*)
+begin
+    loc_mem_addr = 0;
+    loc_mem_we = 1;
+    loc_mem_wr = 0;
+
     if(st_AXI_W_DATA)
     begin
+        // Location map WB DRAM
         loc_mem_we   = 1;
         loc_mem_addr = location_addr_cnt;
+        loc_mem_wr   = 0;
+    end
+    else if(retrace_replace_wb_f)
+    begin
+        loc_mem_we   = 0;
+        loc_mem_addr = retrace_sram_rd_addr;
+        loc_mem_wr   = retrace_sram_loc_wb;
+    end
+    else if(retrace_sram_give_addr_f)
+    begin
+        // Retrace
+        loc_mem_we   = 1;
+        loc_mem_addr = retrace_sram_rd_addr;
+        loc_mem_wr   = 0;
+    end
+    else if(axi_rd_data_tx_d1 && ~rd_weight_map_d1)
+    begin
+        loc_mem_we = 0;
+        loc_mem_addr = location_addr_cnt;
+        loc_mem_wr   = dram_data_in_ff;
     end
 end
 
