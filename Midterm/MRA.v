@@ -513,8 +513,6 @@ begin
     begin
         cur_target_cnt <= 0;
         rd_cnt     <= 0;
-        cur_yptr <= 0;
-        cur_xptr <= 0;
         location_addr_cnt <= 0;
         num_of_target_ff <= 0;
         sram_read_write_cnt <= 0;
@@ -536,8 +534,6 @@ begin
 
             cur_target_cnt <= 0;
             num_of_target_ff <= 0;
-            cur_yptr <= 0;
-            cur_xptr <= 0;
             location_addr_cnt <= 0;
             cnt <= 0;
             sram_read_write_cnt <= 0;
@@ -550,6 +546,13 @@ begin
             if(rd_cnt[0] == 1)
             begin
                 num_of_target_ff <= num_of_target_ff + 1;
+            end
+        end
+        AXI_RD_ADDR:
+        begin
+            if(location_addr_cnt == 127)
+            begin
+                 location_addr_cnt <= 0;
             end
         end
         AXI_RD_DATA:
@@ -593,6 +596,29 @@ begin
                 cur_target_cnt <= 0;
             else if(retrace_path_done_f)
                 cur_target_cnt <= cur_target_cnt + 1;
+        end
+        AXI_W_ADDR:
+        begin
+            location_addr_cnt <= 0;
+        end
+        AXI_W_DATA:
+        begin
+            if(wb_data_last_f)
+            begin
+                location_addr_cnt <= location_addr_cnt;
+            end
+            else if(axi_wr_addr_tx_f)
+            begin
+                location_addr_cnt <= location_addr_cnt + 1;
+            end
+            else if(loc_wb_wait_dram_f)
+            begin
+                location_addr_cnt <= location_addr_cnt;
+            end
+            else
+            begin
+                location_addr_cnt <= location_addr_cnt + 1;
+            end
         end
         endcase
     end
@@ -663,56 +689,16 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        cur_target_cnt <= 0;
-        rd_cnt     <= 0;
         cur_yptr <= 0;
         cur_xptr <= 0;
-        location_addr_cnt <= 0;
-        num_of_target_ff <= 0;
     end
     else
     begin
         case(cur_state)
         IDLE:
         begin
-            if(in_valid)
-            begin
-                rd_cnt <= 1;
-            end
-            else
-            begin
-                rd_cnt <= 0;
-            end
-
-            cur_target_cnt <= 0;
-            num_of_target_ff <= 0;
             cur_yptr <= 0;
             cur_xptr <= 0;
-            location_addr_cnt <= 0;
-        end
-        RD_NET_INFO:
-        begin
-            if(in_valid)
-                rd_cnt <= rd_cnt + 1;
-
-            if(rd_cnt[0] == 1)
-            begin
-                num_of_target_ff <= num_of_target_ff + 1;
-            end
-        end
-        AXI_RD_ADDR:
-        begin
-            if(location_addr_cnt == 127)
-            begin
-                 location_addr_cnt <= 0;
-            end
-        end
-        AXI_RD_DATA:
-        begin
-            if(location_addr_cnt == 127)
-                location_addr_cnt <= 0;
-            else if(axi_rd_data_tx_d1)
-                location_addr_cnt <= location_addr_cnt + 1;
         end
         FILL_PATH:
         begin
@@ -747,29 +733,6 @@ begin
                         cur_xptr <= cur_xptr - 1;
                 end
                 endcase
-            end
-        end
-        AXI_W_ADDR:
-        begin
-            location_addr_cnt <= 0;
-        end
-        AXI_W_DATA:
-        begin
-            if(wb_data_last_f)
-            begin
-                location_addr_cnt <= location_addr_cnt;
-            end
-            else if(axi_wr_addr_tx_f)
-            begin
-                location_addr_cnt <= location_addr_cnt + 1;
-            end
-            else if(loc_wb_wait_dram_f)
-            begin
-                location_addr_cnt <= location_addr_cnt;
-            end
-            else
-            begin
-                location_addr_cnt <= location_addr_cnt + 1;
             end
         end
         endcase
