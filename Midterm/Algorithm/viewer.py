@@ -9,7 +9,7 @@ def toDec(hexstr,BIT):
     else:
         return str(int(hexstr, 16))
 
-with open('weight_0.txt', 'r') as file:
+with open('output_1.txt', 'r') as file:
   file_in = file.readlines()
 
 

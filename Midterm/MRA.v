@@ -169,7 +169,6 @@ reg [4:0] frame_id_ff;
 reg [5:0] cur_target_cnt;
 reg [5:0] num_of_target_ff;
 reg [5:0] rd_cnt;
-reg [5:0] num_of_target_ff;
 reg [3:0] net_id_rf [0:14];
 reg [5:0] source_x_rf [0:14];
 reg [5:0] source_y_rf [0:14];
@@ -205,11 +204,6 @@ wire[7:0] retrace_sram_rd_addr = (cur_yptr*64 + cur_xptr)/32;
 reg[127:0] retrace_sram_loc_wb;
 
 
-wire retrace_sram_give_addr_f = sram_read_write_cnt == 0 && st_RETRACE;
-wire[7:0] retrace_sram_rd_addr = (cur_yptr*64 + cur_xptr)/32;
-
-reg[127:0] retrace_sram_loc_wb;
-
 wire axi_wr_addr_tx_f   = awvalid_m_inf && awready_m_inf;
 wire axi_wr_data_tx_f   = wready_m_inf  && wvalid_m_inf;
 wire axi_wr_data_done_f = wlast_m_inf   && wready_m_inf && wvalid_m_inf;
@@ -239,7 +233,7 @@ end
 
 wire fill_path_done_f       = path_map_matrix_rf[cur_sink_y][cur_sink_x][1] == 1;
 wire retrace_path_done_f    = path_map_matrix_rf[cur_source_y][cur_source_x] == 1;
-wire routing_done_f         = cur_target_cnt == (num_of_target_ff-1);
+wire routing_done_f         = cur_target_cnt == (num_of_target_ff);
 reg rd_weight_map_f;
 reg[1:0] cnt;
 
@@ -261,6 +255,8 @@ end
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
+        rd_weight_map_f <= 0;
+    else if(st_IDLE)
         rd_weight_map_f <= 0;
     else if(axi_rd_data_done_f)
         rd_weight_map_f <= 1;
@@ -345,7 +341,7 @@ begin
     end
     OUTPUT:
     begin
-
+        nxt_state = IDLE;
     end
     endcase
 end
@@ -579,15 +575,24 @@ begin
         RETRACE:
         begin
             // Give addr, SRAM delay1, SRAM delay2, Fill data then WB
-            if(sram_read_write_cnt == 2)
+            if(retrace_path_done_f)
+                sram_read_write_cnt <= 0;
+            else if(sram_read_write_cnt == 2)
                 sram_read_write_cnt <= 0;
             else
                 sram_read_write_cnt <= sram_read_write_cnt + 1;
             //fill data and write back
-            if(retrace_replace_wb_f)
+            if(retrace_path_done_f)
+                cnt <= 1;
+            else if(retrace_replace_wb_f)
             begin
                 cnt <= cnt - 1;
             end
+
+            if(routing_done_f)
+                cur_target_cnt <= 0;
+            else if(retrace_path_done_f)
+                cur_target_cnt <= cur_target_cnt + 1;
         end
         endcase
     end
@@ -896,7 +901,7 @@ begin
     // Retrace
     if(st_RETRACE && retrace_replace_wb_f)
     begin
-        path_map_matrix_wr[cur_yptr][cur_xptr] <= 1;
+        path_map_matrix_wr[cur_yptr][cur_xptr] = 1;
     end
 
     if(st_CLEAR_MAP)
@@ -906,7 +911,6 @@ begin
                 if(path_map_matrix_rf[i][j][1]==1'b1)
                     path_map_matrix_wr[i][j] = 0;
     end
-
 end
 
 
@@ -932,6 +936,11 @@ begin
     begin
         weight_data_out_ff <= 0;
         loc_data_out_ff    <= 0;
+    end
+    else if(st_IDLE)
+    begin
+        weight_data_out_ff <= 0;
+        loc_data_out_ff <= 0;
     end
     else if(loc_sram_output_f)
     begin
@@ -961,7 +970,7 @@ end
 // ===============================================================
 //  					weight MAC_ff
 // ===============================================================
-reg[8:0] weight_mac_ff;
+reg[14:0] weight_mac_ff;
 
 wire current_is_source_dst_f = (cur_xptr == cur_source_x && cur_yptr == cur_source_y)
 || (cur_xptr == cur_sink_x && cur_yptr == cur_sink_y);
@@ -969,6 +978,8 @@ wire current_is_source_dst_f = (cur_xptr == cur_source_x && cur_yptr == cur_sour
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
+        weight_mac_ff <= 0;
+    else if(st_IDLE)
         weight_mac_ff <= 0;
     else if(retrace_replace_wb_f && ~current_is_source_dst_f)
         weight_mac_ff <= weight_mac_ff + weight;
@@ -982,6 +993,10 @@ always @(posedge clk or negedge rst_n) begin
 	begin
 		cost <=0;
 	end
+    else if(st_IDLE)
+    begin
+        cost <= 0;
+    end
 	else
 	begin
         cost <= weight_mac_ff;
