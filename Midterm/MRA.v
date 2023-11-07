@@ -114,20 +114,19 @@ input  wire  [1:0]             bresp_m_inf;
 //  					Finite State Machine
 // ===============================================================
 
-reg [4:0] cur_state, nxt_state;
+reg [3:0] cur_state, nxt_state;
 
-parameter IDLE                         = 5'd0;
-parameter RD_NET_INFO                  = 5'd1;
-parameter AXI_RD_ADDR                  = 5'd2;
-parameter AXI_RD_DATA                  = 5'd3;
-parameter FILL_PATH                    = 5'd4;
-parameter RETRACE                      = 5'd5;
-parameter CLEAR_MAP_LOAD_TARGET        = 5'd6;
-parameter AXI_W_ADDR                   = 5'd7;
-parameter AXI_W_DATA                   = 5'd8;
-parameter AXI_W_RESP                   = 5'd9;
-parameter OUTPUT                       = 5'd10;
-
+parameter IDLE                         = 4'd0;
+parameter RD_NET_INFO                  = 4'd1;
+parameter AXI_RD_ADDR                  = 4'd2;
+parameter AXI_RD_DATA                  = 4'd3;
+parameter FILL_PATH                    = 4'd4;
+parameter RETRACE                      = 4'd5;
+parameter CLEAR_MAP_LOAD_TARGET        = 4'd6;
+parameter AXI_W_ADDR                   = 4'd7;
+parameter AXI_W_DATA                   = 4'd8;
+parameter AXI_W_RESP                   = 4'd9;
+parameter OUTPUT                       = 4'd10;
 
 wire st_IDLE        = cur_state == IDLE;
 wire st_RD_NET_INFO = cur_state == RD_NET_INFO;
@@ -149,8 +148,8 @@ reg[1:0] cnt;
 
 reg [4:0] frame_id_ff;
 reg [5:0] cur_target_cnt;
-reg [5:0] num_of_target_ff;
-reg [5:0] rd_cnt;
+reg [4:0] num_of_target_ff;
+reg [3:0] rd_cnt;
 reg [3:0] net_id_rf [0:14];
 reg [5:0] source_x_rf [0:14];
 reg [5:0] source_y_rf [0:14];
@@ -167,7 +166,7 @@ reg[1:0] path_map_matrix_rf[0:63][0:63];
 reg[1:0] path_map_matrix_wr[0:63][0:63];
 
 reg[5:0] cur_yptr,cur_xptr;
-reg[8:0] location_addr_cnt;
+reg[6:0] location_addr_cnt;
 
 reg[6:0] loc_mem_addr,weight_mem_addr;
 wire[127:0] loc_mem_rd,weight_mem_rd;
@@ -178,9 +177,9 @@ reg[1:0] sram_read_write_cnt;
 reg sram_read_d1;
 
 wire retrace_replace_wb_f = sram_read_write_cnt == 2;
-
-
+wire loc_sram_output_f = sram_read_write_cnt == 1;
 wire retrace_sram_give_addr_f = sram_read_write_cnt == 0 && st_RETRACE;
+
 wire[7:0] retrace_sram_rd_addr = (cur_yptr*64 + cur_xptr)/32;
 
 reg[127:0] retrace_sram_loc_wb;
@@ -213,6 +212,11 @@ reg rd_weight_map_d1;
 
 reg[7:0] location_addr_cnt_d1;
 wire loc_wb_wait_dram_f = ((location_addr_cnt == 2) && ~axi_wr_data_tx_f);
+
+reg[127:0] loc_data_out_ff;
+reg[127:0] weight_data_out_ff;
+
+
 
 assign busy = ~in_valid_d1 && ~st_IDLE && ~st_OUTPUT;
 always @(posedge clk or negedge rst_n) begin
@@ -631,6 +635,9 @@ begin
     end
 end
 
+// ===============================================================
+//  				    INPUTS DATAPATH
+// ===============================================================
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -657,7 +664,7 @@ begin
     end
     else if(st_RD_NET_INFO && in_valid)
     begin
-        if(rd_cnt[0] == 0)
+        if(rd_cnt[0] == 1'b0)
         begin
             source_x_rf[num_of_target_ff] <= loc_x;
             source_y_rf[num_of_target_ff] <= loc_y;
@@ -692,6 +699,16 @@ end
 
 wire[1:0] nxt_count = cnt - 1;
 
+wire signed [6:0] cur_xptr_left  = cur_xptr-1;
+wire signed [6:0] cur_xptr_right = cur_xptr+1;
+wire signed [6:0] cur_yptr_up    = cur_yptr-1;
+wire signed [6:0] cur_yptr_down  = cur_yptr+1;
+
+
+wire up_boundary_f      = cur_yptr!=0;
+wire down_boundary_f    = cur_yptr!=63;
+wire right_boundary_f   = cur_xptr!=63;
+wire left_boundary_f    = cur_xptr!=0;
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -719,25 +736,33 @@ begin
                 case(nxt_count)
                 'd2,'d3:
                 begin
-                    if(path_map_matrix_rf[cur_yptr+1][cur_xptr] == 3)
-                        cur_yptr <= cur_yptr + 1;
-                    else if(path_map_matrix_rf[cur_yptr-1][cur_xptr] == 3)
-                        cur_yptr <= cur_yptr - 1;
-                    else if(path_map_matrix_rf[cur_yptr][cur_xptr+1] == 3)
-                        cur_xptr <= cur_xptr + 1;
-                    else if(path_map_matrix_rf[cur_yptr][cur_xptr-1] == 3)
-                        cur_xptr <= cur_xptr - 1;
+                    //Down
+                    if(path_map_matrix_rf[cur_yptr_down][cur_xptr] == 3 && down_boundary_f)
+                        cur_yptr <= cur_yptr_down;
+                    //UP
+                    else if(path_map_matrix_rf[cur_yptr_up][cur_xptr] == 3 && up_boundary_f)
+                        cur_yptr <= cur_yptr_up;
+                    //RIGHT
+                    else if(path_map_matrix_rf[cur_yptr][cur_xptr_right] == 3 && right_boundary_f)
+                        cur_xptr <= cur_xptr_right;
+                    //LEFT
+                    else if(path_map_matrix_rf[cur_yptr][cur_xptr_left] == 3 && left_boundary_f)
+                        cur_xptr <= cur_xptr_left;
                 end
                 'd0,'d1:
                 begin
-                    if(path_map_matrix_rf[cur_yptr+1][cur_xptr] == 2)
-                        cur_yptr <= cur_yptr + 1;
-                    else if(path_map_matrix_rf[cur_yptr-1][cur_xptr] == 2)
-                        cur_yptr <= cur_yptr - 1;
-                    else if(path_map_matrix_rf[cur_yptr][cur_xptr+1] == 2)
-                        cur_xptr <= cur_xptr + 1;
-                    else if(path_map_matrix_rf[cur_yptr][cur_xptr-1] == 2)
-                        cur_xptr <= cur_xptr - 1;
+                    //DOWN
+                    if(path_map_matrix_rf[cur_yptr_down][cur_xptr] == 2 && down_boundary_f)
+                        cur_yptr <= cur_yptr_down;
+                    //UP
+                    else if(path_map_matrix_rf[cur_yptr_up][cur_xptr] == 2 && up_boundary_f)
+                        cur_yptr <= cur_yptr_up;
+                    //RIGHT
+                    else if(path_map_matrix_rf[cur_yptr][cur_xptr_right] == 2 &&right_boundary_f)
+                        cur_xptr <= cur_xptr_right;
+                    //LEFT
+                    else if(path_map_matrix_rf[cur_yptr][cur_xptr_left] == 2 && left_boundary_f)
+                        cur_xptr <= cur_xptr_left;
                 end
                 endcase
             end
@@ -756,13 +781,13 @@ begin
     begin
         for(i=0;i<64;i=i+1)
             for(j=0;j<64;j=j+1)
-                path_map_matrix_rf[i][j] <= 0;
+                path_map_matrix_rf[i][j] <= 2'b0;
     end
     else if(st_IDLE)
     begin
         for(i=0;i<64;i=i+1)
             for(j=0;j<64;j=j+1)
-                path_map_matrix_rf[i][j] <= 0;
+                path_map_matrix_rf[i][j] <= 2'b0;
     end
     else
     begin
@@ -783,7 +808,7 @@ begin
 end
 
 reg[1:0] cur_encode_val;
-wire[8:0] path_map_y_idx = location_addr_cnt/2;
+wire[6:0] path_map_y_idx = location_addr_cnt/2;
 
 always @(*)
 begin
@@ -853,30 +878,30 @@ begin
             end
 
         // Upper left
-        if(path_map_matrix_rf[0][0] == 0 && (path_map_matrix_rf[0][1][1] == 1 || path_map_matrix_rf[1][0][1] == 1))
+        if(path_map_matrix_rf[0][0] == 2'b0 && (path_map_matrix_rf[0][1][1] == 1'b1 || path_map_matrix_rf[1][0][1] == 1'b1))
             path_map_matrix_wr[0][0] = cur_encode_val;
         // Lower left
-        if(path_map_matrix_rf[63][0] == 0 && (path_map_matrix_rf[63][1][1] == 1 || path_map_matrix_rf[62][0][1] == 1))
+        if(path_map_matrix_rf[63][0] == 2'b0 && (path_map_matrix_rf[63][1][1] == 1'b1 || path_map_matrix_rf[62][0][1] == 1'b1))
             path_map_matrix_wr[63][0] = cur_encode_val;
         // Lower right
-        if(path_map_matrix_rf[63][63] == 0 && (path_map_matrix_rf[62][63][1] == 1 || path_map_matrix_rf[63][62][1] == 1))
+        if(path_map_matrix_rf[63][63] == 2'b0 && (path_map_matrix_rf[62][63][1] == 1'b1 || path_map_matrix_rf[63][62][1] == 1'b1))
             path_map_matrix_wr[63][63] = cur_encode_val;
         // Upper right
-        if(path_map_matrix_rf[0][63] == 0 && (path_map_matrix_rf[0][62][1] == 1 || path_map_matrix_rf[1][63][1] == 1))
+        if(path_map_matrix_rf[0][63] == 2'b0 && (path_map_matrix_rf[0][62][1] == 1'b1 || path_map_matrix_rf[1][63][1] == 1'b1))
             path_map_matrix_wr[0][63] = cur_encode_val;
     end
     else if(fill_path_map_d2 && st_FILL_PATH)
     begin
-        path_map_matrix_wr[cur_sink_y][cur_sink_x] = 0;
+        path_map_matrix_wr[cur_sink_y][cur_sink_x][0]  = 1'b0;
     end
     else if(fill_path_map_d1 && st_FILL_PATH)
     begin
-        path_map_matrix_wr[cur_source_y][cur_source_x] = 2;
+        path_map_matrix_wr[cur_source_y][cur_source_x] = 2'd2;
     end
     else if(st_RETRACE && retrace_replace_wb_f)
     begin
         // Retrace
-        path_map_matrix_wr[cur_yptr][cur_xptr] = 1;
+        path_map_matrix_wr[cur_yptr][cur_xptr] = 2'd1;
     end
     else if(st_CLEAR_MAP)
     begin
@@ -890,20 +915,15 @@ end
 
 always @(*)
 begin
-    cur_encode_val = 0;
     case(cnt)
     'd0: cur_encode_val = 2;
     'd1: cur_encode_val = 2;
     'd2: cur_encode_val = 3;
     'd3: cur_encode_val = 3;
+    default: cur_encode_val = 0;
     endcase
 end
 
-
-reg[127:0] loc_data_out_ff;
-reg[127:0] weight_data_out_ff;
-
-wire loc_sram_output_f = sram_read_write_cnt == 1;
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -928,18 +948,30 @@ reg[3:0] weight;
 // Fill replace wb
 always @(*)
 begin
-    weight = 0;
+    // weight = 0;
     for(i=0;i<32;i=i+1)
 		if(cur_xptr[4:0] == i)
         begin
 			retrace_sram_loc_wb[i*4 +: 4] = cur_net_id;
-            weight       = weight_data_out_ff[i*4+:4];
+            // weight       = weight_data_out_ff[i*4+:4];
         end
 		else
         begin
 			retrace_sram_loc_wb[i*4 +: 4] = loc_data_out_ff[i*4 +: 4];
         end
 end
+
+always @(*)
+begin
+    weight = 0;
+    for(i=0;i<32;i=i+1)
+	   if(cur_xptr[4:0] == i)
+       begin
+           weight       = weight_data_out_ff[i*4+:4];
+       end
+end
+
+
 // ===============================================================
 //  					weight MAC_ff
 // ===============================================================
