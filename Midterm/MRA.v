@@ -657,22 +657,9 @@ end
 // ===============================================================
 //  				    INPUTS DATAPATH
 // ===============================================================
-always @(posedge clk or negedge rst_n)
+always @(posedge clk)
 begin
-    if(~rst_n)
-    begin
-        frame_id_ff <= 0;
-
-        for(i=0;i<15;i=i+1)
-        begin
-            net_id_rf[i] <= 0;
-            sink_x_rf[i] <= 0;
-            sink_y_rf[i] <= 0;
-            source_x_rf[i] <= 0;
-            source_y_rf[i] <= 0;
-        end
-    end
-    else if(st_IDLE)
+    if(st_IDLE)
     begin
         if(in_valid)
         begin
@@ -786,15 +773,9 @@ end
 //  					PATH MAP
 // ===============================================================
 reg path_rd_cnt;
-always @(posedge clk or negedge rst_n)
+always @(posedge clk)
 begin
-    if(~rst_n)
-    begin
-        for(i=0;i<64;i=i+1)
-            for(j=0;j<64;j=j+1)
-                path_map_matrix_rf[i][j] <= 2'b0;
-    end
-    else if(st_IDLE)
+    if(st_IDLE)
     begin
         for(i=0;i<64;i=i+1)
             for(j=0;j<64;j=j+1)
@@ -935,19 +916,9 @@ begin
     endcase
 end
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk)
 begin
-    if(~rst_n)
-    begin
-        weight_data_out_ff <= 0;
-        loc_data_out_ff    <= 0;
-    end
-    else if(st_IDLE)
-    begin
-        weight_data_out_ff <= 0;
-        loc_data_out_ff <= 0;
-    end
-    else if(loc_sram_output_f)
+    if(loc_sram_output_f)
     begin
         weight_data_out_ff <= weight_mem_rd;
         loc_data_out_ff <= loc_mem_rd;
@@ -991,11 +962,11 @@ reg[13:0] weight_mac_ff;
 wire current_is_source_dst_f = (cur_xptr == cur_source_x && cur_yptr == cur_source_y)
 || (cur_xptr == cur_sink_x && cur_yptr == cur_sink_y);
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk)
 begin
-    if(~rst_n)
-        weight_mac_ff <= 0;
-    else if(st_IDLE)
+    // if(~rst_n)
+    //     weight_mac_ff <= 0;
+    if(st_IDLE)
         weight_mac_ff <= 0;
     else if(retrace_replace_wb_f && ~current_is_source_dst_f)
         weight_mac_ff <= weight_mac_ff + weight;
