@@ -44,13 +44,13 @@ module MRA(
 	   bvalid_m_inf,
 	   bready_m_inf
 );
+// Can share cnts, can remove AXI control registers.
+// Replace input buffer using line buffers.
+// Uses, shifting , to receive input values.
 // ===============================================================
 //  					Parameter Declaration
 // ===============================================================
 parameter ID_WIDTH=4, DATA_WIDTH=128, ADDR_WIDTH=32;    // DO NOT modify AXI4 Parameter
-parameter NUM_ROW = 64, NUM_COLUMN = 64;
-parameter MAX_NUM_MACRO = 15;
-
 
 // ===============================================================
 //  					Input / Output
@@ -211,7 +211,7 @@ reg fill_path_map_d1,fill_path_map_d2, fill_path_map_d3;
 reg rd_weight_map_d1;
 
 reg[7:0] location_addr_cnt_d1;
-wire loc_wb_wait_dram_f = ((location_addr_cnt == 2) && ~axi_wr_data_tx_f);
+wire loc_wb_wait_dram_f = (~axi_wr_data_tx_f);
 
 reg[127:0] loc_data_out_ff;
 reg[127:0] weight_data_out_ff;
@@ -368,7 +368,7 @@ end
 //AXI read addr
 always @(posedge clk or negedge rst_n)
 begin
-     if(~rst_n)
+    if(~rst_n)
     begin
         // AXI read addr
         arvalid_m_inf <= 0;
@@ -463,8 +463,8 @@ begin
     if(~rst_n)
     begin
         // AXI wr data
-        wdata_m_inf  <= 0;
-        wlast_m_inf  <= 0;
+        // wlast_m_inf  <= 0;
+        // wdata_m_inf  <= 0;
         wvalid_m_inf <= 0;
     end
     else if(st_AXI_W_DATA)
@@ -472,17 +472,28 @@ begin
         if(axi_wr_data_done_f)
         begin
             wvalid_m_inf <= 0;
-            wdata_m_inf  <= 0;
-            wlast_m_inf  <= 0;
+            // wdata_m_inf  <= 0;
+            // wlast_m_inf  <= 0;
         end
         else
         begin
-            wvalid_m_inf <= loc_wb_valid_d1;
-            wdata_m_inf  <= loc_wb_valid_d1 ? loc_mem_rd : 0;
-            wlast_m_inf  <= wb_data_last_d1;
+            wvalid_m_inf <= 1;
+            // wdata_m_inf  <= loc_wb_wait_dram_f ? wdata_m_inf : (loc_wb_valid_d1 ? loc_mem_rd : 0);
         end
     end
 end
+
+always @(*)
+begin
+    wdata_m_inf = 0;
+    wlast_m_inf = 0;
+    if(st_AXI_W_DATA)
+    begin
+        wlast_m_inf  = wb_data_last_f;
+        wdata_m_inf = loc_mem_rd;
+    end
+end
+
 
 // AXI wr response
 always @(posedge clk or negedge rst_n)
@@ -503,13 +514,13 @@ begin
     if(~rst_n)
     begin
         loc_wb_valid_d1 <= 0;
-        wb_data_last_d1 <= 0;
+        // wb_data_last_d1 <= 0;
         location_addr_cnt_d1 <= 0;
     end
     else if(st_AXI_W_DATA)
     begin
         loc_wb_valid_d1 <=       loc_wb_valid_f;
-        wb_data_last_d1 <=       wb_data_last_f;
+        // wb_data_last_d1 <=       wb_data_last_f;
         location_addr_cnt_d1 <=  loc_wb_wait_dram_f ? location_addr_cnt_d1: location_addr_cnt;
     end
 end
@@ -518,6 +529,8 @@ end
 //  				    SUB CONTROL
 // ===============================================================
 // Input reading controls
+wire[7:0] location_cnt_nxt = location_addr_cnt + 1;
+
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -618,13 +631,13 @@ begin
             begin
                 location_addr_cnt <= location_addr_cnt;
             end
-            else if(axi_wr_addr_tx_f)
-            begin
-                location_addr_cnt <= location_addr_cnt + 1;
-            end
             else if(loc_wb_wait_dram_f)
             begin
                 location_addr_cnt <= location_addr_cnt;
+            end
+            else if(axi_wr_addr_tx_f)
+            begin
+                location_addr_cnt <= location_addr_cnt + 1;
             end
             else
             begin
@@ -1040,7 +1053,7 @@ begin
     begin
         // Location map WB DRAM
         loc_mem_we   = 1;
-        loc_mem_addr = location_addr_cnt;
+        loc_mem_addr = axi_wr_data_tx_f ? location_cnt_nxt : location_addr_cnt;
         loc_mem_wr   = 0;
     end
     else if(retrace_replace_wb_f)
