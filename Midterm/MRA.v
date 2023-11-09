@@ -514,14 +514,10 @@ begin
     if(~rst_n)
     begin
         loc_wb_valid_d1 <= 0;
-        // wb_data_last_d1 <= 0;
-        location_addr_cnt_d1 <= 0;
     end
     else if(st_AXI_W_DATA)
     begin
         loc_wb_valid_d1 <=       loc_wb_valid_f;
-        // wb_data_last_d1 <=       wb_data_last_f;
-        location_addr_cnt_d1 <=  loc_wb_wait_dram_f ? location_addr_cnt_d1: location_addr_cnt;
     end
 end
 
@@ -530,6 +526,53 @@ end
 // ===============================================================
 // Input reading controls
 wire[7:0] location_cnt_nxt = location_addr_cnt + 1;
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        location_addr_cnt <= 0;
+    end
+    else
+    begin
+        case(cur_state)
+        IDLE:
+        begin
+            location_addr_cnt <= 0;
+        end
+        AXI_RD_ADDR:
+        begin
+            if(location_addr_cnt == 127)
+            begin
+                 location_addr_cnt <= 0;
+            end
+        end
+        AXI_RD_DATA:
+        begin
+            if(location_addr_cnt == 127 && axi_rd_data_done_d1)
+                location_addr_cnt <= 0;
+            else if(axi_rd_data_tx_d1)
+                location_addr_cnt <= location_addr_cnt + 1;
+        end
+        AXI_W_ADDR:
+        begin
+            location_addr_cnt <= 0;
+        end
+        AXI_W_DATA:
+        begin
+            if(wb_data_last_f || loc_wb_wait_dram_f)
+            begin
+                location_addr_cnt <= location_addr_cnt;
+            end
+            else
+            begin
+                location_addr_cnt <= location_addr_cnt + 1;
+            end
+        end
+        endcase
+    end
+end
+
+
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -537,7 +580,6 @@ begin
     begin
         cur_target_cnt <= 0;
         rd_cnt     <= 0;
-        location_addr_cnt <= 0;
         num_of_target_ff <= 0;
         sram_read_write_cnt <= 0;
         cnt <= 0;
@@ -558,7 +600,6 @@ begin
 
             cur_target_cnt <= 0;
             num_of_target_ff <= 0;
-            location_addr_cnt <= 0;
             cnt <= 0;
             sram_read_write_cnt <= 0;
         end
@@ -572,20 +613,8 @@ begin
                 num_of_target_ff <= num_of_target_ff + 1;
             end
         end
-        AXI_RD_ADDR:
-        begin
-            if(location_addr_cnt == 127)
-            begin
-                 location_addr_cnt <= 0;
-            end
-        end
         AXI_RD_DATA:
         begin
-            if(location_addr_cnt == 127 && axi_rd_data_done_d1)
-                location_addr_cnt <= 0;
-            else if(axi_rd_data_tx_d1)
-                location_addr_cnt <= location_addr_cnt + 1;
-
             cnt <= 1;
         end
         FILL_PATH:
@@ -620,29 +649,6 @@ begin
                 cur_target_cnt <= 0;
             else if(retrace_path_done_f)
                 cur_target_cnt <= cur_target_cnt + 1;
-        end
-        AXI_W_ADDR:
-        begin
-            location_addr_cnt <= 0;
-        end
-        AXI_W_DATA:
-        begin
-            if(wb_data_last_f)
-            begin
-                location_addr_cnt <= location_addr_cnt;
-            end
-            else if(loc_wb_wait_dram_f)
-            begin
-                location_addr_cnt <= location_addr_cnt;
-            end
-            else if(axi_wr_addr_tx_f)
-            begin
-                location_addr_cnt <= location_addr_cnt + 1;
-            end
-            else
-            begin
-                location_addr_cnt <= location_addr_cnt + 1;
-            end
         end
         endcase
     end
@@ -729,58 +735,50 @@ begin
         cur_yptr <= 0;
         cur_xptr <= 0;
     end
-    else
+    else if(st_RETRACE && retrace_replace_wb_f)
     begin
-        case(cur_state)
-        IDLE:
-        begin
-            cur_yptr <= 0;
-            cur_xptr <= 0;
-        end
-        FILL_PATH:
-        begin
-            cur_yptr <= cur_sink_y;
-            cur_xptr <= cur_sink_x;
-        end
-        RETRACE:
-        begin
-            if(retrace_replace_wb_f)
+        case(nxt_count)
+            'd2,'d3:
             begin
-                case(nxt_count)
-                'd2,'d3:
-                begin
-                    //Down
-                    if(path_map_matrix_rf[cur_yptr_down][cur_xptr] == 3 && down_boundary_f)
-                        cur_yptr <= cur_yptr_down;
-                    //UP
-                    else if(path_map_matrix_rf[cur_yptr_up][cur_xptr] == 3 && up_boundary_f)
-                        cur_yptr <= cur_yptr_up;
-                    //RIGHT
-                    else if(path_map_matrix_rf[cur_yptr][cur_xptr_right] == 3 && right_boundary_f)
-                        cur_xptr <= cur_xptr_right;
-                    //LEFT
-                    else if(path_map_matrix_rf[cur_yptr][cur_xptr_left] == 3 && left_boundary_f)
-                        cur_xptr <= cur_xptr_left;
-                end
-                'd0,'d1:
-                begin
-                    //DOWN
-                    if(path_map_matrix_rf[cur_yptr_down][cur_xptr] == 2 && down_boundary_f)
-                        cur_yptr <= cur_yptr_down;
-                    //UP
-                    else if(path_map_matrix_rf[cur_yptr_up][cur_xptr] == 2 && up_boundary_f)
-                        cur_yptr <= cur_yptr_up;
-                    //RIGHT
-                    else if(path_map_matrix_rf[cur_yptr][cur_xptr_right] == 2 &&right_boundary_f)
-                        cur_xptr <= cur_xptr_right;
-                    //LEFT
-                    else if(path_map_matrix_rf[cur_yptr][cur_xptr_left] == 2 && left_boundary_f)
-                        cur_xptr <= cur_xptr_left;
-                end
-                endcase
+                //Down
+                if(path_map_matrix_rf[cur_yptr_down][cur_xptr] == 3 && down_boundary_f)
+                    cur_yptr <= cur_yptr_down;
+                //UP
+                else if(path_map_matrix_rf[cur_yptr_up][cur_xptr] == 3 && up_boundary_f)
+                    cur_yptr <= cur_yptr_up;
+                //RIGHT
+                else if(path_map_matrix_rf[cur_yptr][cur_xptr_right] == 3 && right_boundary_f)
+                    cur_xptr <= cur_xptr_right;
+                //LEFT
+                else if(path_map_matrix_rf[cur_yptr][cur_xptr_left] == 3 && left_boundary_f)
+                    cur_xptr <= cur_xptr_left;
             end
-        end
-        endcase
+            'd0,'d1:
+            begin
+                //DOWN
+                if(path_map_matrix_rf[cur_yptr_down][cur_xptr] == 2 && down_boundary_f)
+                    cur_yptr <= cur_yptr_down;
+                //UP
+                else if(path_map_matrix_rf[cur_yptr_up][cur_xptr] == 2 && up_boundary_f)
+                    cur_yptr <= cur_yptr_up;
+                //RIGHT
+                else if(path_map_matrix_rf[cur_yptr][cur_xptr_right] == 2 &&right_boundary_f)
+                    cur_xptr <= cur_xptr_right;
+                //LEFT
+                else if(path_map_matrix_rf[cur_yptr][cur_xptr_left] == 2 && left_boundary_f)
+                    cur_xptr <= cur_xptr_left;
+            end
+            endcase
+    end
+    else if(st_FILL_PATH)
+    begin
+        cur_yptr <= cur_sink_y;
+        cur_xptr <= cur_sink_x;
+    end
+    else if(st_IDLE)
+    begin
+        cur_yptr <= 0;
+        cur_xptr <= 0;
     end
 end
 
@@ -848,7 +846,20 @@ begin
             end
         end
     end
-    else if(fill_path_map_d3 && st_FILL_PATH)
+    else if(retrace_replace_wb_f)
+    begin
+        // Retrace
+        path_map_matrix_wr[cur_yptr][cur_xptr] = 2'd1;
+    end
+    else if(fill_path_map_d1 && ~fill_path_map_d2)
+    begin
+        path_map_matrix_wr[cur_source_y][cur_source_x] = 2'd2;
+    end
+    else if(fill_path_map_d2 && ~fill_path_map_d3)
+    begin
+        path_map_matrix_wr[cur_sink_y][cur_sink_x][0]  = 1'b0;
+    end
+    else if(fill_path_map_d3)
     begin
         // 1~63
         for(i=1;i<63;i=i+1)
@@ -902,19 +913,6 @@ begin
         // Upper right
         if(path_map_matrix_rf[0][63] == 2'b0 && (path_map_matrix_rf[0][62][1] == 1'b1 || path_map_matrix_rf[1][63][1] == 1'b1))
             path_map_matrix_wr[0][63] = cur_encode_val;
-    end
-    else if(fill_path_map_d2 && st_FILL_PATH)
-    begin
-        path_map_matrix_wr[cur_sink_y][cur_sink_x][0]  = 1'b0;
-    end
-    else if(fill_path_map_d1 && st_FILL_PATH)
-    begin
-        path_map_matrix_wr[cur_source_y][cur_source_x] = 2'd2;
-    end
-    else if(st_RETRACE && retrace_replace_wb_f)
-    begin
-        // Retrace
-        path_map_matrix_wr[cur_yptr][cur_xptr] = 2'd1;
     end
     else if(st_CLEAR_MAP)
     begin
