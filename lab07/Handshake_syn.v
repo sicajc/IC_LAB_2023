@@ -9,14 +9,14 @@ module Handshake_syn #(parameter WIDTH=32) (
     dvalid,
     dout,
 
-    sreq_flag,
-    s_data_valid,
-    dreq_flag,
-    d_data_valid,
+    clk1_handshake_flag1,
+    clk1_handshake_flag2,
+    clk1_handshake_flag3,
+    clk1_handshake_flag4,
 
-    dack_flag,
+    handshake_clk2_flag1,
     handshake_clk2_flag2,
-    sack_flag,
+    handshake_clk2_flag3,
     handshake_clk2_flag4
 );
 
@@ -30,14 +30,14 @@ output reg dvalid;
 output reg [WIDTH-1:0] dout;
 
 // You can change the input / output of the custom flag ports
-input sreq_flag;
-input s_data_valid;
-output dreq_flag;
-output d_data_valid;
+input clk1_handshake_flag1;
+input clk1_handshake_flag2;
+output clk1_handshake_flag3;
+output clk1_handshake_flag4;
 
-input dack_flag;
+input handshake_clk2_flag1;
 input handshake_clk2_flag2;
-output sack_flag;
+output handshake_clk2_flag3;
 output handshake_clk2_flag4;
 
 // Remember:
@@ -46,6 +46,7 @@ reg sreq;
 wire dreq;
 reg dack;
 wire sack;
+
 
 localparam IDLE         = 3'b001;
 localparam SENDING_DATA = 3'b010;
@@ -109,7 +110,7 @@ begin
         case (dst_cur_state)
             IDLE:
             begin
-                dst_cur_state <= ~dbusy            ? SENDING_DATA : IDLE;
+                dst_cur_state <= (~dbusy && dreq )            ? SENDING_DATA : IDLE;
                 dack          <= 0;
                 dout          <= 0;
                 dvalid        <= 0;
@@ -133,5 +134,6 @@ end
 // Synchronizers
 NDFF_syn sreq_dreq(.D(sreq), .Q(dreq), .clk(dclk), .rst_n(rst_n));
 NDFF_syn dack_sack(.D(dack), .Q(sack), .clk(sclk), .rst_n(rst_n));
+
 
 endmodule
