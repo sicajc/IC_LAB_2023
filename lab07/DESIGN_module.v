@@ -31,10 +31,13 @@ output clk1_handshake_flag4;
 reg[1:0] cur_state;
 
 localparam IDLE = 2'b01;
+localparam WAIT_RESP = 2'b11;
 localparam SEND_DATA = 2'b10;
+
 
 wire st_IDLE = cur_state == IDLE;
 wire st_SEND_DATA = cur_state == SEND_DATA;
+wire st_WAIT_RESP = cur_state == WAIT_RESP;
 
 always @(posedge clk or negedge rst_n) begin
     if(~rst_n)
@@ -45,14 +48,19 @@ always @(posedge clk or negedge rst_n) begin
     end
     else if(st_IDLE)
     begin
-        cur_state <= in_valid ? SEND_DATA : IDLE;
+        cur_state <= in_valid ? WAIT_RESP : IDLE;
         seed_out  <= in_valid ? seed_in : seed_out;
         out_valid <= in_valid ? 1 : 0;
+    end
+    else if(st_WAIT_RESP)
+    begin
+        cur_state <= SEND_DATA;
+        out_valid <= 0;
+        seed_out  <= 0;
     end
     else if(st_SEND_DATA)
     begin
         cur_state <=  out_idle ? IDLE : SEND_DATA;
-        out_valid <=  out_idle ? 0 : 1;
     end
 end
 
