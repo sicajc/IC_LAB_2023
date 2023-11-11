@@ -56,7 +56,7 @@ reg wen;
 // rdata
 //  Add one more register stage to rdata
 always @(posedge rclk) begin
-    if (rinc)
+    if(rinc)
         rdata <= rdata_q;
 end
 
@@ -73,7 +73,10 @@ begin
     wptr_sram_addr = wptr_real_gray[5:0];
 
     // Convert to Real Gray code then perform comparison
-    wfull = (wptr[6] || rptr_real_gray_d2[6]) && (wptr_real_gray == rptr_real_gray_d2);
+    if((wptr[6] != rptr_d2[6]) && (wptr_real_gray == rptr_real_gray_d2))
+        wfull = 1'b1;
+    else
+        wfull = 1'b0;
 
     if(wfull == 1'b1)
     begin
@@ -90,10 +93,14 @@ end
 always @(*)
 begin
     //rptr controls
-    rptr_real_gray = REAL_GRAY_CODE(rptr);
+    rptr_real_gray    = REAL_GRAY_CODE(rptr);
     rptr_real_gray_d2 = REAL_GRAY_CODE(rptr_d2);
     rptr_sram_addr = rptr_real_gray[5:0];
-    rempty  = (wptr_d2 == rptr);
+
+    if((wptr_d2[6] == rptr[6])  && (wptr_d2 == rptr))
+        rempty= 1'b1;
+    else
+        rempty = 1'b0;
 
     if(rempty == 1'b1)
     begin
@@ -105,9 +112,11 @@ begin
     end
 end
 
+wire[6:0] test;
+
 // Synchronizers
-NDFF_syn rptr_d2_ff(.D(rptr), .Q(rptr_d2), .clk(dclk), .rst_n(rst_n));
-NDFF_syn wptr_d2_ff(.D(wptr), .Q(wptr_d2), .clk(rclk), .rst_n(rst_n));
+NDFF_BUS_syn #(.WIDTH(7)) rptr_d2_ff(.D(rptr), .Q(rptr_d2), .clk(wclk), .rst_n(rst_n));
+NDFF_BUS_syn #(.WIDTH(7)) wptr_d2_ff(.D(wptr), .Q(wptr_d2), .clk(rclk), .rst_n(rst_n));
 
 
 wire[6:0] wptr_dec;
@@ -119,7 +128,7 @@ DW_cntr_gray_inst w_ptr_gray(.inst_clk(wclk), .inst_rst_n(rst_n), .inst_init_n(1
 wire[6:0] rptr_dec;
 gray2bin r_g2b(.gray(rptr),.bin(rptr_dec));
 
-DW_cntr_gray_inst r_ptr_gray(.inst_clk(rclk), .inst_rst_n(rst_n), .inst_init_n(1'b1), .inst_load_n(1'b0),
+DW_cntr_gray_inst r_ptr_gray(.inst_clk(rclk), .inst_rst_n(rst_n), .inst_init_n(1'b1), .inst_load_n(1'b1),
 .inst_data(7'b0), .inst_cen(r_ptr_counts), .count_inst(rptr));
 
 
@@ -132,18 +141,18 @@ DUAL_64X32X1BM1 u_dual_sram (
     .CSB(1'b1),
     .OEA(1'b1),
     .OEB(1'b1),
-    .A0(wptr[0]),
-    .A1(wptr[1]),
-    .A2(wptr[2]),
-    .A3(wptr[3]),
-    .A4(wptr[4]),
-    .A5(wptr[5]),
-    .B0(rptr[0]),
-    .B1(rptr[1]),
-    .B2(rptr[2]),
-    .B3(rptr[3]),
-    .B4(rptr[4]),
-    .B5(rptr[5]),
+    .A0(wptr_sram_addr[0]),
+    .A1(wptr_sram_addr[1]),
+    .A2(wptr_sram_addr[2]),
+    .A3(wptr_sram_addr[3]),
+    .A4(wptr_sram_addr[4]),
+    .A5(wptr_sram_addr[5]),
+    .B0(rptr_sram_addr[0]),
+    .B1(rptr_sram_addr[1]),
+    .B2(rptr_sram_addr[2]),
+    .B3(rptr_sram_addr[3]),
+    .B4(rptr_sram_addr[4]),
+    .B5(rptr_sram_addr[5]),
     .DIA0(wdata[0]),
     .DIA1(wdata[1]),
     .DIA2(wdata[2]),

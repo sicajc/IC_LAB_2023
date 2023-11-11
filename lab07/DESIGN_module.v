@@ -102,7 +102,7 @@ output clk2_fifo_flag4;
 
 reg[1:0] cur_state;
 reg[1:0] cnt;
-reg[5:0] rand_num_cnt;
+reg[8:0] rand_num_cnt;
 localparam RD_DATA      = 2'b01;
 localparam CAL_RAND_NUM = 2'b10;
 localparam OUTPUT       = 2'b11;
@@ -164,8 +164,8 @@ begin
         begin
             rand_num_cnt <= fifo_full ? rand_num_cnt : rand_num_cnt+1;
             cur_state    <= fifo_full ? OUTPUT : (fin_processing_f ? RD_DATA : CAL_RAND_NUM);
-            out_valid    <= fifo_full ? 0 : 1;
-            busy         <= fin_processing_f ? 0 : 1;
+            out_valid    <= (fifo_full ? 0 : 1);
+            busy         <= 1;
         end
         endcase
     end
@@ -193,7 +193,7 @@ input clk;
 input rst_n;
 input fifo_empty;
 input [31:0] fifo_rdata;
-output fifo_rinc;
+output reg fifo_rinc;
 output reg out_valid;
 output reg [31:0] rand_num;
 
@@ -203,6 +203,31 @@ input fifo_clk3_flag2;
 output fifo_clk3_flag3;
 output fifo_clk3_flag4;
 
+reg[8:0] cnt;
+
+
+reg out_valid_d1,out_valid_d2,out_valid_d3;
+reg fifo_empty_d2,fifo_empty_d1;
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        // out_valid <= 0;
+        out_valid_d2 <= 0;
+        out_valid_d3 <= 0;
+        fifo_empty_d1 <= 1;
+        fifo_empty_d2 <= 1;
+    end
+    else
+    begin
+        fifo_empty_d1 <= fifo_empty;
+        fifo_empty_d2 <= fifo_empty_d1;
+        out_valid_d2 <= out_valid_d1;
+        out_valid_d3 <= out_valid_d2;
+        // out_valid    <= out_valid_d3;
+    end
+end
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -210,10 +235,22 @@ begin
     begin
         out_valid <= 0;
         rand_num  <= 0;
+        fifo_rinc <= 0;
+        out_valid_d1 <= 0;
+    end
+    else if(fifo_empty_d2)
+    begin
+        out_valid <= 0;
+        rand_num  <= 0;
+        fifo_rinc <= 0;
+        out_valid_d1 <= 0;
     end
     else
     begin
-
+        out_valid_d1 <= 1;
+        out_valid    <= out_valid_d3;
+        rand_num     <= out_valid_d3 ? fifo_rdata : 0;
+        fifo_rinc    <= 1;
     end
 end
 

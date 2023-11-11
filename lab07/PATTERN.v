@@ -45,7 +45,7 @@ input [31:0] rand_num;
 //      PARAMETERS & VARIABLES
 //======================================
 // User modification
-parameter PATNUM            = 10;
+parameter PATNUM            = 1000;
 parameter SIMPLE_PATNUM     = 10;
 integer   SEED              = 587;
 // PATTERN operation
@@ -135,7 +135,7 @@ begin
     for(_idx=2 ; _idx<=OUTPUT_PER_PAT ; _idx=_idx+1) begin
         _inputNums [_idx] = _outputNums[_idx-1];
         _shiftNums1[_idx] = _inputNums [_idx] ^ (_inputNums [_idx] << SHIFT_PARAM_A);
-        _shiftNums2[_idx] = _shiftNums1[_idx] ^ (_shiftNums1[_idx] << SHIFT_PARAM_B);
+        _shiftNums2[_idx] = _shiftNums1[_idx] ^ (_shiftNums1[_idx] >> SHIFT_PARAM_B);
         _shiftNums3[_idx] = _shiftNums2[_idx] ^ (_shiftNums2[_idx] << SHIFT_PARAM_C);
         _outputNums[_idx] = _shiftNums3[_idx];
     end
