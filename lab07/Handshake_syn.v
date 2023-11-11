@@ -25,7 +25,7 @@ input rst_n;
 input sready;
 input [WIDTH-1:0] din;
 input dbusy;
-output sidle;
+output reg sidle;
 output reg dvalid;
 output reg [WIDTH-1:0] dout;
 
@@ -48,109 +48,79 @@ reg dack;
 wire sack;
 
 
-localparam IDLE         = 3'b001;
-localparam WAIT_DST     = 3'b011;
-localparam SENDING_DATA = 3'b010;
-localparam OUTPUT       = 3'b100;
-
 wire src_hand_shaked_f = sreq && sack;
 wire dst_hand_shaked_f = ~dreq && dack;
-
 reg[31:0] src_ff,dst_ff;
 
-reg[2:0] src_cur_state,dst_cur_state;
-wire st_src_IDLE = src_cur_state == IDLE;
-wire st_src_SD   = src_cur_state == SENDING_DATA;
-wire st_src_WAIT_DST = src_cur_state == WAIT_DST;
-wire st_dst_IDLE = dst_cur_state == IDLE;
-wire st_dst_SD   = dst_cur_state == SENDING_DATA;
-wire st_dst_OUT   = dst_cur_state == OUTPUT;
-
-wire sidle = st_src_IDLE;
 
 // Src
 always @(posedge sclk or negedge rst_n)
 begin
     if(~rst_n)
-    begin
-        src_cur_state <= IDLE;
-        sreq <= 0;
         src_ff <= 0;
-    end
-    else
-    begin
-        case (src_cur_state)
-            IDLE:
-            begin
-                src_cur_state <= (sready && ~sreq) ? SENDING_DATA : IDLE;
-                sreq          <= (sready && ~sreq) ? 1 : 0;
-                src_ff        <= din;
-            end
-            SENDING_DATA :
-            begin
-                src_cur_state <= src_hand_shaked_f ? WAIT_DST     : SENDING_DATA;
-                sreq          <= src_hand_shaked_f ? 0 : 1;
-            end
-            WAIT_DST:
-            begin
-                src_cur_state <= (~sack && ~sreq) ? IDLE         : WAIT_DST;
-            end
-        endcase
-    end
+    else if(sready && ~sreq)
+        src_ff <= din;
+end
+
+always @(posedge sclk or negedge rst_n)
+begin
+    if(~rst_n)
+        sreq <= 0;
+    else if(src_hand_shaked_f)
+        sreq <= 0;
+    else if(sready && ~sreq)
+        sreq <= 1;
 end
 
 always @(*)
 begin
-    if(dbusy)
-        dvalid = 0;
+    if(sreq && ~sack)
+        sidle = 0;
+    else if(~sreq && sready)
+        sidle = 0;
     else
-        dvalid = st_dst_OUT;
+        sidle = 1;
 end
 
-always @(*)
-begin
-    if(dbusy)
-        dout = 0;
-    else if(st_dst_OUT)
-        dout = dst_ff;
-end
-
-// dst
+// DST
 always @(posedge dclk or negedge rst_n)
 begin
     if(~rst_n)
-    begin
-        dst_cur_state <= IDLE;
         dst_ff <= 0;
-        dack   <= 0;
-        // dout   <= 0;
-        // dvalid <= 0;
+    else if(dreq && dack)
+        dst_ff <= src_ff;
+end
+
+always @(posedge dclk or negedge rst_n)
+begin
+    if(~rst_n)
+        dack <= 0;
+    else if(dbusy)
+        dack <= dack;
+    else
+        dack <= dreq;
+end
+
+always @(*)
+begin
+    if(dbusy)
+    begin
+        dvalid = 0;
+        dout   = dst_ff;
+    end
+    else if(dst_hand_shaked_f)
+    begin
+        dvalid = 1;
+        dout   = dst_ff;
     end
     else
     begin
-        case (dst_cur_state)
-            IDLE:
-            begin
-                dst_cur_state <= (~dbusy && dreq )            ? SENDING_DATA : IDLE;
-                dack          <= (~dbusy && dreq )            ?  1 : 0;
-                // dout          <= 0;
-                // dvalid        <= 0;
-            end
-            SENDING_DATA:
-            begin
-                dst_cur_state <= dst_hand_shaked_f ? OUTPUT         : SENDING_DATA;
-                dack          <= dst_hand_shaked_f ? 0 : 1;
-                dst_ff        <= dst_hand_shaked_f ? src_ff : dst_ff;
-            end
-            OUTPUT:
-            begin
-                dst_cur_state    <= dbusy ?  OUTPUT : IDLE;
-                // dvalid        <= dbusy ?  0      : 1;
-                // dout          <= dbusy ?  dout   : dst_ff;
-            end
-        endcase
+        dvalid = 0;
+        dout   = dst_ff;
     end
 end
+
+
 
 // Synchronizers
 NDFF_syn sreq_dreq(.D(sreq), .Q(dreq), .clk(dclk), .rst_n(rst_n));
