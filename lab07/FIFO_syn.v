@@ -112,25 +112,25 @@ begin
     end
 end
 
-wire[6:0] test;
+
+reg[6:0] wptr_bin;
+always @(posedge wclk or negedge rst_n) begin
+    if(~rst_n) wptr_bin <= 0;
+    else if(w_ptr_counts) wptr_bin <= wptr_bin + 1;
+end
+assign wptr = bin2gray(wptr_bin);
+
+
+reg[6:0] rptr_bin;
+always @(posedge rclk or negedge rst_n) begin
+    if(~rst_n) rptr_bin <= 0;
+    else if(r_ptr_counts) rptr_bin <= rptr_bin + 1;
+end
+assign rptr = bin2gray(rptr_bin);
 
 // Synchronizers
 NDFF_BUS_syn #(.WIDTH(7)) rptr_d2_ff(.D(rptr), .Q(rptr_d2), .clk(wclk), .rst_n(rst_n));
 NDFF_BUS_syn #(.WIDTH(7)) wptr_d2_ff(.D(wptr), .Q(wptr_d2), .clk(rclk), .rst_n(rst_n));
-
-
-wire[6:0] wptr_dec;
-gray2bin w_g2b(.gray(wptr),.bin(wptr_dec));
-
-DW_cntr_gray_inst w_ptr_gray(.inst_clk(wclk), .inst_rst_n(rst_n), .inst_init_n(1'b1), .inst_load_n(1'b1),
-.inst_data(7'b0), .inst_cen(w_ptr_counts), .count_inst(wptr));
-
-wire[6:0] rptr_dec;
-gray2bin r_g2b(.gray(rptr),.bin(rptr_dec));
-
-DW_cntr_gray_inst r_ptr_gray(.inst_clk(rclk), .inst_rst_n(rst_n), .inst_init_n(1'b1), .inst_load_n(1'b1),
-.inst_data(7'b0), .inst_cen(r_ptr_counts), .count_inst(rptr));
-
 
 DUAL_64X32X1BM1 u_dual_sram (
     .CKA(wclk),
@@ -185,38 +185,38 @@ DUAL_64X32X1BM1 u_dual_sram (
     .DIA29(wdata[29]),
     .DIA30(wdata[30]),
     .DIA31(wdata[31]),
-    .DIB0(),
-    .DIB1(),
-    .DIB2(),
-    .DIB3(),
-    .DIB4(),
-    .DIB5(),
-    .DIB6(),
-    .DIB7(),
-    .DIB8(),
-    .DIB9(),
-    .DIB10(),
-    .DIB11(),
-    .DIB12(),
-    .DIB13(),
-    .DIB14(),
-    .DIB15(),
-    .DIB16(),
-    .DIB17(),
-    .DIB18(),
-    .DIB19(),
-    .DIB20(),
-    .DIB21(),
-    .DIB22(),
-    .DIB23(),
-    .DIB24(),
-    .DIB25(),
-    .DIB26(),
-    .DIB27(),
-    .DIB28(),
-    .DIB29(),
-    .DIB30(),
-    .DIB31(),
+    // .DIB0(),
+    // .DIB1(),
+    // .DIB2(),
+    // .DIB3(),
+    // .DIB4(),
+    // .DIB5(),
+    // .DIB6(),
+    // .DIB7(),
+    // .DIB8(),
+    // .DIB9(),
+    // .DIB10(),
+    // .DIB11(),
+    // .DIB12(),
+    // .DIB13(),
+    // .DIB14(),
+    // .DIB15(),
+    // .DIB16(),
+    // .DIB17(),
+    // .DIB18(),
+    // .DIB19(),
+    // .DIB20(),
+    // .DIB21(),
+    // .DIB22(),
+    // .DIB23(),
+    // .DIB24(),
+    // .DIB25(),
+    // .DIB26(),
+    // .DIB27(),
+    // .DIB28(),
+    // .DIB29(),
+    // .DIB30(),
+    // .DIB31(),
     .DOB0(rdata_q[0]),
     .DOB1(rdata_q[1]),
     .DOB2(rdata_q[2]),
@@ -267,31 +267,13 @@ function [6:0] REAL_GRAY_CODE;
     end
 endfunction
 
+function [6:0] bin2gray;
+    input[6:0] bin;
+    begin
+        bin2gray = bin ^ (bin >> 1);
+    end
+endfunction
 
-endmodule
-
-module DW_cntr_gray_inst (inst_clk, inst_rst_n, inst_init_n, inst_load_n,
-inst_data, inst_cen, count_inst);
-parameter inst_width = 7;
-input inst_clk;
-input inst_rst_n;
-input inst_init_n;
-input inst_load_n;
-input [inst_width-1 : 0] inst_data;
-input inst_cen;
-output [inst_width-1 : 0] count_inst;
-
-// Please add +incdir+$SYNOPSYS/dw/sim_ver+ to your verilog simulator
-// command line (for simulation).
-// instance of DW_cntr_gray
-DW_cntr_gray #(inst_width)
-U1 (.clk(inst_clk),
-.rst_n(inst_rst_n),
-.init_n(inst_init_n),
-.load_n(inst_load_n),
-.data(inst_data),
-.cen(inst_cen),
-.count(count_inst));
 endmodule
 
 

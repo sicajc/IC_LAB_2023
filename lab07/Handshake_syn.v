@@ -1,25 +1,33 @@
-module CLK_1_MODULE (
-    clk,
+module Handshake_syn #(parameter WIDTH=32) (
+    sclk,
+    dclk,
     rst_n,
-    in_valid,
-    seed_in,
-    out_idle,
-    out_valid,
-    seed_out,
+    sready,
+    din,
+    dbusy,
+    sidle,
+    dvalid,
+    dout,
 
     clk1_handshake_flag1,
     clk1_handshake_flag2,
     clk1_handshake_flag3,
-    clk1_handshake_flag4
+    clk1_handshake_flag4,
+
+    handshake_clk2_flag1,
+    handshake_clk2_flag2,
+    handshake_clk2_flag3,
+    handshake_clk2_flag4
 );
 
-input clk;
+input sclk, dclk;
 input rst_n;
-input in_valid;
-input [31:0] seed_in;
-input out_idle;
-output reg out_valid;
-output reg [31:0] seed_out;
+input sready;
+input [WIDTH-1:0] din;
+input dbusy;
+output sidle;
+output reg dvalid;
+output reg [WIDTH-1:0] dout;
 
 // You can change the input / output of the custom flag ports
 input clk1_handshake_flag1;
@@ -27,240 +35,111 @@ input clk1_handshake_flag2;
 output clk1_handshake_flag3;
 output clk1_handshake_flag4;
 
-
-reg[1:0] cur_state;
-
-localparam IDLE = 2'b01;
-localparam WAIT_RESP = 2'b11;
-localparam SEND_DATA = 2'b10;
-
-
-wire st_IDLE = cur_state == IDLE;
-wire st_SEND_DATA = cur_state == SEND_DATA;
-wire st_WAIT_RESP = cur_state == WAIT_RESP;
-
-always @(posedge clk or negedge rst_n) begin
-    if(~rst_n)
-    begin
-        cur_state <= IDLE;
-        seed_out  <= 0;
-        out_valid <= 0;
-    end
-    else if(st_IDLE)
-    begin
-        cur_state <= in_valid ? WAIT_RESP : IDLE;
-        seed_out  <= in_valid ? seed_in : seed_out;
-        out_valid <= in_valid ? 1 : 0;
-    end
-    else if(st_WAIT_RESP)
-    begin
-        cur_state <= SEND_DATA;
-        out_valid <= 0;
-        seed_out  <= 0;
-    end
-    else if(st_SEND_DATA)
-    begin
-        cur_state <=  out_idle ? IDLE : SEND_DATA;
-    end
-end
-
-
-endmodule
-
-module CLK_2_MODULE (
-    clk,
-    rst_n,
-    in_valid,
-    fifo_full,
-    seed,
-    out_valid,
-    rand_num,
-    busy,
-
-    handshake_clk2_flag1,
-    handshake_clk2_flag2,
-    handshake_clk2_flag3,
-    handshake_clk2_flag4,
-
-    clk2_fifo_flag1,
-    clk2_fifo_flag2,
-    clk2_fifo_flag3,
-    clk2_fifo_flag4
-);
-
-input clk;
-input rst_n;
-input in_valid;
-input fifo_full;
-input [31:0] seed;
-output reg out_valid;
-output reg[31:0] rand_num;
-output reg busy;
-
-// You can change the input / output of the custom flag ports
 input handshake_clk2_flag1;
 input handshake_clk2_flag2;
 output handshake_clk2_flag3;
 output handshake_clk2_flag4;
 
-input clk2_fifo_flag1;
-input clk2_fifo_flag2;
-output clk2_fifo_flag3;
-output clk2_fifo_flag4;
+// Remember:
+//   Don't modify the signal name
+reg sreq;
+wire dreq;
+reg dack;
+wire sack;
 
-reg[1:0] cur_state;
-reg[1:0] cnt;
-reg[8:0] rand_num_cnt;
-localparam RD_DATA      = 2'b01;
-localparam CAL_RAND_NUM = 2'b10;
-localparam OUTPUT       = 2'b11;
 
-wire st_RD_DATA       = cur_state == RD_DATA;
-wire st_CAL_RAND_NUM  = cur_state == CAL_RAND_NUM;
-wire st_OUTPUT        = cur_state == OUTPUT;
+localparam IDLE         = 3'b001;
+localparam WAIT_DST     = 3'b011;
+localparam SENDING_DATA = 3'b010;
+localparam OUTPUT       = 3'b100;
 
-wire cal_done_f = cnt == 3;
-wire fin_processing_f = rand_num_cnt == 255;
+wire src_hand_shaked_f = sreq && sack;
+wire dst_hand_shaked_f = ~dreq && dack;
 
-localparam a = 13;
-localparam b = 17;
-localparam c = 5;
-always @(posedge clk or negedge rst_n)
+reg[31:0] src_ff,dst_ff;
+
+reg[2:0] src_cur_state,dst_cur_state;
+wire st_src_IDLE = src_cur_state == IDLE;
+wire st_src_SD   = src_cur_state == SENDING_DATA;
+wire st_src_WAIT_DST = src_cur_state == WAIT_DST;
+wire st_dst_IDLE = dst_cur_state == IDLE;
+wire st_dst_SD   = dst_cur_state == SENDING_DATA;
+wire st_dst_OUT   = dst_cur_state == OUTPUT;
+
+wire sidle = st_src_IDLE;
+
+// Src
+always @(posedge sclk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        cur_state <= RD_DATA;
-        rand_num  <= 0;
-        rand_num_cnt <= 0;
-        cnt <= 0;
-        busy <= 0;
-        out_valid <= 0;
+        src_cur_state <= IDLE;
+        sreq <= 0;
+        src_ff <= 0;
     end
     else
     begin
-        case(cur_state)
-        RD_DATA:
-        begin
-            cur_state <= in_valid ? CAL_RAND_NUM : RD_DATA;
-            rand_num  <= in_valid ? seed : rand_num;
-            rand_num_cnt <= 0;
-            cnt <= 0;
-            busy <= in_valid ? 1 : 0;
-            out_valid <= 0;
-        end
-        CAL_RAND_NUM:
-        begin
-            cur_state    <= cal_done_f ? OUTPUT : CAL_RAND_NUM;
-            cnt          <= cal_done_f ? 0 : cnt + 1;
-            out_valid    <= 0;
-            case(cnt)
-            0:
+        case (src_cur_state)
+            IDLE:
             begin
-                rand_num <= rand_num ^ (rand_num << a);
+                src_cur_state <= (sready && ~sreq) ? SENDING_DATA : IDLE;
+                sreq          <= (sready && ~sreq) ? 1 : 0;
+                src_ff        <= din;
             end
-            1:
+            SENDING_DATA :
             begin
-                rand_num <= rand_num ^ (rand_num >> b);
+                src_cur_state <= src_hand_shaked_f ? WAIT_DST     : SENDING_DATA;
+                sreq          <= src_hand_shaked_f ? 0 : 1;
             end
-            2:
+            WAIT_DST:
             begin
-                rand_num <= rand_num ^ (rand_num << c);
+                src_cur_state <= (~sack && ~sreq) ? IDLE         : WAIT_DST;
             end
-            endcase
-        end
-        OUTPUT:
-        begin
-            rand_num_cnt <= fifo_full ? rand_num_cnt : rand_num_cnt+1;
-            cur_state    <= fifo_full ? OUTPUT : (fin_processing_f ? RD_DATA : CAL_RAND_NUM);
-            out_valid    <= (fifo_full ? 0 : 1);
-            busy         <= 1;
-        end
         endcase
     end
 end
 
 
-endmodule
-
-module CLK_3_MODULE (
-    clk,
-    rst_n,
-    fifo_empty,
-    fifo_rdata,
-    fifo_rinc,
-    out_valid,
-    rand_num,
-
-    fifo_clk3_flag1,
-    fifo_clk3_flag2,
-    fifo_clk3_flag3,
-    fifo_clk3_flag4
-);
-
-input clk;
-input rst_n;
-input fifo_empty;
-input [31:0] fifo_rdata;
-output reg fifo_rinc;
-output reg out_valid;
-output reg [31:0] rand_num;
-
-// You can change the input / output of the custom flag ports
-input fifo_clk3_flag1;
-input fifo_clk3_flag2;
-output fifo_clk3_flag3;
-output fifo_clk3_flag4;
-
-reg[8:0] cnt;
-
-
-reg out_valid_d1,out_valid_d2,out_valid_d3;
-reg fifo_empty_d2,fifo_empty_d1;
-
-always @(posedge clk or negedge rst_n)
+// dst
+always @(posedge dclk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        // out_valid <= 0;
-        out_valid_d2 <= 0;
-        out_valid_d3 <= 0;
-        fifo_empty_d1 <= 1;
-        fifo_empty_d2 <= 1;
+        dst_cur_state <= IDLE;
+        dst_ff <= 0;
+        dack   <= 0;
+        dout   <= 0;
+        dvalid <= 0;
     end
     else
     begin
-        fifo_empty_d1 <= fifo_empty;
-        fifo_empty_d2 <= fifo_empty_d1;
-        out_valid_d2 <= out_valid_d1;
-        out_valid_d3 <= out_valid_d2;
-        // out_valid    <= out_valid_d3;
+        case (dst_cur_state)
+            IDLE:
+            begin
+                dst_cur_state <= (~dbusy && dreq )            ? SENDING_DATA : IDLE;
+                dack          <= (~dbusy && dreq )            ?  1 : 0;
+                dout          <= 0;
+                dvalid        <= 0;
+            end
+            SENDING_DATA:
+            begin
+                dst_cur_state <= dst_hand_shaked_f ? OUTPUT         : SENDING_DATA;
+                dack          <= dst_hand_shaked_f ? 0 : 1;
+                dst_ff        <= dst_hand_shaked_f ? src_ff : dst_ff;
+            end
+            OUTPUT:
+            begin
+                dst_cur_state <= IDLE;
+                dvalid        <= 1;
+                dout          <= dst_ff;
+            end
+        endcase
     end
 end
 
-always @(posedge clk or negedge rst_n)
-begin
-    if(~rst_n)
-    begin
-        out_valid <= 0;
-        rand_num  <= 0;
-        fifo_rinc <= 0;
-        out_valid_d1 <= 0;
-    end
-    else if(fifo_empty_d2)
-    begin
-        out_valid <= 0;
-        rand_num  <= 0;
-        fifo_rinc <= 0;
-        out_valid_d1 <= 0;
-    end
-    else
-    begin
-        out_valid_d1 <= 1;
-        out_valid    <= out_valid_d3;
-        rand_num     <= out_valid_d3 ? fifo_rdata : 0;
-        fifo_rinc    <= 1;
-    end
-end
+// Synchronizers
+NDFF_syn sreq_dreq(.D(sreq), .Q(dreq), .clk(dclk), .rst_n(rst_n));
+NDFF_syn dack_sack(.D(dack), .Q(sack), .clk(sclk), .rst_n(rst_n));
 
 
 endmodule
