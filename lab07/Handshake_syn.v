@@ -99,6 +99,21 @@ begin
     end
 end
 
+always @(*)
+begin
+    if(dbusy)
+        dvalid = 0;
+    else
+        dvalid = st_dst_OUT;
+end
+
+always @(*)
+begin
+    if(dbusy)
+        dout = 0;
+    else if(st_dst_OUT)
+        dout = dst_ff;
+end
 
 // dst
 always @(posedge dclk or negedge rst_n)
@@ -108,8 +123,8 @@ begin
         dst_cur_state <= IDLE;
         dst_ff <= 0;
         dack   <= 0;
-        dout   <= 0;
-        dvalid <= 0;
+        // dout   <= 0;
+        // dvalid <= 0;
     end
     else
     begin
@@ -118,8 +133,8 @@ begin
             begin
                 dst_cur_state <= (~dbusy && dreq )            ? SENDING_DATA : IDLE;
                 dack          <= (~dbusy && dreq )            ?  1 : 0;
-                dout          <= 0;
-                dvalid        <= 0;
+                // dout          <= 0;
+                // dvalid        <= 0;
             end
             SENDING_DATA:
             begin
@@ -129,9 +144,9 @@ begin
             end
             OUTPUT:
             begin
-                dst_cur_state <= IDLE;
-                dvalid        <= 1;
-                dout          <= dst_ff;
+                dst_cur_state    <= dbusy ?  OUTPUT : IDLE;
+                // dvalid        <= dbusy ?  0      : 1;
+                // dout          <= dbusy ?  dout   : dst_ff;
             end
         endcase
     end
