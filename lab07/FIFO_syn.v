@@ -69,7 +69,7 @@ wire[6:0] wptr_bin_nxt = wptr_bin + 1;
 
 always @(posedge wclk or negedge rst_n) begin
     if(~rst_n) wptr_bin <= 0;
-    else if(winc) wptr_bin <= wptr_bin_nxt;
+    else if(winc & ~wfull) wptr_bin <= wptr_bin_nxt;
 end
 
 assign wptr = bin2gray(wptr_bin);
@@ -82,15 +82,19 @@ wire[6:0] rptr_d2_bin;
 // Convert rptr_d2 back to binary from Gray
 gray2bin rptr_d2_g2b(.gray(rptr_d2),.bin(rptr_d2_bin));
 
-always @(*)
+always @(posedge wclk or negedge rst_n)
 begin
-    if({~wptr_bin_nxt[6],wptr_bin_nxt[5:0]} == rptr_d2_bin)
+    if(~rst_n)
     begin
-        wfull = 1'b1;
+        wfull <= 1'b0;
+    end
+    else if({~wptr_bin_nxt[6],wptr_bin_nxt[5:0]} == rptr_d2_bin)
+    begin
+        wfull <= 1'b1;
     end
     else
     begin
-        wfull = 1'b0;
+        wfull <= 1'b0;
     end
 end
 
@@ -101,7 +105,7 @@ wire[6:0] rptr_bin_nxt = rptr_bin + 1;
 always @(posedge rclk or negedge rst_n)
 begin
     if(~rst_n) rptr_bin <= 0;
-    else if(rinc) rptr_bin <= rptr_bin_nxt;
+    else if(rinc & ~rempty) rptr_bin <= rptr_bin_nxt;
 end
 
 assign rptr = bin2gray(rptr_bin);
@@ -114,12 +118,14 @@ wire[6:0] wptr_d2_bin;
 // Convert rptr_d2 back to binary from Gray
 gray2bin wptr_d2_g2b(.gray(wptr_d2),.bin(wptr_d2_bin));
 
-always @(*)
+always @(posedge rclk or negedge rst_n)
 begin
-    if(wptr_d2_bin == rptr_bin)
-        rempty = 1'b1;
+    if(~rst_n)
+        rempty <= 1'b1;
+    else if(wptr_d2_bin == rptr_bin)
+        rempty <= 1'b1;
     else
-        rempty = 1'b0;
+        rempty <= 1'b0;
 end
 
 
