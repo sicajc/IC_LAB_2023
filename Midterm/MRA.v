@@ -334,6 +334,7 @@ begin
     endcase
 end
 
+
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -531,45 +532,23 @@ begin
     begin
         location_addr_cnt <= 0;
     end
-    else
+    else if(st_AXI_W_DATA && ~(wb_data_last_f || loc_wb_wait_dram_f))
     begin
-        case(cur_state)
-        IDLE:
-        begin
+        location_addr_cnt <= location_addr_cnt + 1;
+    end
+    else if(st_IDLE || st_AXI_W_ADDR || st_AXI_RD_ADDR)
+    begin
+        location_addr_cnt <= 0;
+    end
+    else if(st_AXI_RD_DATA)
+    begin
+        if(location_addr_cnt == 127 && axi_rd_data_done_d1)
             location_addr_cnt <= 0;
-        end
-        AXI_RD_ADDR:
-        begin
-            if(location_addr_cnt == 127)
-            begin
-                 location_addr_cnt <= 0;
-            end
-        end
-        AXI_RD_DATA:
-        begin
-            if(location_addr_cnt == 127 && axi_rd_data_done_d1)
-                location_addr_cnt <= 0;
-            else if(axi_rd_data_tx_d1)
-                location_addr_cnt <= location_addr_cnt + 1;
-        end
-        AXI_W_ADDR:
-        begin
-            location_addr_cnt <= 0;
-        end
-        AXI_W_DATA:
-        begin
-            if(wb_data_last_f || loc_wb_wait_dram_f)
-            begin
-                location_addr_cnt <= location_addr_cnt;
-            end
-            else
-            begin
-                location_addr_cnt <= location_addr_cnt + 1;
-            end
-        end
-        endcase
+        else if(axi_rd_data_tx_d1)
+            location_addr_cnt <= location_addr_cnt + 1;
     end
 end
+
 
 
 
@@ -849,7 +828,8 @@ begin
                 begin
                     path_map_matrix_wr[i][j] = cur_encode_val;
                 end
-        // Upper boundary
+
+        // // Upper boundary
         for(j=1;j<63;j=j+1)
             if(path_map_matrix_rf[0][j] == 2'b0 && (path_map_matrix_rf[1][j][1] ==1'b1 || path_map_matrix_rf[0][j+1][1] ==1'b1
                 || path_map_matrix_rf[0][j-1][1] ==1'b1))
@@ -904,15 +884,10 @@ begin
 end
 
 
+
 always @(*)
 begin
-    case(cnt)
-    'd0: cur_encode_val = 2;
-    'd1: cur_encode_val = 2;
-    'd2: cur_encode_val = 3;
-    'd3: cur_encode_val = 3;
-    default: cur_encode_val = 0;
-    endcase
+    cur_encode_val = {1'b1,cnt[1]};
 end
 
 always @(posedge clk)
