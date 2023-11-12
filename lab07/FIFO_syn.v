@@ -48,94 +48,85 @@ wire [WIDTH-1:0] rdata_q;
 wire [$clog2(WORDS):0] wptr;
 wire [$clog2(WORDS):0] rptr;
 
-
-reg w_ptr_counts,r_ptr_counts;
-reg wen;
-
+// reg w_ptr_counts,r_ptr_counts;
+// reg wen;
 
 // rdata
 //  Add one more register stage to rdata
 always @(posedge rclk) begin
-    if(rinc)
-        rdata <= rdata_q;
+    // if(rinc)
+    rdata <= rdata_q;
 end
 
-reg[6:0] wptr_real_gray,rptr_real_gray,wptr_real_gray_d2,rptr_real_gray_d2;
-reg[5:0] wptr_sram_addr,rptr_sram_addr;
+wire[5:0] wptr_sram_addr,rptr_sram_addr;
 wire[6:0] rptr_d2;
 wire[6:0] wptr_d2;
 
-always @(*)
-begin
-    // wptrs
-    wptr_real_gray = REAL_GRAY_CODE(wptr);
-    wptr_real_gray_d2 = REAL_GRAY_CODE(wptr_d2);
-    wptr_sram_addr = wptr_real_gray[5:0];
 
-    // Convert to Real Gray code then perform comparison
-    if((wptr[6] != rptr_d2[6]) && (wptr_real_gray == rptr_real_gray_d2))
-        wfull = 1'b1;
-    else
-        wfull = 1'b0;
-
-    if(wfull == 1'b1)
-    begin
-        w_ptr_counts = 1'b0;
-        wen = 1'b1;
-    end
-    else
-    begin
-        w_ptr_counts = winc;
-        wen          = ~winc;
-    end
-end
-
-always @(*)
-begin
-    //rptr controls
-    rptr_real_gray    = REAL_GRAY_CODE(rptr);
-    rptr_real_gray_d2 = REAL_GRAY_CODE(rptr_d2);
-    rptr_sram_addr = rptr_real_gray[5:0];
-
-    if((wptr_d2[6] == rptr[6])  && (wptr_d2 == rptr))
-        rempty= 1'b1;
-    else
-        rempty = 1'b0;
-
-    if(rempty == 1'b1)
-    begin
-        r_ptr_counts = 1'b0;
-    end
-    else
-    begin
-        r_ptr_counts = rinc;
-    end
-end
-
-
+// WR
 reg[6:0] wptr_bin;
+wire[6:0] wptr_bin_nxt = wptr_bin + 1;
+
 always @(posedge wclk or negedge rst_n) begin
     if(~rst_n) wptr_bin <= 0;
-    else if(w_ptr_counts) wptr_bin <= wptr_bin + 1;
+    else if(winc) wptr_bin <= wptr_bin_nxt;
 end
+
 assign wptr = bin2gray(wptr_bin);
+assign wptr_sram_addr = wptr_bin[5:0];
 
+// Receive rptr_d2 and decode it for full address determination
+NDFF_BUS_syn #(.WIDTH(7)) rptr_d2_ff(.D(rptr), .Q(rptr_d2), .clk(wclk), .rst_n(rst_n));
 
-reg[6:0] rptr_bin;
-always @(posedge rclk or negedge rst_n) begin
-    if(~rst_n) rptr_bin <= 0;
-    else if(r_ptr_counts) rptr_bin <= rptr_bin + 1;
+wire[6:0] rptr_d2_bin;
+// Convert rptr_d2 back to binary from Gray
+gray2bin rptr_d2_g2b(.gray(rptr_d2),.bin(rptr_d2_bin));
+
+always @(*)
+begin
+    if({~wptr_bin_nxt[6],wptr_bin_nxt[5:0]} == rptr_d2_bin)
+    begin
+        wfull = 1'b1;
+    end
+    else
+    begin
+        wfull = 1'b0;
+    end
 end
+
+// RD
+reg[6:0]  rptr_bin;
+wire[6:0] rptr_bin_nxt = rptr_bin + 1;
+
+always @(posedge rclk or negedge rst_n)
+begin
+    if(~rst_n) rptr_bin <= 0;
+    else if(rinc) rptr_bin <= rptr_bin_nxt;
+end
+
 assign rptr = bin2gray(rptr_bin);
+assign rptr_sram_addr = rptr_bin[5:0];
 
 // Synchronizers
-NDFF_BUS_syn #(.WIDTH(7)) rptr_d2_ff(.D(rptr), .Q(rptr_d2), .clk(wclk), .rst_n(rst_n));
 NDFF_BUS_syn #(.WIDTH(7)) wptr_d2_ff(.D(wptr), .Q(wptr_d2), .clk(rclk), .rst_n(rst_n));
+
+wire[6:0] wptr_d2_bin;
+// Convert rptr_d2 back to binary from Gray
+gray2bin wptr_d2_g2b(.gray(wptr_d2),.bin(wptr_d2_bin));
+
+always @(*)
+begin
+    if(wptr_d2_bin == rptr_bin)
+        rempty = 1'b1;
+    else
+        rempty = 1'b0;
+end
+
 
 DUAL_64X32X1BM1 u_dual_sram (
     .CKA(wclk),
     .CKB(rclk),
-    .WEAN(wen),
+    .WEAN(~winc),
     .WEBN(1'b1),
     .CSA(1'b1),
     .CSB(1'b1),
@@ -274,8 +265,8 @@ function [6:0] bin2gray;
     end
 endfunction
 
-endmodule
 
+endmodule
 
 module gray2bin #(parameter SIZE = 7)(
 input [SIZE-1:0] gray,
