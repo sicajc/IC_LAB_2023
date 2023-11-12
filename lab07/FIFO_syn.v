@@ -45,87 +45,128 @@ wire [WIDTH-1:0] rdata_q;
 // Remember:
 //   wptr and rptr should be gray coded
 //   Don't modify the signal name
-wire [$clog2(WORDS):0] wptr;
-wire [$clog2(WORDS):0] rptr;
+reg [$clog2(WORDS):0] wptr;
+reg [$clog2(WORDS):0] rptr;
 
-// reg w_ptr_counts,r_ptr_counts;
-// reg wen;
+wire wptr_counts = winc & ~wfull;
+wire rptr_counts = rinc & ~rempty;
 
-// rdata
-//  Add one more register stage to rdata
-always @(posedge rclk) begin
-    // if(rinc)
-    rdata <= rdata_q;
-end
-
-wire[5:0] wptr_sram_addr,rptr_sram_addr;
+reg[5:0] wptr_sram_addr,rptr_sram_addr;
 wire[6:0] rptr_d2;
 wire[6:0] wptr_d2;
 
-
-// WR
 reg[6:0] wptr_bin;
-wire[6:0] wptr_bin_nxt = wptr_bin + 1;
+wire[6:0] wptr_bin_nxt   = wptr_bin + wptr_counts;
+wire[6:0] wptr_gray_next = bin2gray(wptr_bin_nxt);
 
-always @(posedge wclk or negedge rst_n) begin
-    if(~rst_n) wptr_bin <= 0;
-    else if(winc & ~wfull) wptr_bin <= wptr_bin_nxt;
+reg[6:0]  rptr_bin;
+wire[6:0] rptr_bin_nxt   = rptr_bin + rptr_counts;
+wire[6:0] rptr_gray_nxt  = bin2gray(rptr_bin_nxt);
+
+reg rinc_delay;
+
+// rdata
+//  Add one more register stage to rdata
+always @(posedge rclk)
+begin
+    if(rinc || rinc_delay)
+        rdata <= rdata_q;
+    else
+        rdata <= rdata;
 end
 
-assign wptr = bin2gray(wptr_bin);
-assign wptr_sram_addr = wptr_bin[5:0];
-
-// Receive rptr_d2 and decode it for full address determination
-NDFF_BUS_syn #(.WIDTH(7)) rptr_d2_ff(.D(rptr), .Q(rptr_d2), .clk(wclk), .rst_n(rst_n));
-
-wire[6:0] rptr_d2_bin;
-// Convert rptr_d2 back to binary from Gray
-gray2bin rptr_d2_g2b(.gray(rptr_d2),.bin(rptr_d2_bin));
+//----------------------------------------------
+//      WR
+//----------------------------------------------
+always @(posedge wclk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        wptr <= 0;
+    end
+    else
+    begin
+        wptr     <= wptr_gray_next;
+    end
+end
 
 always @(posedge wclk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        wfull <= 1'b0;
-    end
-    else if({~wptr_bin_nxt[6],wptr_bin_nxt[5:0]} == rptr_d2_bin)
-    begin
-        wfull <= 1'b1;
+        wptr_bin <= 0;
     end
     else
     begin
-        wfull <= 1'b0;
+        wptr_bin <= wptr_bin_nxt;
     end
 end
 
-// RD
-reg[6:0]  rptr_bin;
-wire[6:0] rptr_bin_nxt = rptr_bin + 1;
+always @(posedge wclk or negedge rst_n)
+begin
+    if(~rst_n)
+        wfull <= 1'b0;
+    else
+        wfull <= ({~rptr_d2[6],~rptr_d2[5],rptr_d2[4:0]} == wptr_gray_next);
+end
+
+// Receive rptr_d2 and decode it for full address determination
+NDFF_BUS_syn #(.WIDTH(7)) syn_rptr_u1(.D(rptr), .Q(rptr_d2), .clk(wclk), .rst_n(rst_n));
+
+//----------------------------------------------
+//      RD
+//----------------------------------------------
+always @(posedge rclk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        rptr_bin <= 0;
+    end
+    else
+    begin
+        rptr_bin <= rptr_bin_nxt;
+    end
+end
 
 always @(posedge rclk or negedge rst_n)
 begin
-    if(~rst_n) rptr_bin <= 0;
-    else if(rinc & ~rempty) rptr_bin <= rptr_bin_nxt;
+    if(~rst_n)
+    begin
+        rptr <= 0;
+    end
+    else
+    begin
+        rptr <= rptr_gray_nxt;
+    end
 end
-
-assign rptr = bin2gray(rptr_bin);
-assign rptr_sram_addr = rptr_bin[5:0];
-
-// Synchronizers
-NDFF_BUS_syn #(.WIDTH(7)) wptr_d2_ff(.D(wptr), .Q(wptr_d2), .clk(rclk), .rst_n(rst_n));
-
-wire[6:0] wptr_d2_bin;
-// Convert rptr_d2 back to binary from Gray
-gray2bin wptr_d2_g2b(.gray(wptr_d2),.bin(wptr_d2_bin));
 
 always @(posedge rclk or negedge rst_n)
 begin
     if(~rst_n)
         rempty <= 1'b1;
-    else if(wptr_d2_bin == rptr_bin)
-        rempty <= 1'b1;
     else
-        rempty <= 1'b0;
+        rempty <= (wptr_d2 == rptr_gray_nxt);
+end
+
+// Synchronizers
+NDFF_BUS_syn #(.WIDTH(7)) syn_wptr_u0(.D(wptr), .Q(wptr_d2), .clk(rclk), .rst_n(rst_n));
+
+
+always @(posedge rclk)
+begin
+    if(~rst_n)
+        rinc_delay <= 1'b0;
+    else
+        rinc_delay <= rinc;
+end
+
+//----------------------------------------------
+//      SRAM addr
+//----------------------------------------------
+always @(*)
+begin
+    wptr_sram_addr = wptr_bin[5:0];
+    rptr_sram_addr = rptr_bin[5:0];
 end
 
 
@@ -248,39 +289,11 @@ DUAL_64X32X1BM1 u_dual_sram (
     .DOB31(rdata_q[31])
 );
 
-
-function [6:0] REAL_GRAY_CODE;
-    input[6:0] gray_code;
-    begin
-        // Full signal
-        if(gray_code[6] == 1'b1)
-        begin
-            REAL_GRAY_CODE = {~gray_code[6],~gray_code[5],gray_code[4:0]};
-        end
-        else
-        begin
-            REAL_GRAY_CODE = gray_code;
-        end
-    end
-endfunction
-
 function [6:0] bin2gray;
     input[6:0] bin;
     begin
         bin2gray = bin ^ (bin >> 1);
     end
 endfunction
-
-
-endmodule
-
-module gray2bin #(parameter SIZE = 7)(
-input [SIZE-1:0] gray,
-output reg[SIZE-1:0] bin
-);
- integer i;
- always@*
-   for(i=0;i<SIZE;i = i+1)
-     bin[i] = ^(gray >> i);
 
 endmodule

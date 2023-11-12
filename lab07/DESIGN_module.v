@@ -127,7 +127,9 @@ reg[31:0] rand_num_ff;
 
 always @(*)
 begin
-    out_valid = fifo_full ? 0 : st_OUTPUT;
+    if(st_OUTPUT && ~fifo_full) out_valid = 1;
+    else if(fin_processing_f && ~fifo_full) out_valid = 1;
+    else out_valid = 0;
 end
 
 always @(*)
@@ -137,7 +139,7 @@ end
 
 always @(*)
 begin
-    rand_num = fifo_full ? 0 : (st_OUTPUT ? prng_xor(rand_num_ff) : 0);
+    rand_num = fifo_full ? 0 : (st_OUTPUT ? rand_num_ff: 0);
 end
 
 always @(posedge clk or negedge rst_n)
@@ -154,14 +156,14 @@ begin
         RD_DATA:
         begin
             cur_state    <= in_valid ? OUTPUT:RD_DATA;
-            rand_num_ff  <= in_valid ? seed  : rand_num;
+            rand_num_ff  <= in_valid ? prng_xor(seed)  : rand_num;
             rand_num_cnt <= 0;
         end
         OUTPUT:
         begin
-            cur_state    <= fin_processing_f ? RD_DATA : OUTPUT;
-            rand_num_ff  <= fifo_full ?  rand_num_ff : prng_xor(rand_num_ff);
-            rand_num_cnt <= fin_processing_f ? 0 : rand_num_cnt + 1;
+            cur_state    <= fifo_full ?  OUTPUT       : (fin_processing_f ? RD_DATA : OUTPUT);
+            rand_num_ff  <= fifo_full ?  rand_num_ff  : prng_xor(rand_num_ff);
+            rand_num_cnt <= fifo_full ?  rand_num_cnt : (fin_processing_f ? 0 : rand_num_cnt + 1);
         end
         endcase
     end
@@ -216,7 +218,7 @@ reg[8:0] cnt;
 
 
 reg out_valid_d1,out_valid_d2,out_valid_d3;
-reg fifo_empty_d2,fifo_empty_d1;
+reg fifo_empty_d3,fifo_empty_d2,fifo_empty_d1;
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -227,16 +229,18 @@ begin
         out_valid_d3 <= 0;
         fifo_empty_d1 <= 1;
         fifo_empty_d2 <= 1;
+        fifo_empty_d3 <= 1;
     end
     else
     begin
         fifo_empty_d1 <= fifo_empty;
         fifo_empty_d2 <= fifo_empty_d1;
+        fifo_empty_d3 <= fifo_empty_d2;
         out_valid_d2 <= out_valid_d1;
         out_valid_d3 <= out_valid_d2;
-        // out_valid    <= out_valid_d3;
     end
 end
+
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -244,23 +248,24 @@ begin
     begin
         out_valid <= 0;
         rand_num  <= 0;
-        fifo_rinc <= 0;
         out_valid_d1 <= 0;
     end
-    else if(fifo_empty_d2)
+    else if(fifo_empty_d1)
     begin
-        out_valid <= 0;
-        rand_num  <= 0;
-        fifo_rinc <= 0;
         out_valid_d1 <= 0;
+        out_valid    <= out_valid_d1;
+        rand_num     <= out_valid_d1 ? fifo_rdata : 0;
     end
     else
     begin
         out_valid_d1 <= 1;
-        out_valid    <= out_valid_d3;
-        rand_num     <= out_valid_d3 ? fifo_rdata : 0;
-        fifo_rinc    <= 1;
+        out_valid    <= out_valid_d1;
+        rand_num     <= out_valid_d1 ? fifo_rdata : 0;
     end
+end
+
+always @(*) begin
+    fifo_rinc = ~fifo_empty;
 end
 
 
