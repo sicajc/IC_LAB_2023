@@ -1,3 +1,5 @@
+// No line buffer 2534640
+// With line buffer 2513680
 module MRA(
 	// CHIP IO
 	clk            	,
