@@ -544,6 +544,8 @@ begin
     end
 end
 
+reg[4:0] slot_to_shift_cnt;
+wire shifted_done_f = slot_to_shift_cnt == 0;
 
 
 
@@ -579,7 +581,9 @@ begin
         RD_NET_INFO:
         begin
             if(in_valid)
+            begin
                 rd_cnt <= rd_cnt + 1;
+            end
 
             if(rd_cnt[0] == 1)
             begin
@@ -618,10 +622,10 @@ begin
                 cnt <= cnt - 1;
             end
 
-            if(routing_done_f)
-                cur_target_cnt <= 0;
-            else if(retrace_path_done_f)
+            if(retrace_path_done_f)
+            begin
                 cur_target_cnt <= cur_target_cnt + 1;
+            end
         end
         endcase
     end
@@ -630,8 +634,6 @@ end
 // ===============================================================
 //  	        INPUTS DATAPATH , shift registers
 // ===============================================================
-reg[4:0] slot_to_shift_cnt;
-wire shifted_done_f = slot_to_shift_cnt == 0 && ~st_IDLE && ~st_RD_NET_INFO;
 
 always @(posedge clk)
 begin
@@ -643,6 +645,7 @@ begin
             source_x_rf[0] <= loc_x;
             source_y_rf[0] <= loc_y;
         end
+        slot_to_shift_cnt <= 15;
     end
     else if(st_RD_NET_INFO && in_valid)
     begin
@@ -659,6 +662,7 @@ begin
         end
         else
         begin
+            slot_to_shift_cnt <= shifted_done_f ? 0 : slot_to_shift_cnt - 1;
             net_id_rf[0] <= net_id;
             sink_x_rf[0] <= loc_x;
             sink_y_rf[0] <= loc_y;
@@ -682,8 +686,9 @@ begin
             sink_x_rf[i+1] <= sink_x_rf[i];
             sink_y_rf[i+1] <= sink_y_rf[i];
         end
+        slot_to_shift_cnt <= slot_to_shift_cnt - 1;
     end
-    else if(st_CLEAR_MAP)
+    else if(retrace_path_done_f && st_RETRACE)
     begin
         // Shift the register toward 14
         for(i=0;i<14;i=i+1)
@@ -999,6 +1004,7 @@ always @(posedge clk or negedge rst_n) begin
         cost <= weight_mac_ff;
 	end
 end
+
 // ===============================================================
 //     Memory addr, merge the weight addr line and loc addr line
 // ===============================================================
