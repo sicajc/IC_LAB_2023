@@ -1,0 +1,27 @@
+echo -e "**************************************************************"
+echo -e "*                    Runing Demo pattern                     *"
+echo -e "**************************************************************"
+#parameter DRAM_p_r = "../00_TESTBED/For_student/DRAM/dram.dat";
+#parameter in_file_path = "../00_TESTBED/For_student/TEST_CASE/input.txt";
+params=$(seq 0 29)
+
+for param in $params
+do
+  echo -e "\033[0;30;44m--- PATTERN SET = $param ---\033[0m"
+  sed -i "s/DRAM_p_r = \"..\/00_TESTBED\/DRAM\/dram_\?[0-9]\+.dat\";/DRAM_p_r = \"..\/00_TESTBED\/DRAM\/dram_$param.dat\";/" ../00_TESTBED/pseudo_DRAM.vp
+  sed -i "s/in_file_path = \"..\/00_TESTBED\/TEST_CASE\/input_\?[0-9]\+.txt\";/in_file_path = \"..\/00_TESTBED\/TEST_CASE\/input_$param.txt\";/" ../00_TESTBED/PATTERN.v
+
+  ./09_clean_up > check.log
+  ./01_run_vcs_rtl PERF > check.log
+  if  grep -i -q 'FAIL' 'vcs.log'; then
+          echo -e "\033[31m--- 01_RTL PATTERN Fail !! ---\033[0m"
+  elif grep -i -q 'Congratulations' 'vcs.log'; then
+          echo -e "\033[0;30;42m--- 01_RTL PATTERN PASS !! ---\033[0m"
+          Latency=`cat vcs.log | grep 'execution cycles =' | grep -Eo '[+-]?[0-9]+([.][0-9]+)?'`
+          cycle=`cat vcs.log | grep 'clock period =' | grep -Eo '[+-]?[0-9]+([.][0-9]+)?'`
+          echo -e "\033[0;30;42mExecution cycles:\033[0m $Latency cycles "
+          echo -e "\033[0;30;42mCycle Time:\033[0m $cycle ns "
+  else
+          echo -e "\033[31m--- 01_RTL wrong !! ---\033[0m"
+  fi
+done

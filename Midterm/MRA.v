@@ -463,8 +463,6 @@ begin
     if(~rst_n)
     begin
         // AXI wr data
-        // wlast_m_inf  <= 0;
-        // wdata_m_inf  <= 0;
         wvalid_m_inf <= 0;
     end
     else if(st_AXI_W_DATA)
@@ -472,13 +470,10 @@ begin
         if(axi_wr_data_done_f)
         begin
             wvalid_m_inf <= 0;
-            // wdata_m_inf  <= 0;
-            // wlast_m_inf  <= 0;
         end
         else
         begin
             wvalid_m_inf <= 1;
-            // wdata_m_inf  <= loc_wb_wait_dram_f ? wdata_m_inf : (loc_wb_valid_d1 ? loc_mem_rd : 0);
         end
     end
 end
@@ -633,7 +628,7 @@ begin
 end
 
 // ===============================================================
-//  				    INPUTS DATAPATH
+//  	        INPUTS DATAPATH (can be replaced with SRAM)
 // ===============================================================
 always @(posedge clk)
 begin
@@ -753,13 +748,14 @@ end
 reg path_rd_cnt;
 always @(posedge clk)
 begin
-    if(st_IDLE)
-    begin
-        for(i=0;i<64;i=i+1)
-            for(j=0;j<64;j=j+1)
-                path_map_matrix_rf[i][j] <= 2'b0;
-    end
-    else
+    // Why this cannot be removed? Try Seeing waveform
+    // if(st_IDLE)
+    // begin
+    //     for(i=0;i<64;i=i+1)
+    //         for(j=0;j<64;j=j+1)
+    //             path_map_matrix_rf[i][j] <= 2'b0;
+    // end
+    // else
     begin
         for(i=0;i<64;i=i+1)
             for(j=0;j<64;j=j+1)
@@ -788,7 +784,7 @@ begin
             path_map_matrix_wr[i][j] = path_map_matrix_rf[i][j];
 
     // Fill path
-    if(axi_rd_data_tx_d1 && ~rd_weight_map_f)
+    if(axi_rd_data_tx_d1 && ~rd_weight_map_d1)
     begin
         if(~path_rd_cnt)
         begin
@@ -964,7 +960,7 @@ always @(posedge clk or negedge rst_n) begin
 	end
 end
 // ===============================================================
-//  					Memory addr
+//     Memory addr, merge the weight addr line and loc addr line
 // ===============================================================
 always @(*)
 begin
@@ -974,7 +970,7 @@ begin
 
     if(st_RETRACE)
     begin
-        weight_mem_we = 1;
+        weight_mem_we   = 1;
         weight_mem_addr = retrace_sram_rd_addr;
         weight_mem_wr   = 0;
     end
@@ -989,8 +985,8 @@ end
 always@(*)
 begin
     loc_mem_addr = 0;
-    loc_mem_we = 1;
-    loc_mem_wr = 0;
+    loc_mem_we   = 1;
+    loc_mem_wr   = 0;
 
     if(st_AXI_W_DATA)
     begin
