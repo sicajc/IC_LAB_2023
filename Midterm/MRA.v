@@ -1,5 +1,7 @@
 // No line buffer 2534640
 // With line buffer 2513680
+// Change state encoding scheme: 2508800 @ 9.3 ns
+// Merge address calculation into same always block
 module MRA(
 	// CHIP IO
 	clk            	,
@@ -115,32 +117,32 @@ input  wire  [1:0]             bresp_m_inf;
 // ===============================================================
 //  					Finite State Machine
 // ===============================================================
+reg [10:0] cur_state, nxt_state;
 
-reg [3:0] cur_state, nxt_state;
+parameter IDLE                         = 11'b000_0000_0001;
+parameter RD_NET_INFO                  = 11'b000_0000_0010;
+parameter AXI_RD_ADDR                  = 11'b000_0000_0100;
+parameter AXI_RD_DATA                  = 11'b000_0000_1000;
+parameter FILL_PATH                    = 11'b000_0001_0000;
+parameter RETRACE                      = 11'b000_0010_0000;
+parameter CLEAR_MAP_LOAD_TARGET        = 11'b000_0100_0000;
+parameter AXI_W_ADDR                   = 11'b000_1000_0000;
+parameter AXI_W_DATA                   = 11'b001_0000_0000;
+parameter AXI_W_RESP                   = 11'b010_0000_0000;
+parameter OUTPUT                       = 11'b100_0000_0000;
 
-parameter IDLE                         = 4'd0;
-parameter RD_NET_INFO                  = 4'd1;
-parameter AXI_RD_ADDR                  = 4'd2;
-parameter AXI_RD_DATA                  = 4'd3;
-parameter FILL_PATH                    = 4'd4;
-parameter RETRACE                      = 4'd5;
-parameter CLEAR_MAP_LOAD_TARGET        = 4'd6;
-parameter AXI_W_ADDR                   = 4'd7;
-parameter AXI_W_DATA                   = 4'd8;
-parameter AXI_W_RESP                   = 4'd9;
-parameter OUTPUT                       = 4'd10;
+wire st_IDLE        =  cur_state[0];
+wire st_RD_NET_INFO =  cur_state[1];
+wire st_AXI_RD_ADDR =  cur_state[2];
+wire st_AXI_RD_DATA =  cur_state[3];
+wire st_FILL_PATH   =  cur_state[4];
+wire st_RETRACE     =  cur_state[5];
+wire st_CLEAR_MAP   =  cur_state[6];
+wire st_AXI_W_ADDR  =  cur_state[7];
+wire st_AXI_W_DATA  =  cur_state[8];
+wire st_AXI_W_RESP  =  cur_state[9];
+wire st_OUTPUT      =  cur_state[10];
 
-wire st_IDLE        = cur_state == IDLE;
-wire st_RD_NET_INFO = cur_state == RD_NET_INFO;
-wire st_AXI_RD_ADDR = cur_state == AXI_RD_ADDR;
-wire st_AXI_RD_DATA = cur_state == AXI_RD_DATA;
-wire st_FILL_PATH   = cur_state == FILL_PATH;
-wire st_RETRACE     = cur_state == RETRACE;
-wire st_CLEAR_MAP   = cur_state == CLEAR_MAP_LOAD_TARGET;
-wire st_AXI_W_ADDR  = cur_state == AXI_W_ADDR;
-wire st_AXI_W_DATA  = cur_state == AXI_W_DATA;
-wire st_AXI_W_RESP  = cur_state == AXI_W_RESP;
-wire st_OUTPUT      = cur_state == OUTPUT;
 // ===============================================================
 //  					Variable Declare
 // ===============================================================
@@ -204,8 +206,8 @@ reg axi_rd_addr_tx_d1;
 wire axi_rd_data_done_f     = rlast_m_inf && rvalid_m_inf && rready_m_inf;
 reg axi_rd_data_done_d1;
 
-wire fill_path_done_f       = path_map_matrix_rf[cur_sink_y][cur_sink_x][1] == 1;
-wire retrace_path_done_f    = path_map_matrix_rf[cur_source_y][cur_source_x] == 1;
+wire fill_path_done_f       =  st_FILL_PATH && path_map_matrix_rf[cur_sink_y][cur_sink_x][1] == 1;
+wire retrace_path_done_f    =  st_RETRACE && path_map_matrix_rf[cur_source_y][cur_source_x] == 1;
 wire routing_done_f         = cur_target_cnt == (num_of_target_ff);
 reg rd_weight_map_f;
 
@@ -795,19 +797,9 @@ end
 reg path_rd_cnt;
 always @(posedge clk)
 begin
-    // Why this cannot be removed? Try Seeing waveform
-    // if(st_IDLE)
-    // begin
-    //     for(i=0;i<64;i=i+1)
-    //         for(j=0;j<64;j=j+1)
-    //             path_map_matrix_rf[i][j] <= 2'b0;
-    // end
-    // else
-    begin
-        for(i=0;i<64;i=i+1)
-            for(j=0;j<64;j=j+1)
-                path_map_matrix_rf[i][j] <= path_map_matrix_wr[i][j];
-    end
+    for(i=0;i<64;i=i+1)
+        for(j=0;j<64;j=j+1)
+            path_map_matrix_rf[i][j] <= path_map_matrix_wr[i][j];
 end
 
 always @(posedge clk or negedge rst_n)
