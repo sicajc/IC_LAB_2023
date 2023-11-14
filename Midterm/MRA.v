@@ -156,11 +156,11 @@ reg [5:0] source_y_rf [0:14];
 reg [5:0] sink_x_rf [0:14];
 reg [5:0] sink_y_rf [0:14];
 
-wire [3:0] cur_net_id   = net_id_rf[cur_target_cnt];
-wire [5:0] cur_source_x = source_x_rf[cur_target_cnt];
-wire [5:0] cur_source_y = source_y_rf[cur_target_cnt];
-wire [5:0] cur_sink_x   = sink_x_rf[cur_target_cnt];
-wire [5:0] cur_sink_y   = sink_y_rf[cur_target_cnt];
+wire [3:0] cur_net_id   = net_id_rf[14];
+wire [5:0] cur_source_x = source_x_rf[14];
+wire [5:0] cur_source_y = source_y_rf[14];
+wire [5:0] cur_sink_x   = sink_x_rf[14];
+wire [5:0] cur_sink_y   = sink_y_rf[14];
 
 reg[1:0] path_map_matrix_rf[0:63][0:63];
 reg[1:0] path_map_matrix_wr[0:63][0:63];
@@ -628,8 +628,11 @@ begin
 end
 
 // ===============================================================
-//  	        INPUTS DATAPATH (can be replaced with SRAM)
+//  	        INPUTS DATAPATH , shift registers
 // ===============================================================
+reg[4:0] slot_to_shift_cnt;
+wire shifted_done_f = slot_to_shift_cnt == 0 && ~st_IDLE && ~st_RD_NET_INFO;
+
 always @(posedge clk)
 begin
     if(st_IDLE)
@@ -645,14 +648,51 @@ begin
     begin
         if(rd_cnt[0] == 1'b0)
         begin
-            source_x_rf[num_of_target_ff] <= loc_x;
-            source_y_rf[num_of_target_ff] <= loc_y;
+            source_x_rf[0] <= loc_x;
+            source_y_rf[0] <= loc_y;
+
+            for(i=0;i<14;i=i+1)
+            begin
+                source_x_rf[i+1] <= source_x_rf[i];
+                source_y_rf[i+1] <= source_y_rf[i];
+            end
         end
         else
         begin
-            net_id_rf[num_of_target_ff] <= net_id;
-            sink_x_rf[num_of_target_ff] <= loc_x;
-            sink_y_rf[num_of_target_ff] <= loc_y;
+            net_id_rf[0] <= net_id;
+            sink_x_rf[0] <= loc_x;
+            sink_y_rf[0] <= loc_y;
+
+            for(i=0;i<14;i=i+1)
+            begin
+                net_id_rf[i+1]   <= net_id_rf[i];
+                sink_x_rf[i+1] <= sink_x_rf[i];
+                sink_y_rf[i+1] <= sink_y_rf[i];
+            end
+        end
+    end
+    else if(~shifted_done_f)
+    begin
+        // Shift the register toward 14
+        for(i=0;i<14;i=i+1)
+        begin
+            source_x_rf[i+1] <= source_x_rf[i];
+            source_y_rf[i+1] <= source_y_rf[i];
+            net_id_rf[i+1]   <= net_id_rf[i];
+            sink_x_rf[i+1] <= sink_x_rf[i];
+            sink_y_rf[i+1] <= sink_y_rf[i];
+        end
+    end
+    else if(st_CLEAR_MAP)
+    begin
+        // Shift the register toward 14
+        for(i=0;i<14;i=i+1)
+        begin
+            source_x_rf[i+1] <= source_x_rf[i];
+            source_y_rf[i+1] <= source_y_rf[i];
+            net_id_rf[i+1]   <= net_id_rf[i];
+            sink_x_rf[i+1] <= sink_x_rf[i];
+            sink_y_rf[i+1] <= sink_y_rf[i];
         end
     end
 end
