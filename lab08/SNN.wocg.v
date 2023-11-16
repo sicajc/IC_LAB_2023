@@ -432,47 +432,6 @@ begin
     endcase
 end
 
-always @(*)
-begin
-    // Change to equalization done flag
-    mm_next_st = mm_cur_st;
-    case(mm_cur_st)
-    MM_IDLE:
-    begin
-        if(eq_done_f_d4) mm_next_st = MM_MAX_POOLING;
-    end
-    MM_MAX_POOLING:
-    begin
-        if(max_pooling_done_f) mm_next_st = MM_FC;
-    end
-    MM_FC:
-    begin
-        if(fc_done_f) mm_next_st = MM_NORM_ACT;
-    end
-    MM_NORM_ACT:
-    begin
-        if(activation_done_f)
-        begin
-            if(mm_img_cnt == 1)
-                mm_next_st = MM_L1_DISTANCE;
-            else
-                mm_next_st = MM_WAIT_IMG1;
-        end
-    end
-    MM_WAIT_IMG1:
-    begin
-        if(eq_done_f_d4)  mm_next_st = MM_MAX_POOLING;
-    end
-    MM_L1_DISTANCE:
-    begin
-        if(l1_distance_cal_f)   mm_next_st = MM_DONE;
-    end
-    MM_DONE:
-    begin
-        mm_next_st = MM_IDLE;
-    end
-    endcase
-end
 
 //---------------------------------------------------------------------
 //      KERNALS, IMGS, WEIGHTS
@@ -788,9 +747,9 @@ begin
                 for(k=0;k<2;k=k+1)
                     convolution_result_rf[i][j][k] <= 0;
     end
-    else if(eq_valid_d2)
+    else if(valid_d3)
     begin
-       convolution_result_rf[eq_xptr_d2][eq_yptr_d2][eq_cnt] <= fp_add_tree_out[2];
+       convolution_result_rf[process_xptr_d3][process_yptr_d3][img_num_cnt_d3] <= fp_add_tree_out[2];
     end
 end
 
@@ -800,32 +759,37 @@ end
 //-----------------------
 //      EQ CTR
 //-----------------------
+reg[3:0] eq_cur_st;
 localparam  EQ_IDLE      = 4'b0001;
 localparam  EQ_IMG_1     = 4'b0010;
 localparam  EQ_WAIT_IMG_2= 4'b0100;
 localparam  EQ_IMG2      = 4'b1000;
-
-reg[3:0] eq_cur_st;
-reg[DATA_WIDTH-1:0] equalized_result_rf[0:1];
-reg[DATA_WIDTH-1:0] adder_tree_in[0:8];
-reg[DATA_WIDTH-1:0] adder_tree_pipe_d1[0:2];
-reg[DATA_WIDTH-1:0] adder_tree_pipe_d2;
-
-wire[DATA_WIDTH-1:0] eq_fp_add_out[0:7];
-reg[DATA_WIDTH-1:0]  eq_fp_pipe_d1[0:2];
-reg[DATA_WIDTH-1:0]  eq_fp_pipe_d2;
-
 wire st_EQ_IDLE         = eq_cur_st[0];
 wire st_EQ_IMG_1        = eq_cur_st[1];
 wire st_EQ_WAIT_IMG_2   = eq_cur_st[2];
 wire st_EQ_IMG2         = eq_cur_st[3];
-
-wire all_eq_done_f;
-reg[1:0] eq_cnt,eq_cnt_d1,eq_cnt_d2;
-
-reg eq_done_f,eq_done_f_d1,eq_done_f_d2;
+// Controls
 reg[4:0] eq_xptr,eq_yptr;
 reg[4:0] eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
+reg[1:0] eq_cnt,eq_cnt_d1,eq_cnt_d2;
+
+// Flags
+wire one_equalized_done_f    = eq_xptr == 3 && eq_yptr == 3;
+wire eq_right_bound_reach_f  = eq_yptr == 3;
+wire eq_bottom_bound_reach_f = eq_xptr == 3;
+wire all_eq_done_f = one_equalized_done_f && eq_cnt == 1;
+
+
+// Datapath components
+reg[DATA_WIDTH-1:0] equalized_result_rf[0:3][0:3][0:1];
+reg[DATA_WIDTH-1:0] adder_tree_in[0:8];
+reg[DATA_WIDTH-1:0] adder_tree_pipe_d1[0:2];
+reg[DATA_WIDTH-1:0] adder_tree_pipe_d2;
+wire[DATA_WIDTH-1:0] eq_fp_add_out[0:7];
+reg[DATA_WIDTH-1:0]  eq_fp_pipe_d1[0:2];
+reg[DATA_WIDTH-1:0]  eq_fp_pipe_d2;
+
+reg eq_done_f,eq_done_f_d1,eq_done_f_d2;
 reg eq_valid,eq_valid_d1,eq_valid_d2;
 
 always @(posedge clk)
@@ -859,11 +823,11 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        eq_cur_st <= IDLE;
+        eq_cur_st <= EQ_IDLE;
     end
     else if(st_EQ_IMG_1)
     begin
-        if(eq_done_f_d4) eq_cur_st <= EQ_WAIT_IMG_2;
+        if(eq_done_f) eq_cur_st <= EQ_WAIT_IMG_2;
     end
     else if(st_EQ_IMG2)
     begin
@@ -878,14 +842,51 @@ begin
         if(convolution_done_f_d3) eq_cur_st <= EQ_IMG2;
     end
 end
+
 //-----------------------
 //      EQ SUB CTRs
 //-----------------------
+always @(*) begin
+    eq_valid = st_EQ_IMG_1 || st_EQ_IMG2;
+end
 
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        eq_xptr  <= 0; eq_yptr <= 0;
+        eq_done_f <= 0; eq_cnt <= 0;
+    end
+    else if(st_EQ_IDLE || st_EQ_WAIT_IMG_2)
+    begin
+        eq_xptr  <= 0; eq_yptr <= 0;
+        eq_done_f <= 0;
+    end
+    else if(st_EQ_IMG_1 || st_EQ_IMG2)
+    begin
+        // Ptrs
+        if(one_equalized_done_f)
+        begin
+            eq_xptr   <= eq_xptr;
+            eq_yptr   <= eq_yptr;
+            eq_done_f <= 1;
+            eq_cnt    <= 1;
+        end
+        else if(eq_right_bound_reach_f)
+        begin
+            eq_xptr <= eq_xptr + 1;
+            eq_yptr <= 0;
+        end
+        else
+        begin
+            eq_yptr <= eq_yptr + 1;
+        end
+    end
+end
 
-//-----------------------------
-//      Adder tree inputs
-//-----------------------------
+//-----------------------------=====================
+//      Adder tree input Selector
+//-----------------------------=====================
 reg[4:0] eq_xptr_offset[0:8];
 reg[4:0] eq_yptr_offset[0:8];
 
@@ -910,14 +911,44 @@ begin
     begin
         for(i=0;i<9;i=i+1)
         begin
-
+            // Corners
+            if(eq_yptr_offset[i] == 0 && eq_xptr_offset[i] == 0)
+                adder_tree_in[i] = convolution_result_rf[0][0][eq_cnt];
+            else if(eq_yptr_offset[i] == 5 && eq_xptr_offset[i] == 0)
+                adder_tree_in[i] = convolution_result_rf[0][3][eq_cnt];
+            else if(eq_yptr_offset[i] == 0 && eq_xptr_offset[i] == 5)
+                adder_tree_in[i] = convolution_result_rf[3][0][eq_cnt];
+            else if(eq_yptr_offset[i] == 5 && eq_xptr_offset[i] == 5)
+                adder_tree_in[i] = convolution_result_rf[3][0][eq_cnt];
+            //Boundaries
+            else if(eq_xptr_offset[i] == 0)
+                adder_tree_in[i] = convolution_result_rf[0][eq_yptr_offset[i]-1][eq_cnt];
+            else if(eq_xptr_offset[i] == 5)
+                adder_tree_in[i] = convolution_result_rf[3][eq_yptr_offset[i]-1][eq_cnt];
+            else if(eq_yptr_offset[i] == 0)
+                adder_tree_in[i] = convolution_result_rf[eq_xptr_offset[i]-1][0][eq_cnt];
+            else if(eq_yptr_offset[i] == 5)
+                adder_tree_in[i] = convolution_result_rf[eq_xptr_offset[i]-1][3][eq_cnt];
+            else
+                // General case
+                adder_tree_in[i] = convolution_result_rf[eq_xptr_offset[i]-1][eq_yptr_offset[i]-1][eq_cnt];
+        end
+    end
+    else // Zeropad
+    begin
+        for(i=0;i<9;i=i+1)
+        begin
+            if(eq_yptr_offset[i] == 0 || eq_xptr_offset[i] == 0 || eq_yptr_offset[i] == 5 || eq_xptr_offset[i] == 5)
+                adder_tree_in[i] = 0;
+            else
+                adder_tree_in[i] = convolution_result_rf[eq_xptr_offset[i]-1][eq_yptr_offset[i]-1][eq_cnt];
         end
     end
 end
 
-//-----------------------------
+//--------------------------------------------
 //      EQ Datapath,6 adds d0
-//-----------------------------
+//--------------------------------------------
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B0 ( .a(adder_tree_in[0]), .b(adder_tree_in[1]), .rnd(3'b000), .z(eq_fp_add_out[0]), .status() );
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
@@ -948,9 +979,9 @@ begin
     end
 end
 
-//-----------------------------
+//-------------------------------------------
 //      EQ Datapath, 2 adds d1
-//-----------------------------
+//-------------------------------------------
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B6 ( .a(adder_tree_pipe_d1[0]), .b(adder_tree_pipe_d1[1]), .rnd(3'b000), .z(eq_fp_add_out[6]), .status() );
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
@@ -968,14 +999,15 @@ begin
     end
 end
 
-//-----------------------------
+//-------------------------------------------
 //      EQ Datapath, DIV d2
-//-----------------------------
+//-------------------------------------------
 wire[DATA_WIDTH-1:0] eq_div_out;
 localparam NINE = 32'h41100000;
 
+
 DW_fp_div_inst#(
-        .sig_width       (div_sig_width        ),
+        .sig_width       (inst_sig_width),
         .exp_width       (inst_exp_width       ),
         .ieee_compliance (inst_ieee_compliance ),
         .faithful_round  (faithful_round  ),
@@ -988,9 +1020,9 @@ DW_fp_div_inst#(
         .z_inst      (eq_div_out),
         .status_inst (  )
     );
-//-----------------------------
+//----------------------------------------
 //      Equalization Result RF
-//-----------------------------
+//----------------------------------------
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -1009,13 +1041,55 @@ begin
     end
     else if(eq_valid_d2)
     begin
-       equalized_result_rf[process_xptr_d3][process_yptr_d3][eq_cnt_d2] <= eq_div_out[2];
+       equalized_result_rf[eq_xptr_d2][eq_yptr_d2][eq_cnt_d2] <= eq_div_out;
     end
 end
 
 //---------------------------------------------------------------------
 //      MM DATAPATH
 //---------------------------------------------------------------------
+always @(*)
+begin
+    // Change to equalization done flag
+    mm_next_st = mm_cur_st;
+    case(mm_cur_st)
+    MM_IDLE:
+    begin
+        if(eq_done_f_d2) mm_next_st = MM_MAX_POOLING;
+    end
+    MM_MAX_POOLING:
+    begin
+        if(max_pooling_done_f) mm_next_st = MM_FC;
+    end
+    MM_FC:
+    begin
+        if(fc_done_f) mm_next_st = MM_NORM_ACT;
+    end
+    MM_NORM_ACT:
+    begin
+        if(activation_done_f)
+        begin
+            if(mm_img_cnt == 1)
+                mm_next_st = MM_L1_DISTANCE;
+            else
+                mm_next_st = MM_WAIT_IMG1;
+        end
+    end
+    MM_WAIT_IMG1:
+    begin
+        if(eq_done_f_d2)  mm_next_st = MM_MAX_POOLING;
+    end
+    MM_L1_DISTANCE:
+    begin
+        if(l1_distance_cal_f)   mm_next_st = MM_DONE;
+    end
+    MM_DONE:
+    begin
+        mm_next_st = MM_IDLE;
+    end
+    endcase
+end
+
 // mm_cnt delay lines
 always @(posedge clk or negedge rst_n)
 begin
