@@ -1,0 +1,14 @@
+#-----------------------------------------------------------
+# Vivado v2023.1 (64-bit)
+# SW Build 3865809 on Sun May  7 15:05:29 MDT 2023
+# IP Build 3864474 on Sun May  7 20:36:21 MDT 2023
+# SharedData Build 3865790 on Sun May 07 13:33:03 MDT 2023
+# Start of session at: Tue Nov 14 20:14:21 2023
+# Process ID: 14880
+# Current directory: C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA/MRA.runs/synth_1
+# Command line: vivado.exe -log MRA.vds -product Vivado -mode batch -messageDb vivado.pb -notrace -source MRA.tcl
+# Log file: C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA/MRA.runs/synth_1/MRA.vds
+# Journal file: C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA/MRA.runs/synth_1\vivado.jou
+# Running On: LAPTOP-JJHABV97, OS: Windows, CPU Frequency: 2496 MHz, CPU Physical cores: 10, Host memory: 16803 MB
+#-----------------------------------------------------------
+source MRA.tcl -notrace

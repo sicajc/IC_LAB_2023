@@ -173,8 +173,8 @@ localparam IMG_SIZE = 4;
 
 integer i,j,k,c;
 
+// One for img1, another for img2
 reg[DATA_WIDTH-1:0] convolution_result_rf[0:3][0:3][0:1];
-wire[DATA_WIDTH-1:0] fp_accumulation_result;
 
 genvar idx,jdx;
 //---------------------------------------------------------------------
@@ -185,8 +185,8 @@ reg[DATA_WIDTH-1:0] kernals[0:8];
 wire[DATA_WIDTH-1:0] mults_result[0:8];
 wire[DATA_WIDTH-1:0] partial_sum[0:2];
 wire[DATA_WIDTH-1:0] mac_result;
-reg[DATA_WIDTH-1:0]  mults_result_pipe[0:8];
-reg[DATA_WIDTH-1:0] partial_sum_pipe[0:2];
+reg[DATA_WIDTH-1:0]  mults_result_pipe_d1[0:8];
+reg[DATA_WIDTH-1:0] partial_sum_pipe_d2[0:2];
 
 //---------------------------------------------------------------------
 //      flags
@@ -211,12 +211,9 @@ wire[DATA_WIDTH-1:0] fp_addsub2_out,fp_addsub3_out;
 reg fp_addsub0_mode, fp_addsub1_mode;
 reg fp_addsub2_mode, fp_addsub3_mode;
 
-reg[DATA_WIDTH-1:0] fp_sum4_in_a,fp_sum4_in_b,fp_sum4_in_c,fp_sum4_in_d;
-reg[DATA_WIDTH-1:0] fp_sum4_out;
-
-reg[DATA_WIDTH-1:0] fp_add_tree_in_a[0:2];
-reg[DATA_WIDTH-1:0] fp_add_tree_in_b[0:2];
-wire[DATA_WIDTH-1:0] fp_add_tree_out[0:2];
+reg[DATA_WIDTH-1:0]  fp_add_tree_in_a[0:2];
+reg[DATA_WIDTH-1:0]  fp_add_tree_in_b[0:2];
+wire[DATA_WIDTH-1:0] fp_add_tree_out[0:2];//
 reg[DATA_WIDTH-1:0]  fp_add_tree_d3[0:1];
 
 always @(*)
@@ -240,11 +237,6 @@ begin
     fp_addsub2_mode = 0;
     fp_addsub3_mode = 0;
 
-    fp_sum4_in_a    = 0;
-    fp_sum4_in_b    = 0;
-    fp_sum4_in_c    = 0;
-    fp_sum4_in_d    = 0;
-
     fp_add_tree_in_a[0] = 0;
     fp_add_tree_in_b[0] = 0;
 
@@ -254,17 +246,16 @@ begin
     fp_add_tree_in_a[2] = 0;
     fp_add_tree_in_b[2] = 0;
 
-
-    fp_add_tree_in_a[0] = partial_sum_pipe[0];
-    fp_add_tree_in_b[0] = partial_sum_pipe[1];
-    fp_add_tree_in_a[1] = partial_sum_pipe[2];
+    // Convolution process
+    fp_add_tree_in_a[0] = partial_sum_pipe_d2[0];
+    fp_add_tree_in_b[0] = partial_sum_pipe_d2[1];
+    fp_add_tree_in_a[1] = partial_sum_pipe_d2[2];
     fp_add_tree_in_b[1] = convolution_result_rf[process_xptr_d2][process_yptr_d2][img_num_cnt_d2];
     fp_add_tree_in_a[2] = fp_add_tree_d3[0];
     fp_add_tree_in_b[2] = fp_add_tree_d3[1];
 
     if(ST_MM_L1_DISTANCE && ST_P_IDLE)
     begin
-
         fp_addsub0_mode = 1;
         fp_addsub0_in_a = activation_result_rf[0][0];
         fp_addsub0_in_b = activation_result_rf[0][1];
@@ -328,8 +319,6 @@ begin
             fp_addsub3_in_b = exp_neg_result_d3;
         end
     end
-
-
 end
 
 // Instance of DW_fp_addsub
@@ -352,16 +341,6 @@ DW_fp_addsub #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 fp_addsub3_inst( .a(fp_addsub3_in_a), .b(fp_addsub3_in_b), .rnd(3'b000),
 .op(fp_addsub3_mode), .z(fp_addsub3_out), .status() );
 
-// DW_sum4
-DW_fp_sum4 #(inst_sig_width, inst_exp_width, inst_ieee_compliance, inst_arch_type)
-fp_sun4_inst (
-.a(fp_sum4_in_a),
-.b(fp_sum4_in_b),
-.c(fp_sum4_in_c),
-.d(fp_sum4_in_d),
-.rnd(3'b000),
-.z(fp_sum4_out),
-.status() );
 
 //---------------------------------------------------------------------
 //      PIPELINE DATAPATH
@@ -428,14 +407,14 @@ begin
     begin
         for(i=0;i<9;i=i+1)
         begin
-            mults_result_pipe[i] <= 0;
+            mults_result_pipe_d1[i] <= 0;
         end
     end
     else
     begin
         for(i=0;i<9;i=i+1)
         begin
-            mults_result_pipe[i] <= mults_result[i];
+            mults_result_pipe_d1[i] <= mults_result[i];
         end
     end
 end
@@ -443,9 +422,9 @@ end
 // 3x 3 inputs fp adders
 DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
                 u_DW_fp_sum3_inst1(
-                    .inst_a   ( mults_result_pipe[0]),
-                    .inst_b   ( mults_result_pipe[1]),
-                    .inst_c   ( mults_result_pipe[2]   ),
+                    .inst_a   ( mults_result_pipe_d1[0]),
+                    .inst_b   ( mults_result_pipe_d1[1]),
+                    .inst_c   ( mults_result_pipe_d1[2]   ),
                     .inst_rnd ( 3'b000 ),
                     .z_inst   ( partial_sum[0]   ),
                     .status_inst  (   )
@@ -453,9 +432,9 @@ DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_t
 
 DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
                 u_DW_fp_sum3_inst2(
-                    .inst_a   ( mults_result_pipe[3]),
-                    .inst_b   ( mults_result_pipe[4]),
-                    .inst_c   ( mults_result_pipe[5]   ),
+                    .inst_a   ( mults_result_pipe_d1[3]),
+                    .inst_b   ( mults_result_pipe_d1[4]),
+                    .inst_c   ( mults_result_pipe_d1[5]   ),
                     .inst_rnd ( 3'b000 ),
                     .z_inst   ( partial_sum[1]),
                     .status_inst  (   )
@@ -463,9 +442,9 @@ DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_t
 
 DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
                 u_DW_fp_sum3_inst3(
-                    .inst_a   ( mults_result_pipe[6]),
-                    .inst_b   ( mults_result_pipe[7]),
-                    .inst_c   ( mults_result_pipe[8]   ),
+                    .inst_a   ( mults_result_pipe_d1[6]),
+                    .inst_b   ( mults_result_pipe_d1[7]),
+                    .inst_c   ( mults_result_pipe_d1[8]   ),
                     .inst_rnd ( 3'b000 ),
                     .z_inst   ( partial_sum[2]),
                     .status_inst  (   )
@@ -476,14 +455,14 @@ always @(posedge clk or negedge rst_n) begin
     begin
         for(i=0;i<3;i=i+1)
         begin
-           partial_sum_pipe[i] <= 0;
+           partial_sum_pipe_d2[i] <= 0;
         end
     end
     else
     begin
         for(i=0;i<3;i=i+1)
         begin
-            partial_sum_pipe[i]<=partial_sum[i];
+            partial_sum_pipe_d2[i]<=partial_sum[i];
         end
     end
 end
@@ -514,12 +493,10 @@ begin
         img_num_cnt_d1 <= 0;
         img_num_cnt_d2 <= 0;
         img_num_cnt_d3 <= 0;
-        img_num_cnt_d4 <= 0;
 
         kernal_num_cnt_d1 <= 0;
         kernal_num_cnt_d2 <= 0;
         kernal_num_cnt_d3 <= 0;
-        kernal_num_cnt_d4 <= 0;
 
         process_xptr_d1 <= 0;
         process_yptr_d1 <= 0;
@@ -530,50 +507,39 @@ begin
         process_xptr_d3 <= 0;
         process_yptr_d3 <= 0;
 
-        process_xptr_d4 <= 0;
-        process_yptr_d4 <= 0;
-
         valid_d1 <= 0;
         valid_d2 <= 0;
         valid_d3 <= 0;
-        valid_d4 <= 0;
 
         convolution_done_f_d1 <= 0;
         convolution_done_f_d2 <= 0;
         convolution_done_f_d3 <= 0;
-        convolution_done_f_d4 <= 0;
     end
     else
     begin
         img_num_cnt_d1 <= img_num_cnt;
         img_num_cnt_d2 <= img_num_cnt_d1;
         img_num_cnt_d3 <= img_num_cnt_d2;
-        img_num_cnt_d4 <= img_num_cnt_d3;
 
         kernal_num_cnt_d1 <= kernal_num_cnt;
         kernal_num_cnt_d2 <= kernal_num_cnt_d1;
         kernal_num_cnt_d3 <= kernal_num_cnt_d2;
-        kernal_num_cnt_d4 <= kernal_num_cnt_d3;
 
         process_xptr_d1 <= process_xptr;
         process_xptr_d2 <= process_xptr_d1;
         process_xptr_d3 <= process_xptr_d2;
-        process_xptr_d4 <= process_xptr_d3;
 
         process_yptr_d1 <= process_yptr;
         process_yptr_d2 <= process_yptr_d1;
         process_yptr_d3 <= process_yptr_d2;
-        process_yptr_d4 <= process_yptr_d3;
 
         valid_d1 <= processing_f_ff;
         valid_d2 <= valid_d1;
         valid_d3 <= valid_d2;
-        valid_d4 <= valid_d3;
 
         convolution_done_f_d1 <= convolution_done_f;
         convolution_done_f_d2 <= convolution_done_f_d1;
         convolution_done_f_d3 <= convolution_done_f_d2;
-        convolution_done_f_d4 <= convolution_done_f_d3;
     end
 end
 
@@ -598,11 +564,11 @@ end
 
 always @(*)
 begin
+    // Change to equalization done flag
     mm_next_st = mm_cur_st;
     case(mm_cur_st)
     MM_IDLE:
     begin
-        // Needs to be replaced with delayed done signal
         if(convolution_done_f_d3) mm_next_st = MM_MAX_POOLING;
     end
     MM_MAX_POOLING:
@@ -936,7 +902,6 @@ end
 //---------------------------------------------------------------------
 //      CONVOLUTION RESULTS
 //---------------------------------------------------------------------
-
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -1425,6 +1390,7 @@ begin
         fp_add0_FC_d2 <= fp_addsub0_out;
         fp_mult_fc_d1[0] <= fp_mult_FC_out[0];
         fp_mult_fc_d1[1] <= fp_mult_FC_out[1];
+
         norm_act_d2 <= norm_act_d1;
         norm_act_d3 <= norm_act_d2;
         norm_act_d4 <= norm_act_d3;

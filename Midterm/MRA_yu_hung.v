@@ -372,7 +372,9 @@ always@(posedge clk or negedge rst_n) begin
         count_addr <= n_count_addr;
 end
 always@*begin
-	if(rvalid_m_inf)begin
+	if(count_addr == 127)
+		n_count_addr = 0;
+	else if(rvalid_m_inf)begin
 		n_count_addr = count_addr + 1;
 	end
 	else if((state == DRAM_DATA && wready_m_inf)) n_count_addr = count_addr + 1;
@@ -1040,20 +1042,19 @@ begin
 	endcase
 end
 
-
-
-
-
-
 //retrace_x
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) retrace_x <= 0;
 	else if(l_state == WAIT_RETRACE || l_state == WAVE) retrace_x <= current_sink_x;
 	else if(l_state == RETRACE)begin
-		if(path_map[retrace_y+1][retrace_x] == retrace_num && two_cycle_flag) retrace_x <= retrace_x;
-		else if(path_map[retrace_y-1][retrace_x] == retrace_num && two_cycle_flag) retrace_x <= retrace_x;
-		else if(path_map[retrace_y][retrace_x+1] == retrace_num && two_cycle_flag) retrace_x <= retrace_x+1;
-		else if(path_map[retrace_y][retrace_x-1] == retrace_num && two_cycle_flag) retrace_x <= retrace_x-1;
+		if(path_map[retrace_y+1][retrace_x] == retrace_num && two_cycle_flag)
+            retrace_x <= retrace_x;
+		else if(path_map[retrace_y-1][retrace_x] == retrace_num && two_cycle_flag)
+            retrace_x <= retrace_x;
+		else if(path_map[retrace_y][retrace_x+1] == retrace_num && two_cycle_flag)
+            retrace_x <= retrace_x+1;
+		else if(path_map[retrace_y][retrace_x-1] == retrace_num && two_cycle_flag)
+            retrace_x <= retrace_x-1;
 	end
 	else retrace_x <= 0;
 end
@@ -1062,11 +1063,16 @@ end
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) retrace_y <= 0;
 	else if(l_state == WAIT_RETRACE || l_state == WAVE) retrace_y <= current_sink_y;
-	else if(l_state == RETRACE)begin
-		if(path_map[retrace_y+1][retrace_x] == retrace_num && two_cycle_flag) retrace_y <= retrace_y+1;
-		else if(path_map[retrace_y-1][retrace_x] == retrace_num && two_cycle_flag) retrace_y <= retrace_y-1;
-		else if(path_map[retrace_y][retrace_x+1] == retrace_num && two_cycle_flag) retrace_y <= retrace_y;
-		else if(path_map[retrace_y][retrace_x-1] == retrace_num && two_cycle_flag) retrace_y <= retrace_y;
+	else if(l_state == RETRACE)
+    begin
+		if(path_map[retrace_y+1][retrace_x] == retrace_num && two_cycle_flag)
+            retrace_y <= retrace_y+1;
+		else if(path_map[retrace_y-1][retrace_x] == retrace_num && two_cycle_flag)
+            retrace_y <= retrace_y-1;
+		else if(path_map[retrace_y][retrace_x+1] == retrace_num && two_cycle_flag)
+            retrace_y <= retrace_y;
+		else if(path_map[retrace_y][retrace_x-1] == retrace_num && two_cycle_flag)
+            retrace_y <= retrace_y;
 	end
 	else retrace_y <= 0;
 end
@@ -1160,7 +1166,7 @@ end
 
 
 
-SRAM_128_128_1 sw(.A0(sram_weight_addr[0]),.A1(sram_weight_addr[1]),.A2(sram_weight_addr[2]),.A3(sram_weight_addr[3]),.A4(sram_weight_addr[4]),.A5(sram_weight_addr[5]),.A6(sram_weight_addr[6]),
+SRAM_128_128 sw(.A0(sram_weight_addr[0]),.A1(sram_weight_addr[1]),.A2(sram_weight_addr[2]),.A3(sram_weight_addr[3]),.A4(sram_weight_addr[4]),.A5(sram_weight_addr[5]),.A6(sram_weight_addr[6]),
 .DO0(read_sram_weight_wire[0]),.DO1(read_sram_weight_wire[1]),.DO2(read_sram_weight_wire[2]),.DO3(read_sram_weight_wire[3]),.DO4(read_sram_weight_wire[4]),.DO5(read_sram_weight_wire[5]),.DO6(read_sram_weight_wire[6]),.DO7(read_sram_weight_wire[7]),
 .DO8(read_sram_weight_wire[8]),.DO9(read_sram_weight_wire[9]),.DO10(read_sram_weight_wire[10]),.DO11(read_sram_weight_wire[11]),.DO12(read_sram_weight_wire[12]),.DO13(read_sram_weight_wire[13]),.DO14(read_sram_weight_wire[14]),.DO15(read_sram_weight_wire[15]),
 .DO16(read_sram_weight_wire[16]),.DO17(read_sram_weight_wire[17]),.DO18(read_sram_weight_wire[18]),.DO19(read_sram_weight_wire[19]),.DO20(read_sram_weight_wire[20]),.DO21(read_sram_weight_wire[21]),.DO22(read_sram_weight_wire[22]),.DO23(read_sram_weight_wire[23]),
@@ -1197,7 +1203,7 @@ SRAM_128_128_1 sw(.A0(sram_weight_addr[0]),.A1(sram_weight_addr[1]),.A2(sram_wei
 .CK(clk),.WEB(web_weight),.OE(1'b1),.CS(1'b1));
 
 
-SRAM_128_128_1 sl(.A0(sram_location_addr[0]),.A1(sram_location_addr[1]),.A2(sram_location_addr[2]),.A3(sram_location_addr[3]),.A4(sram_location_addr[4]),.A5(sram_location_addr[5]),.A6(sram_location_addr[6]),
+SRAM_128_128 sl(.A0(sram_location_addr[0]),.A1(sram_location_addr[1]),.A2(sram_location_addr[2]),.A3(sram_location_addr[3]),.A4(sram_location_addr[4]),.A5(sram_location_addr[5]),.A6(sram_location_addr[6]),
 .DO0(read_sram_location_wire[0]),.DO1(read_sram_location_wire[1]),.DO2(read_sram_location_wire[2]),.DO3(read_sram_location_wire[3]),.DO4(read_sram_location_wire[4]),.DO5(read_sram_location_wire[5]),.DO6(read_sram_location_wire[6]),.DO7(read_sram_location_wire[7]),
 .DO8(read_sram_location_wire[8]),.DO9(read_sram_location_wire[9]),.DO10(read_sram_location_wire[10]),.DO11(read_sram_location_wire[11]),.DO12(read_sram_location_wire[12]),.DO13(read_sram_location_wire[13]),.DO14(read_sram_location_wire[14]),.DO15(read_sram_location_wire[15]),
 .DO16(read_sram_location_wire[16]),.DO17(read_sram_location_wire[17]),.DO18(read_sram_location_wire[18]),.DO19(read_sram_location_wire[19]),.DO20(read_sram_location_wire[20]),.DO21(read_sram_location_wire[21]),.DO22(read_sram_location_wire[22]),.DO23(read_sram_location_wire[23]),

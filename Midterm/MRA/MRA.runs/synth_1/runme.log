@@ -1,0 +1,494 @@
+
+*** Running vivado
+    with args -log MRA.vds -m64 -product Vivado -mode batch -messageDb vivado.pb -notrace -source MRA.tcl
+
+
+ECHO is off.
+ECHO is off.
+
+****** Vivado v2023.1 (64-bit)
+  **** SW Build 3865809 on Sun May  7 15:05:29 MDT 2023
+  **** IP Build 3864474 on Sun May  7 20:36:21 MDT 2023
+  **** SharedData Build 3865790 on Sun May 07 13:33:03 MDT 2023
+    ** Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
+    ** Copyright 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
+
+source MRA.tcl -notrace
+Command: read_checkpoint -auto_incremental -incremental C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA/MRA.srcs/utils_1/imports/synth_1/MRA.dcp
+INFO: [Vivado 12-5825] Read reference checkpoint from C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA/MRA.srcs/utils_1/imports/synth_1/MRA.dcp for incremental synthesis
+INFO: [Vivado 12-7989] Please ensure there are no constraint changes
+Command: synth_design -top MRA -part xc7k70tfbv676-1
+Starting synth_design
+Attempting to get a license for feature 'Synthesis' and/or device 'xc7k70t'
+INFO: [Common 17-349] Got license for feature 'Synthesis' and/or device 'xc7k70t'
+INFO: [Synth 8-7079] Multithreading enabled for synth_design using a maximum of 2 processes.
+INFO: [Synth 8-7078] Launching helper process for spawning children vivado processes
+INFO: [Synth 8-7075] Helper process launched with PID 6700
+---------------------------------------------------------------------------------
+Starting Synthesize : Time (s): cpu = 00:00:01 ; elapsed = 00:00:05 . Memory (MB): peak = 889.453 ; gain = 409.793
+---------------------------------------------------------------------------------
+INFO: [Synth 8-6157] synthesizing module 'MRA' [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:20]
+INFO: [Synth 8-6155] done synthesizing module 'MRA' (0#1) [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:20]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[0].net_id_save_reg[0] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[1].net_id_save_reg[1] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[2].net_id_save_reg[2] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[3].net_id_save_reg[3] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[4].net_id_save_reg[4] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[5].net_id_save_reg[5] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[6].net_id_save_reg[6] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[7].net_id_save_reg[7] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[8].net_id_save_reg[8] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[9].net_id_save_reg[9] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[10].net_id_save_reg[10] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[11].net_id_save_reg[11] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[12].net_id_save_reg[12] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[13].net_id_save_reg[13] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[14].net_id_save_reg[14] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element genfornet_id_save[15].net_id_save_reg[15] was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:437]
+WARNING: [Synth 8-6014] Unused sequential element end_count_reg was removed.  [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:405]
+WARNING: [Synth 8-3848] Net read_sram_weight_wire in module/entity MRA does not have driver. [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:209]
+WARNING: [Synth 8-3848] Net read_sram_location_wire in module/entity MRA does not have driver. [C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA_yu_hung.v:210]
+WARNING: [Synth 8-3917] design MRA has port arid_m_inf[3] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arid_m_inf[2] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arid_m_inf[1] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arid_m_inf[0] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[7] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[6] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[5] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[4] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[3] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[2] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[1] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[0] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arsize_m_inf[2] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arsize_m_inf[1] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arsize_m_inf[0] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arburst_m_inf[1] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arburst_m_inf[0] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port awid_m_inf[3] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awid_m_inf[2] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awid_m_inf[1] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awid_m_inf[0] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awsize_m_inf[2] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port awsize_m_inf[1] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awsize_m_inf[0] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awburst_m_inf[1] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awburst_m_inf[0] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port awlen_m_inf[7] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awlen_m_inf[6] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port awlen_m_inf[5] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port awlen_m_inf[4] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port awlen_m_inf[3] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port awlen_m_inf[2] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port awlen_m_inf[1] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port awlen_m_inf[0] driven by constant 1
+WARNING: [Synth 8-7129] Port wdata_m_inf[127] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[126] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[125] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[124] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[123] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[122] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[121] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[120] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[119] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[118] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[117] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[116] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[115] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[114] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[113] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[112] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[111] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[110] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[109] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[108] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[107] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[106] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[105] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[104] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[103] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[102] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[101] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[100] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[99] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[98] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[97] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[96] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[95] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[94] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[93] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[92] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[91] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[90] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[89] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[88] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[87] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[86] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[85] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[84] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[83] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[82] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[81] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[80] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[79] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[78] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[77] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[76] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[75] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[74] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[73] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[72] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[71] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[70] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[69] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[68] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[67] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[66] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[65] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[64] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[63] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[62] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[61] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[60] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[59] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[58] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[57] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[56] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[55] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[54] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[53] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[52] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[51] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[50] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[49] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[48] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[47] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[46] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[45] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[44] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[43] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[42] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[41] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[40] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[39] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[38] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[37] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[36] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[35] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[34] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[33] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[32] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[31] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[30] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[29] in module MRA is either unconnected or has no load
+WARNING: [Synth 8-7129] Port wdata_m_inf[28] in module MRA is either unconnected or has no load
+INFO: [Common 17-14] Message 'Synth 8-7129' appears 100 times and further instances of the messages will be disabled. Use the Tcl command set_msg_config to change the current settings.
+---------------------------------------------------------------------------------
+Finished Synthesize : Time (s): cpu = 00:00:25 ; elapsed = 00:01:35 . Memory (MB): peak = 2142.758 ; gain = 1663.098
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Constraint Validation : Time (s): cpu = 00:00:26 ; elapsed = 00:01:41 . Memory (MB): peak = 2142.758 ; gain = 1663.098
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Loading Part and Timing Information
+---------------------------------------------------------------------------------
+Loading part: xc7k70tfbv676-1
+---------------------------------------------------------------------------------
+Start Preparing Guide Design
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Doing Graph Differ : Time (s): cpu = 00:00:29 ; elapsed = 00:01:59 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+MRA__GB5MRA__GB4MRA__GB3MRA__GB2MRA__GB1MRA__GB0---------------------------------------------------------------------------------
+Finished Preparing Guide Design : Time (s): cpu = 00:00:30 ; elapsed = 00:02:04 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished RTL Optimization Phase 2 : Time (s): cpu = 00:00:31 ; elapsed = 00:02:09 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Mimic Skeleton from Reference
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Mimic Skeleton from Reference : Time (s): cpu = 00:00:32 ; elapsed = 00:02:14 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+
+
+Incremental Synthesis Report Summary:
+
+1. Incremental synthesis run: yes
+
+   Stitch points used : changed
+
+
+2. Change Summary
+
+Report Incremental Modules: 
++-+----------------+------------+----------+----------+
+| |Changed Modules |Replication |Instances |Changed % |
++-+----------------+------------+----------+----------+
++-+----------------+------------+----------+----------+
+
+
+   Full Design Size (number of cells) : 134717
+   Resynthesis Design Size (number of cells) : 0
+   Resynth % : 0.0000,  Reuse % : 100.0000
+
+3. Reference Checkpoint Information
+
++----------------------------------------------------------------------------------------------------------------------+
+| DCP Location:  | C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA/MRA.srcs/utils_1/imports/synth_1/MRA.dcp |
++----------------------------------------------------------------------------------------------------------------------+
+
+
++--------------------------------+------------------------------+
+|         DCP Information        |             Value            |
++--------------------------------+------------------------------+
+| Vivado Version                 |                    v2023.1 |
+| DCP State                      |                              |
++--------------------------------+------------------------------+
+
+
+
+Report RTL Partitions: 
++------+-----------------+------------+----------+
+|      |RTL Partition    |Replication |Instances |
++------+-----------------+------------+----------+
+|1     |MRA__GB0_#REUSE# |           1|         0|
+|2     |MRA__GB1_#REUSE# |           1|         0|
+|3     |MRA__GB2_#REUSE# |           1|         0|
+|4     |MRA__GB3_#REUSE# |           1|         0|
+|5     |MRA__GB4_#REUSE# |           1|         0|
+|6     |MRA__GB5_#REUSE# |           1|         0|
++------+-----------------+------------+----------+
+No constraint files found.
+---------------------------------------------------------------------------------
+Start RTL Component Statistics 
+---------------------------------------------------------------------------------
+Detailed RTL Component Info : 
+---------------------------------------------------------------------------------
+Finished RTL Component Statistics 
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Part Resource Summary
+---------------------------------------------------------------------------------
+Part Resources:
+DSPs: 240 (col length:80)
+BRAMs: 270 (col length: RAMB18 80 RAMB36 40)
+---------------------------------------------------------------------------------
+Finished Part Resource Summary
+---------------------------------------------------------------------------------
+No constraint files found.
+---------------------------------------------------------------------------------
+Start Cross Boundary and Area Optimization
+---------------------------------------------------------------------------------
+WARNING: [Synth 8-7080] Parallel synthesis criteria is not met
+WARNING: [Synth 8-7077] IncrSyn: subsequent runs will still be incremental as the reference run was parallel and that data is reused
+WARNING: [Synth 8-3917] design MRA has port arid_m_inf[3] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arid_m_inf[2] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arid_m_inf[1] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arid_m_inf[0] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[31] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[30] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[29] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[28] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[27] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[26] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[25] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[24] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[23] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[22] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[21] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[20] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[19] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[18] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[10] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[9] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[8] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[7] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[6] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[5] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[4] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[3] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[2] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[1] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port araddr_m_inf[0] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[7] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[6] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[5] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[4] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[3] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[2] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[1] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arlen_m_inf[0] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arsize_m_inf[2] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port arsize_m_inf[1] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arsize_m_inf[0] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arburst_m_inf[1] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port arburst_m_inf[0] driven by constant 1
+WARNING: [Synth 8-3917] design MRA has port awid_m_inf[3] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awid_m_inf[2] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awid_m_inf[1] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awid_m_inf[0] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[31] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[30] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[29] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[28] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[27] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[26] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[25] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[24] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[23] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[22] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[21] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[20] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[19] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[18] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[17] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[10] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[9] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[8] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[7] driven by constant 0
+WARNING: [Synth 8-3917] design MRA has port awaddr_m_inf[6] driven by constant 0
+INFO: [Common 17-14] Message 'Synth 8-3917' appears 100 times and further instances of the messages will be disabled. Use the Tcl command set_msg_config to change the current settings.
+---------------------------------------------------------------------------------
+Finished Cross Boundary and Area Optimization : Time (s): cpu = 00:00:33 ; elapsed = 00:02:21 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+No constraint files found.
+---------------------------------------------------------------------------------
+Start Stitch Unchanged AreaOpt Partitions
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Stitch Unchanged AreaOpt Partitions : Time (s): cpu = 00:00:34 ; elapsed = 00:02:23 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Timing Optimization
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Timing Optimization : Time (s): cpu = 00:00:34 ; elapsed = 00:02:26 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Technology Mapping
+---------------------------------------------------------------------------------
+WARNING: [Synth 8-7080] Parallel synthesis criteria is not met
+WARNING: [Synth 8-7077] IncrSyn: subsequent runs will still be incremental as the reference run was parallel and that data is reused
+---------------------------------------------------------------------------------
+Finished Technology Mapping : Time (s): cpu = 00:00:34 ; elapsed = 00:02:26 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Stitch Unchanged Partitions
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Stitch Unchanged Partitions : Time (s): cpu = 00:00:35 ; elapsed = 00:02:27 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Flattening Before IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Flattening Before IO Insertion
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Final Netlist Cleanup
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Final Netlist Cleanup
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished IO Insertion : Time (s): cpu = 00:00:36 ; elapsed = 00:02:38 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Instances
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Instances : Time (s): cpu = 00:00:36 ; elapsed = 00:02:38 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Rebuilding User Hierarchy
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Rebuilding User Hierarchy : Time (s): cpu = 00:00:36 ; elapsed = 00:02:39 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Ports
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Ports : Time (s): cpu = 00:00:36 ; elapsed = 00:02:39 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Handling Custom Attributes
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Handling Custom Attributes : Time (s): cpu = 00:00:37 ; elapsed = 00:02:40 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Renaming Generated Nets
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Finished Renaming Generated Nets : Time (s): cpu = 00:00:37 ; elapsed = 00:02:40 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
+Start Writing Synthesis Report
+---------------------------------------------------------------------------------
+
+Report BlackBoxes: 
++-+--------------+----------+
+| |BlackBox name |Instances |
++-+--------------+----------+
++-+--------------+----------+
+
+Report Cell Usage: 
++------+-------+------+
+|      |Cell   |Count |
++------+-------+------+
+|1     |BUFG   |     1|
+|2     |CARRY4 |     4|
+|3     |LUT1   |     2|
+|4     |LUT2   |  3457|
+|5     |LUT3   |  4500|
+|6     |LUT4   |    43|
+|7     |LUT5   | 13344|
+|8     |LUT6   | 21250|
+|9     |MUXF7  |  6247|
+|10    |MUXF8  |  2071|
+|11    |FDCE   |   595|
+|12    |FDPE   |     1|
+|13    |FDRE   |  8192|
+|14    |IBUF   |   154|
+|15    |OBUF   |   119|
+|16    |OBUFT  |   128|
++------+-------+------+
+
+Report Instance Areas: 
++------+---------+-------+------+
+|      |Instance |Module |Cells |
++------+---------+-------+------+
+|1     |top      |       | 60108|
++------+---------+-------+------+
+---------------------------------------------------------------------------------
+Finished Writing Synthesis Report : Time (s): cpu = 00:00:37 ; elapsed = 00:02:40 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+---------------------------------------------------------------------------------
+Synthesis finished with 0 errors, 0 critical warnings and 430 warnings.
+Synthesis Optimization Runtime : Time (s): cpu = 00:00:37 ; elapsed = 00:02:41 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+Synthesis Optimization Complete : Time (s): cpu = 00:00:37 ; elapsed = 00:02:41 . Memory (MB): peak = 2890.148 ; gain = 2410.488
+INFO: [Project 1-571] Translating synthesized netlist
+Netlist sorting complete. Time (s): cpu = 00:00:00 ; elapsed = 00:00:00.525 . Memory (MB): peak = 2890.148 ; gain = 0.000
+INFO: [Netlist 29-17] Analyzing 8322 Unisim elements for replacement
+INFO: [Netlist 29-28] Unisim Transformation completed in 0 CPU seconds
+WARNING: [Netlist 29-101] Netlist 'MRA' is not ideal for floorplanning, since the cellview 'MRA' contains a large number of primitives.  Please consider enabling hierarchy in synthesis if you want to do floorplanning.
+INFO: [Project 1-570] Preparing netlist for logic optimization
+INFO: [Opt 31-138] Pushed 0 inverter(s) to 0 load pin(s).
+Netlist sorting complete. Time (s): cpu = 00:00:00 ; elapsed = 00:00:00.012 . Memory (MB): peak = 2890.148 ; gain = 0.000
+INFO: [Project 1-111] Unisim Transformation Summary:
+No Unisim elements were transformed.
+
+Synth Design complete | Checksum: 8aad91d1
+INFO: [Common 17-83] Releasing license: Synthesis
+18 Infos, 224 Warnings, 0 Critical Warnings and 0 Errors encountered.
+synth_design completed successfully
+synth_design: Time (s): cpu = 00:00:39 ; elapsed = 00:02:50 . Memory (MB): peak = 2890.148 ; gain = 2418.305
+INFO: [Common 17-1381] The checkpoint 'C:/Users/jacky/Desktop/ic_lab_2023/IC_LAB_2023/Midterm/MRA/MRA.runs/synth_1/MRA.dcp' has been generated.
+write_checkpoint: Time (s): cpu = 00:00:03 ; elapsed = 00:00:08 . Memory (MB): peak = 2890.148 ; gain = 0.000
+INFO: [runtcl-4] Executing : report_utilization -file MRA_utilization_synth.rpt -pb MRA_utilization_synth.pb
+INFO: [Common 17-206] Exiting Vivado at Tue Nov 14 20:17:27 2023...

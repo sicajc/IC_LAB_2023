@@ -548,8 +548,7 @@ begin
     end
 end
 
-reg[4:0] slot_to_shift_cnt;
-wire shifted_done_f = slot_to_shift_cnt == 0;
+
 
 
 
@@ -638,7 +637,8 @@ end
 // ===============================================================
 //  	        INPUTS DATAPATH , shift registers
 // ===============================================================
-
+reg[4:0] slot_to_shift_cnt;
+wire shifted_done_f = slot_to_shift_cnt == 0;
 always @(posedge clk)
 begin
     if(st_IDLE)
@@ -673,7 +673,7 @@ begin
 
             for(i=0;i<14;i=i+1)
             begin
-                net_id_rf[i+1]   <= net_id_rf[i];
+                net_id_rf[i+1] <= net_id_rf[i];
                 sink_x_rf[i+1] <= sink_x_rf[i];
                 sink_y_rf[i+1] <= sink_y_rf[i];
             end
@@ -918,11 +918,9 @@ begin
     end
 end
 
-
-
 always @(*)
 begin
-    cur_encode_val = {1'b1,cnt[1]};
+    cur_encode_val = {1'b1,cnt[1]}; //0,1,2,3
 end
 
 always @(posedge clk)
