@@ -58,6 +58,7 @@ parameter inst_faithful_round = 0;
 input rst_n, clk, in_valid;
 input [inst_sig_width+inst_exp_width:0] Img, Kernel, Weight;
 input [1:0] Opt;
+input cg_en;
 
 output reg	out_valid;
 output reg [inst_sig_width+inst_exp_width:0] out;
@@ -233,35 +234,46 @@ wire wr_kernal_bound_reach_f  = wr_kernal_yptr == 2  && ST_P_RD_DATA;
 wire wr_kernal_done_f         = wr_kernal_yptr == 2 && wr_kernal_xptr == 2 && ST_P_RD_DATA;
 wire wr_all_kernal_done_f     = wr_kernal_done_f && wr_kernal_num_cnt == 2 && ST_P_RD_DATA;
 
-
 wire process_bound_reach_f = process_yptr == 3;
+
+// Additional logic, early start of reading logic
+reg l1_done_sig_f;
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+        l1_done_sig_f <= 0;
+    else if(ST_MM_DONE)
+        l1_done_sig_f <= 1;
+    else if(ST_P_RD_DATA)
+        l1_done_sig_f <= 0;
+end
 
 //================================================================
 //	GATED CLK
 //================================================================
-wire clk_inv, clk_sort, clk_mul_sum;
-wire sleep_inv, sleep_sort, sleep_mul_sum;
+wire clk_read_data;
+// wire sleep_rd_data  = ~(ST_P_RD_DATA);
+wire sleep_conv     ;
+wire sleep_eq       ;
+wire sleep_mp       ;
+wire sleep_fc       ;
+wire sleep_norm_act ;
+wire sleep_l1       ;
 
-GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_inv), .RST_N(rst_n), .CLOCK_GATED(clk_inv));
-GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_sort), .RST_N(rst_n), .CLOCK_GATED(clk_sort));
-GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
-GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
-GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
-GATED_OR GATED_NORM_ACT( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
-GATED_OR GATED_L1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
 
-assign sleep_rd_data = !(current_state==STATE_IDLE || current_state==STATE_MInv);
-assign sleep_conv = !(current_state==STATE_Sort || current_state==STATE_OUTPT);
-assign sleep_eq = !(current_state==STATE_MMul || current_state==STATE_Sum || current_state==STATE_Sort || current_state==STATE_OUTPT);
-assign sleep_mp = !(current_state==STATE_MMul || current_state==STATE_Sum || current_state==STATE_Sort || current_state==STATE_OUTPT);
-assign sleep_fc = !(current_state==STATE_MMul || current_state==STATE_Sum || current_state==STATE_Sort || current_state==STATE_OUTPT);
-assign sleep_norm_act = !(current_state==STATE_MMul || current_state==STATE_Sum || current_state==STATE_Sort || current_state==STATE_OUTPT);
-assign sleep_l1 = !(current_state==STATE_MMul || current_state==STATE_Sum || current_state==STATE_Sort || current_state==STATE_OUTPT);
+GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
+// GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_sort), .RST_N(rst_n), .CLOCK_GATED(clk_sort));
+// GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+// GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+// GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+// GATED_OR GATED_NORM_ACT( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+// GATED_OR GATED_L1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
 
 //---------------------------------------------------------------------
 //      RD DATA Domain
 //---------------------------------------------------------------------
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_read_data or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -277,75 +289,33 @@ begin
         for(i=0;i<2;i=i+1)
             for(j=0;j<2;j=j+1)
                     weight_rf[i][j] <= 0;
-
-        processing_f_ff <= 0;
-        // Since padding, start from (1,1)
-        wr_img_xptr <= 0;
-        wr_img_yptr <= 0;
-        wr_img_num_cnt <= 0;
-        wr_img_channel_cnt <= 0;
-        opt_ff <= 0;
-
-        // Kernals
-        wr_kernal_num_cnt <= 0;
-        wr_kernal_yptr <= 0;
-        wr_kernal_xptr <= 0;
-        rd_cnt  <= 0;
+    end
+    else if(ST_P_IDLE && p_next_st == P_RD_DATA)
+    begin
+        if(Opt == 0 || Opt == 2)
+        begin
+            img_rf[0][0] <= Img;
+            img_rf[0][1] <= Img;
+            img_rf[1][0] <= Img;
+            img_rf[1][1] <= Img;
+        end
+        else
+        begin
+            img_rf[1][1] <= Img;
+        end
+        kernal_rf[0][0][0] <= Kernel;
+        weight_rf[0][0]    <= Weight;
     end
     else if(ST_P_IDLE)
     begin
-        // Reading in images, kernals and weight_rf
-        if(in_valid)
-        begin
-            if(Opt == 0 || Opt == 2)
-            begin
-                img_rf[0][0] <= Img;
-                img_rf[0][1] <= Img;
-                img_rf[1][0] <= Img;
-                img_rf[1][1] <= Img;
-            end
-            else
-            begin
-                img_rf[1][1] <= Img;
-            end
+        for(i=0;i<3;i=i+1)
+            for(j=0;j<3;j=j+1)
+                for(k=0;k<3;k=k+1)
+                    kernal_rf[i][j][k] <= 0;
 
-            kernal_rf[0][0][0] <= Kernel;
-            weight_rf[0][0]    <= Weight;
-
-            opt_ff <= Opt;
-            wr_img_yptr <= wr_img_yptr + 1;
-            wr_kernal_yptr <= wr_kernal_yptr + 1;
-            rd_cnt <= rd_cnt + 1;
-        end
-        else if(ST_MM_DONE)
-        begin
-            for(i=0;i<3;i=i+1)
-                for(j=0;j<3;j=j+1)
-                    for(k=0;k<3;k=k+1)
-                        kernal_rf[i][j][k] <= 0;
-
-            for(i=0;i<6;i=i+1)
-                for(j=0;j<6;j=j+1)
-                        img_rf[i][j] <= 0;
-
-            for(i=0;i<2;i=i+1)
-                for(j=0;j<2;j=j+1)
-                    weight_rf[i][j] <= 0;
-
-            processing_f_ff <= 0;
-            // Since padding, start from (1,1)
-            wr_img_xptr <= 0;
-            wr_img_yptr <= 0;
-            wr_img_num_cnt <= 0;
-            wr_img_channel_cnt <= 0;
-            opt_ff <= 0;
-
-            // Kernals
-            wr_kernal_num_cnt <= 0;
-            wr_kernal_yptr <= 0;
-            wr_kernal_xptr <= 0;
-            rd_cnt <= 0;
-        end
+        for(i=0;i<6;i=i+1)
+            for(j=0;j<6;j=j+1)
+                img_rf[i][j] <= 0;
     end
     else if(ST_P_RD_DATA)
     begin
@@ -360,7 +330,6 @@ begin
         if(rd_cnt <= 26)
             kernal_rf[wr_kernal_xptr][wr_kernal_yptr][wr_kernal_num_cnt] <= Kernel;
 
-        rd_cnt <= rd_cnt + 1;
         // Replication
         if(opt_ff == 0 || opt_ff == 2)
         begin
@@ -425,6 +394,59 @@ begin
         begin
             img_rf[wr_img_xptr+1][wr_img_yptr+1] <= Img;
         end
+    end
+end
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+        opt_ff <= 0;
+    else if(ST_P_IDLE)
+        opt_ff <= in_valid ? Opt:opt_ff;
+end
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        // Since padding, start from (1,1)
+        wr_img_xptr <= 0;
+        wr_img_yptr <= 0;
+        wr_img_num_cnt <= 0;
+        wr_img_channel_cnt <= 0;
+
+        // Kernals
+        wr_kernal_num_cnt <= 0;
+        wr_kernal_yptr <= 0;
+        wr_kernal_xptr <= 0;
+        rd_cnt  <= 0;
+    end
+    else if(ST_P_IDLE)
+    begin
+        // Reading in images, kernals and weight_rf
+        if(in_valid)
+        begin
+            wr_img_yptr <= wr_img_yptr + 1;
+            wr_kernal_yptr <= wr_kernal_yptr + 1;
+            rd_cnt <= rd_cnt + 1;
+        end
+        else
+        begin
+            // Since padding, start from (1,1)
+            wr_img_xptr <= 0;
+            wr_img_yptr <= 0;
+            wr_img_num_cnt <= 0;
+            wr_img_channel_cnt <= 0;
+
+            // Kernals
+            wr_kernal_num_cnt <= 0;
+            wr_kernal_yptr <= 0;
+            wr_kernal_xptr <= 0;
+        end
+    end
+    else if(ST_P_RD_DATA)
+    begin
+        rd_cnt <= wr_all_img_done_f ? 0 : rd_cnt + 1;
 
         // wr_ptrs
         if(wr_all_img_done_f)
@@ -458,7 +480,13 @@ begin
         end
 
         //wr kernals
-        if(wr_all_kernal_done_f)
+        if(wr_all_img_done_f)
+        begin
+            wr_kernal_xptr <= 0;
+            wr_kernal_yptr <= 0;
+            wr_kernal_num_cnt <= 0;
+        end
+        else if(wr_all_kernal_done_f)
         begin
             wr_kernal_xptr <= 0;
             wr_kernal_yptr <= 0;
@@ -479,24 +507,23 @@ begin
         begin
             wr_kernal_yptr <= wr_kernal_yptr + 1;
         end
-
-        // Start sending signals to MAC at 10th cycle while reading
-        if(start_processing_f)
-        begin
-            processing_f_ff <= 1;
-        end
-    end
-    else
-    begin
-        if(all_convolution_done_f)
-            processing_f_ff <= 0;
     end
 end
-
 
 //---------------------------------------------------------------------
 //      Convolution
 //---------------------------------------------------------------------
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+        processing_f_ff <= 0;
+    else if(start_processing_f)
+        processing_f_ff <= 1;
+    else if(all_convolution_done_f)
+        processing_f_ff <= 0;
+end
+
+
 wire[4:0] row_00 = process_xptr;
 wire[4:0] row_01 = process_xptr;
 wire[4:0] row_02 = process_xptr;
@@ -767,8 +794,6 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 //---------------------------------------------------------------------
 //      KERNALS, IMGS, WEIGHTS(RD DATA DOMAIN)
 //---------------------------------------------------------------------
-
-
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -1457,8 +1482,8 @@ begin
     end
     else if(ST_MM_DONE)
     begin
-            for(i=0;i<3;i=i+1)
-                for(j=0;j<3;j=j+1)
+            for(i=0;i<2;i=i+1)
+                for(j=0;j<2;j=j+1)
                     max_pooling_result_rf[i][j] <= 0;
     end
 end

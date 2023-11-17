@@ -16,6 +16,7 @@
 //
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //############################################################################
+
 module SNN(
     //Input Port
 
@@ -97,10 +98,10 @@ reg[DATA_WIDTH-1:0] x_min_ff,x_max_ff;
 
 reg[1:0] kernal_num_cnt,kernal_num_cnt_d1,kernal_num_cnt_d2,kernal_num_cnt_d3,kernal_num_cnt_d4;
 
-reg[3:0] process_xptr, process_yptr,process_xptr_d1, process_yptr_d1,process_xptr_d2,process_yptr_d2,process_xptr_d3,
+reg[1:0] process_xptr, process_yptr,process_xptr_d1, process_yptr_d1,process_xptr_d2,process_yptr_d2,process_xptr_d3,
 process_yptr_d3,process_xptr_d4,process_yptr_d4;
 
-reg[3:0] wr_img_xptr,wr_img_yptr;
+reg[1:0] wr_img_xptr,wr_img_yptr;
 reg mm_img_cnt;
 reg[2:0] mm_cnt_d1,mm_cnt_d2,mm_cnt_d3,mm_cnt_d4;
 reg norm_valid_d1;
@@ -226,7 +227,8 @@ wire wr_all_kernal_done_f     = wr_kernal_done_f && wr_kernal_num_cnt == 2 && ST
 
 wire process_bound_reach_f = process_yptr == 3;
 
-
+wire[2:0] wr_img_y_plus =  wr_img_yptr+1;
+wire[2:0] wr_img_x_plus =  wr_img_xptr+1;
 
 //---------------------------------------------------------------------
 //      RD DATA Domain
@@ -248,7 +250,6 @@ begin
             for(j=0;j<2;j=j+1)
                     weight_rf[i][j] <= 0;
 
-        processing_f_ff <= 0;
         // Since padding, start from (1,1)
         wr_img_xptr <= 0;
         wr_img_yptr <= 0;
@@ -287,7 +288,7 @@ begin
             wr_kernal_yptr <= wr_kernal_yptr + 1;
             rd_cnt <= rd_cnt + 1;
         end
-        else if(ST_MM_DONE)
+        else
         begin
             for(i=0;i<3;i=i+1)
                 for(j=0;j<3;j=j+1)
@@ -296,25 +297,18 @@ begin
 
             for(i=0;i<6;i=i+1)
                 for(j=0;j<6;j=j+1)
-                        img_rf[i][j] <= 0;
+                    img_rf[i][j] <= 0;
 
-            for(i=0;i<2;i=i+1)
-                for(j=0;j<2;j=j+1)
-                    weight_rf[i][j] <= 0;
-
-            processing_f_ff <= 0;
             // Since padding, start from (1,1)
             wr_img_xptr <= 0;
             wr_img_yptr <= 0;
             wr_img_num_cnt <= 0;
             wr_img_channel_cnt <= 0;
-            opt_ff <= 0;
 
             // Kernals
             wr_kernal_num_cnt <= 0;
             wr_kernal_yptr <= 0;
             wr_kernal_xptr <= 0;
-            rd_cnt <= 0;
         end
     end
     else if(ST_P_RD_DATA)
@@ -330,7 +324,7 @@ begin
         if(rd_cnt <= 26)
             kernal_rf[wr_kernal_xptr][wr_kernal_yptr][wr_kernal_num_cnt] <= Kernel;
 
-        rd_cnt <= rd_cnt + 1;
+        rd_cnt <= wr_all_img_done_f ? 0 : rd_cnt + 1;
         // Replication
         if(opt_ff == 0 || opt_ff == 2)
         begin
@@ -368,32 +362,32 @@ begin
             end
             else if(wr_img_xptr == 0)
             begin
-                img_rf[0][wr_img_yptr+1] <= Img;
-                img_rf[1][wr_img_yptr+1] <= Img;
+                img_rf[0][wr_img_y_plus] <= Img;
+                img_rf[1][wr_img_y_plus] <= Img;
             end
             else if(wr_img_yptr == 0)
             begin
-                img_rf[wr_img_xptr+1][0] <= Img;
-                img_rf[wr_img_xptr+1][1] <= Img;
+                img_rf[wr_img_x_plus][0] <= Img;
+                img_rf[wr_img_x_plus][1] <= Img;
             end
             else if(wr_img_xptr == IMG_SIZE -1)
             begin
-                img_rf[4][wr_img_yptr+1] <= Img;
-                img_rf[5][wr_img_yptr+1] <= Img;
+                img_rf[4][wr_img_y_plus] <= Img;
+                img_rf[5][wr_img_y_plus] <= Img;
             end
             else if(wr_img_yptr == IMG_SIZE-1)
             begin
-                img_rf[wr_img_xptr+1][4] <= Img;
-                img_rf[wr_img_xptr+1][5] <= Img;
+                img_rf[wr_img_x_plus][4] <= Img;
+                img_rf[wr_img_x_plus][5] <= Img;
             end
             else
             begin
-                img_rf[wr_img_xptr+1][wr_img_yptr+1] <= Img;
+                img_rf[wr_img_x_plus][wr_img_y_plus] <= Img;
             end
         end
         else
         begin
-            img_rf[wr_img_xptr+1][wr_img_yptr+1] <= Img;
+            img_rf[wr_img_x_plus][wr_img_y_plus] <= Img;
         end
 
         // wr_ptrs
@@ -428,7 +422,13 @@ begin
         end
 
         //wr kernals
-        if(wr_all_kernal_done_f)
+        if(wr_all_img_done_f)
+        begin
+            wr_kernal_xptr <= 0;
+            wr_kernal_yptr <= 0;
+            wr_kernal_num_cnt <= 0;
+        end
+        else if(wr_all_kernal_done_f)
         begin
             wr_kernal_xptr <= 0;
             wr_kernal_yptr <= 0;
@@ -449,17 +449,6 @@ begin
         begin
             wr_kernal_yptr <= wr_kernal_yptr + 1;
         end
-
-        // Start sending signals to MAC at 10th cycle while reading
-        if(start_processing_f)
-        begin
-            processing_f_ff <= 1;
-        end
-    end
-    else
-    begin
-        if(all_convolution_done_f)
-            processing_f_ff <= 0;
     end
 end
 
@@ -467,25 +456,37 @@ end
 //---------------------------------------------------------------------
 //      Convolution
 //---------------------------------------------------------------------
-wire[4:0] row_00 = process_xptr;
-wire[4:0] row_01 = process_xptr;
-wire[4:0] row_02 = process_xptr;
-wire[4:0] row_10 = process_xptr + 1;
-wire[4:0] row_11 = process_xptr + 1;
-wire[4:0] row_12 = process_xptr + 1;
-wire[4:0] row_20 = process_xptr + 2;
-wire[4:0] row_21 = process_xptr + 2;
-wire[4:0] row_22 = process_xptr + 2;
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+        processing_f_ff <= 0;
+    else if(start_processing_f)
+        processing_f_ff <= 1;
+    else if(all_convolution_done_f)
+        processing_f_ff <= 0;
+end
 
-wire[4:0] col_00 = process_yptr;
-wire[4:0] col_01 = process_yptr+1;
-wire[4:0] col_02 = process_yptr+2;
-wire[4:0] col_10 = process_yptr;
-wire[4:0] col_11 = process_yptr + 1;
-wire[4:0] col_12 = process_yptr + 2;
-wire[4:0] col_20 = process_yptr;
-wire[4:0] col_21 = process_yptr + 1;
-wire[4:0] col_22 = process_yptr + 2;
+
+
+wire[2:0] row_00 = process_xptr;
+wire[2:0] row_01 = process_xptr;
+wire[2:0] row_02 = process_xptr;
+wire[2:0] row_10 = process_xptr + 1;
+wire[2:0] row_11 = process_xptr + 1;
+wire[2:0] row_12 = process_xptr + 1;
+wire[2:0] row_20 = process_xptr + 2;
+wire[2:0] row_21 = process_xptr + 2;
+wire[2:0] row_22 = process_xptr + 2;
+
+wire[2:0] col_00 = process_yptr;
+wire[2:0] col_01 = process_yptr+1;
+wire[2:0] col_02 = process_yptr+2;
+wire[2:0] col_10 = process_yptr;
+wire[2:0] col_11 = process_yptr + 1;
+wire[2:0] col_12 = process_yptr + 2;
+wire[2:0] col_20 = process_yptr;
+wire[2:0] col_21 = process_yptr + 1;
+wire[2:0] col_22 = process_yptr + 2;
 
 always @(*) begin
     pixels[0] = img_rf[row_00][col_00];
@@ -838,9 +839,9 @@ wire st_EQ_WAIT_IMG_2   = eq_cur_st[2];
 wire st_EQ_IMG2         = eq_cur_st[3];
 
 // Controls
-reg[4:0] eq_xptr,eq_yptr;
-reg[4:0] eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
-reg[1:0] eq_cnt,eq_cnt_d1,eq_cnt_d2;
+reg[1:0] eq_xptr,eq_yptr;
+reg[1:0] eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
+reg eq_cnt,eq_cnt_d1,eq_cnt_d2;
 
 //Delays
 reg all_eq_done_f_d1,all_eq_done_f_d2;
@@ -1008,8 +1009,18 @@ end
 //-----------------------------=====================
 //      Adder tree input Selector
 //-----------------------------=====================
-reg[4:0] eq_xptr_offset[0:8];
-reg[4:0] eq_yptr_offset[0:8];
+reg[2:0] eq_xptr_offset[0:8];
+reg[2:0] eq_yptr_offset[0:8];
+wire[1:0] eq_xptr_sub[0:8];
+wire[1:0] eq_yptr_sub[0:8];
+genvar idx;
+generate
+    for(idx=0;idx<9;idx=idx+1)
+    begin
+        assign eq_xptr_sub[idx] = eq_xptr_offset[idx] - 3'd1;
+        assign eq_yptr_sub[idx] = eq_yptr_offset[idx] - 3'd1;
+    end
+endgenerate
 
 always @(*)
 begin
@@ -1043,16 +1054,16 @@ begin
                 adder_tree_in[i] = convolution_result_rf[3][3][eq_cnt];
             //Boundaries
             else if(eq_xptr_offset[i] == 0)
-                adder_tree_in[i] = convolution_result_rf[0][eq_yptr_offset[i]-1][eq_cnt];
+                adder_tree_in[i] = convolution_result_rf[0][eq_yptr_sub[i]][eq_cnt];
             else if(eq_xptr_offset[i] == 5)
-                adder_tree_in[i] = convolution_result_rf[3][eq_yptr_offset[i]-1][eq_cnt];
+                adder_tree_in[i] = convolution_result_rf[3][eq_yptr_sub[i]][eq_cnt];
             else if(eq_yptr_offset[i] == 0)
-                adder_tree_in[i] = convolution_result_rf[eq_xptr_offset[i]-1][0][eq_cnt];
+                adder_tree_in[i] = convolution_result_rf[eq_xptr_sub[i]][0][eq_cnt];
             else if(eq_yptr_offset[i] == 5)
-                adder_tree_in[i] = convolution_result_rf[eq_xptr_offset[i]-1][3][eq_cnt];
+                adder_tree_in[i] = convolution_result_rf[eq_xptr_sub[i]][3][eq_cnt];
             else
                 // General case
-                adder_tree_in[i] = convolution_result_rf[eq_xptr_offset[i]-1][eq_yptr_offset[i]-1][eq_cnt];
+                adder_tree_in[i] = convolution_result_rf[eq_xptr_sub[i]][eq_yptr_sub[i]][eq_cnt];
         end
     end
     else // Zeropad
@@ -1062,7 +1073,7 @@ begin
             if(eq_yptr_offset[i] == 0 || eq_xptr_offset[i] == 0 || eq_yptr_offset[i] == 5 || eq_xptr_offset[i] == 5)
                 adder_tree_in[i] = 0;
             else
-                adder_tree_in[i] = convolution_result_rf[eq_xptr_offset[i]-1][eq_yptr_offset[i]-1][eq_cnt];
+                adder_tree_in[i] = convolution_result_rf[eq_xptr_sub[i]][eq_yptr_sub[i]][eq_cnt];
         end
     end
 end
@@ -1427,8 +1438,8 @@ begin
     end
     else if(ST_MM_DONE)
     begin
-            for(i=0;i<3;i=i+1)
-                for(j=0;j<3;j=j+1)
+            for(i=0;i<2;i=i+1)
+                for(j=0;j<2;j=j+1)
                     max_pooling_result_rf[i][j] <= 0;
     end
 end
@@ -1458,6 +1469,10 @@ end
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
+    begin
+        fc_valid_d2 <= 0;
+    end
+    else if(fc_done_f)
     begin
         fc_valid_d2 <= 0;
     end
@@ -1522,6 +1537,25 @@ begin
     end
 end
 
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        fp_mult_fc_d1[0] <= 0;
+        fp_mult_fc_d1[1] <= 0;
+    end
+    else if(ST_MM_IDLE)
+    begin
+        fp_mult_fc_d1[0] <= 0;
+        fp_mult_fc_d1[1] <= 0;
+    end
+    else if(ST_MM_FC)
+    begin
+        fp_mult_fc_d1[0] <= fp_mult_FC_out[0];
+        fp_mult_fc_d1[1] <= fp_mult_FC_out[1];
+    end
+end
+
 //---------------------------------------------------------------------
 //      NORM ACT DOMAIN
 //---------------------------------------------------------------------
@@ -1536,6 +1570,7 @@ begin
     begin
         min_max_diff_ff   <= 0;
         norm_act_d1 <= 0;
+
     end
     else if(ST_MM_NORM_ACT)
     begin
@@ -1548,9 +1583,6 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        fp_add0_FC_d2 <= 0;
-        fp_mult_fc_d1[0] <= 0;
-        fp_mult_fc_d1[1] <= 0;
         fp_div0_out_d2 <= 0;
 
         norm_act_d2 <= 0;
@@ -1559,10 +1591,7 @@ begin
     end
     else
     begin
-        fp_div0_out_d2 <= fp_div0_out;
-        fp_add0_FC_d2 <= fp_addsub0_out;
-        fp_mult_fc_d1[0] <= fp_mult_FC_out[0];
-        fp_mult_fc_d1[1] <= fp_mult_FC_out[1];
+        fp_div0_out_d2   <= fp_div0_out;
 
         norm_act_d2 <= norm_act_d1;
         norm_act_d3 <= norm_act_d2;
