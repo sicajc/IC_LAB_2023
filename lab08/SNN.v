@@ -6,21 +6,31 @@
 //
 //   ICLAB 2023 Fall
 //   Lab04 Exercise		: Siamese Neural Network
-//   Author     		:　Yeh-Shun Liang (maggie8905121@gmail.com)
+//   Author     		: Hsien-Chi Peng (jhpeng2012@gmail.com)
 //
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //
 //   File Name   : SNN.v
 //   Module Name : SNN
-//   Release version : V1.0 (Release Date: 2023-09)
+//   Release version : V1.0 (Release Date: 2023-10)
 //
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //############################################################################
+
+// synopsys translate_off
+`ifdef RTL
+	`include "GATED_OR.v"
+`else
+	`include "Netlist/GATED_OR_SYN.v"
+`endif
+// synopsys translate_on
+
+
 module SNN(
     //Input Port
-
     clk,
     rst_n,
+    cg_en,
     in_valid,
     Img,
     Kernel,
@@ -226,7 +236,27 @@ wire wr_all_kernal_done_f     = wr_kernal_done_f && wr_kernal_num_cnt == 2 && ST
 
 wire process_bound_reach_f = process_yptr == 3;
 
+//================================================================
+//	GATED CLK
+//================================================================
+wire clk_inv, clk_sort, clk_mul_sum;
+wire sleep_inv, sleep_sort, sleep_mul_sum;
 
+GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_inv), .RST_N(rst_n), .CLOCK_GATED(clk_inv));
+GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_sort), .RST_N(rst_n), .CLOCK_GATED(clk_sort));
+GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+GATED_OR GATED_NORM_ACT( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+GATED_OR GATED_L1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+
+assign sleep_rd_data = !(current_state==STATE_IDLE || current_state==STATE_MInv);
+assign sleep_conv = !(current_state==STATE_Sort || current_state==STATE_OUTPT);
+assign sleep_eq = !(current_state==STATE_MMul || current_state==STATE_Sum || current_state==STATE_Sort || current_state==STATE_OUTPT);
+assign sleep_mp = !(current_state==STATE_MMul || current_state==STATE_Sum || current_state==STATE_Sort || current_state==STATE_OUTPT);
+assign sleep_fc = !(current_state==STATE_MMul || current_state==STATE_Sum || current_state==STATE_Sort || current_state==STATE_OUTPT);
+assign sleep_norm_act = !(current_state==STATE_MMul || current_state==STATE_Sum || current_state==STATE_Sort || current_state==STATE_OUTPT);
+assign sleep_l1 = !(current_state==STATE_MMul || current_state==STATE_Sum || current_state==STATE_Sort || current_state==STATE_OUTPT);
 
 //---------------------------------------------------------------------
 //      RD DATA Domain
