@@ -779,7 +779,6 @@ wire eq_right_bound_reach_f  = eq_yptr == 3;
 wire eq_bottom_bound_reach_f = eq_xptr == 3;
 wire all_eq_done_f = one_equalized_done_f && eq_cnt == 1;
 
-
 // Datapath components
 reg[DATA_WIDTH-1:0] equalized_result_rf[0:3][0:3][0:1];
 reg[DATA_WIDTH-1:0] adder_tree_in[0:8];
@@ -804,6 +803,8 @@ begin
         eq_valid_d2 <= 0;
         eq_cnt_d1   <= 0;
         eq_cnt_d2   <= 0;
+        eq_done_f_d1 <= 0;
+        eq_done_f_d2 <= 0;
     end
     else
     begin
@@ -816,6 +817,8 @@ begin
         eq_yptr_d2  <= eq_yptr_d1;
         eq_cnt_d1   <= eq_cnt;
         eq_cnt_d2   <= eq_cnt_d1;
+        eq_done_f_d1 <= eq_done_f;
+        eq_done_f_d2 <= eq_done_f_d1;
     end
 end
 
@@ -857,10 +860,10 @@ begin
         eq_xptr  <= 0; eq_yptr <= 0;
         eq_done_f <= 0; eq_cnt <= 0;
     end
-    else if(st_EQ_IDLE || st_EQ_WAIT_IMG_2)
+    else if(st_EQ_IDLE)
     begin
         eq_xptr  <= 0; eq_yptr <= 0;
-        eq_done_f <= 0;
+        eq_done_f <= 0; eq_cnt <= 0;
     end
     else if(st_EQ_IMG_1 || st_EQ_IMG2)
     begin
@@ -870,7 +873,6 @@ begin
             eq_xptr   <= eq_xptr;
             eq_yptr   <= eq_yptr;
             eq_done_f <= 1;
-            eq_cnt    <= 1;
         end
         else if(eq_right_bound_reach_f)
         begin
@@ -881,6 +883,11 @@ begin
         begin
             eq_yptr <= eq_yptr + 1;
         end
+    end
+    else if(st_EQ_WAIT_IMG_2)
+    begin
+        eq_xptr  <= 0; eq_yptr <= 0;
+        eq_done_f <= 0; eq_cnt <= 1;
     end
 end
 
@@ -919,7 +926,7 @@ begin
             else if(eq_yptr_offset[i] == 0 && eq_xptr_offset[i] == 5)
                 adder_tree_in[i] = convolution_result_rf[3][0][eq_cnt];
             else if(eq_yptr_offset[i] == 5 && eq_xptr_offset[i] == 5)
-                adder_tree_in[i] = convolution_result_rf[3][0][eq_cnt];
+                adder_tree_in[i] = convolution_result_rf[3][3][eq_cnt];
             //Boundaries
             else if(eq_xptr_offset[i] == 0)
                 adder_tree_in[i] = convolution_result_rf[0][eq_yptr_offset[i]-1][eq_cnt];
@@ -1032,13 +1039,13 @@ begin
                 for(k=0;k<2;k=k+1)
                     equalized_result_rf[i][j][k] <= 0;
     end
-    else if(st_EQ_IDLE)
-    begin
-        for(i=0;i<4;i=i+1)
-            for(j=0;j<4;j=j+1)
-                for(k=0;k<2;k=k+1)
-                    equalized_result_rf[i][j][k] <= 0;
-    end
+    // else if(st_EQ_IDLE)
+    // begin
+    //     for(i=0;i<4;i=i+1)
+    //         for(j=0;j<4;j=j+1)
+    //             for(k=0;k<2;k=k+1)
+    //                 equalized_result_rf[i][j][k] <= 0;
+    // end
     else if(eq_valid_d2)
     begin
        equalized_result_rf[eq_xptr_d2][eq_yptr_d2][eq_cnt_d2] <= eq_div_out;
@@ -1638,7 +1645,7 @@ begin
     end
 end
 
-localparam  div_sig_width = 22;
+localparam  div_sig_width = 23;
 localparam  discarded_sig = inst_sig_width - div_sig_width;
 
 wire[DATA_WIDTH-1-discarded_sig : 0] div0_temp_out;
@@ -1732,7 +1739,7 @@ always @(posedge clk or negedge rst_n) begin
     end
 end
 
-localparam  exp_sig_width = 19;
+localparam  exp_sig_width = 23;
 localparam  exp_discarded_sig = inst_sig_width - exp_sig_width;
 
 wire[DATA_WIDTH-1-exp_discarded_sig : 0] exp_neg_result_temp;
