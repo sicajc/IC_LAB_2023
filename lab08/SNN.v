@@ -248,12 +248,21 @@ begin
         l1_done_sig_f <= 0;
 end
 
+reg[3:0] eq_cur_st;
+localparam  EQ_IDLE      = 4'b0001;
+localparam  EQ_IMG_1     = 4'b0010;
+localparam  EQ_WAIT_IMG_2= 4'b0100;
+localparam  EQ_IMG2      = 4'b1000;
+wire st_EQ_IDLE         = eq_cur_st[0];
+wire st_EQ_IMG_1        = eq_cur_st[1];
+wire st_EQ_WAIT_IMG_2   = eq_cur_st[2];
+wire st_EQ_IMG2         = eq_cur_st[3];
+
 //================================================================
 //	GATED CLK
 //================================================================
-wire clk_read_data;
-// wire sleep_rd_data  = ~(ST_P_RD_DATA);
-wire sleep_conv     ;
+wire clk_read_data,clk_conv,clk_eq;
+
 wire sleep_eq       ;
 wire sleep_mp       ;
 wire sleep_fc       ;
@@ -261,11 +270,14 @@ wire sleep_norm_act ;
 wire sleep_l1       ;
 
 wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
+wire sleep_conv     = ~(ST_P_RD_DATA || ST_P_PROCESSING);
+wire sleep_eq       = ~(st_EQ_IMG_1  || st_EQ_IMG2);
+wire sleep_mp       = ~(ST_MM_MAX_POOLING);
 
 GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
-// GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_sort), .RST_N(rst_n), .CLOCK_GATED(clk_sort));
-// GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
-// GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv));
+GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq));
+GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mp), .RST_N(rst_n), .CLOCK_GATED(clk_mp));
 // GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
 // GATED_OR GATED_NORM_ACT( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
 // GATED_OR GATED_L1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
@@ -405,7 +417,7 @@ begin
         opt_ff <= in_valid ? Opt:opt_ff;
 end
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_read_data or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -421,28 +433,24 @@ begin
         wr_kernal_xptr <= 0;
         rd_cnt  <= 0;
     end
+    else if(ST_P_IDLE && p_next_st == P_RD_DATA)
+    begin
+        wr_img_yptr <= wr_img_yptr + 1;
+        wr_kernal_yptr <= wr_kernal_yptr + 1;
+        rd_cnt <= rd_cnt + 1;
+    end
     else if(ST_P_IDLE)
     begin
-        // Reading in images, kernals and weight_rf
-        if(in_valid)
-        begin
-            wr_img_yptr <= wr_img_yptr + 1;
-            wr_kernal_yptr <= wr_kernal_yptr + 1;
-            rd_cnt <= rd_cnt + 1;
-        end
-        else
-        begin
-            // Since padding, start from (1,1)
-            wr_img_xptr <= 0;
-            wr_img_yptr <= 0;
-            wr_img_num_cnt <= 0;
-            wr_img_channel_cnt <= 0;
+        // Since padding, start from (1,1)
+        wr_img_xptr <= 0;
+        wr_img_yptr <= 0;
+        wr_img_num_cnt <= 0;
+        wr_img_channel_cnt <= 0;
 
-            // Kernals
-            wr_kernal_num_cnt <= 0;
-            wr_kernal_yptr <= 0;
-            wr_kernal_xptr <= 0;
-        end
+        // Kernals
+        wr_kernal_num_cnt <= 0;
+        wr_kernal_yptr <= 0;
+        wr_kernal_xptr <= 0;
     end
     else if(ST_P_RD_DATA)
     begin
@@ -523,7 +531,6 @@ begin
         processing_f_ff <= 0;
 end
 
-
 wire[4:0] row_00 = process_xptr;
 wire[4:0] row_01 = process_xptr;
 wire[4:0] row_02 = process_xptr;
@@ -580,7 +587,7 @@ generate
     end
 endgenerate
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_conv or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -589,7 +596,7 @@ begin
             mults_result_pipe_d1[i] <= 0;
         end
     end
-    else
+    else if(ST_P_RD_DATA || ST_P_PROCESSING)
     begin
         for(i=0;i<9;i=i+1)
         begin
@@ -629,7 +636,7 @@ DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_t
                     .status_inst  (   )
                 );
 
-always @(posedge clk or negedge rst_n) begin
+always @(posedge clk_conv or negedge rst_n) begin
     if(~rst_n)
     begin
         for(i=0;i<3;i=i+1)
@@ -637,7 +644,7 @@ always @(posedge clk or negedge rst_n) begin
            partial_sum_pipe_d2[i] <= 0;
         end
     end
-    else
+    else if(ST_P_RD_DATA || ST_P_PROCESSING)
     begin
         for(i=0;i<3;i=i+1)
         begin
@@ -662,7 +669,7 @@ begin
     end
 end
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_conv or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -767,14 +774,14 @@ end
 //---------------------------------------------------------------------
 //   pipelined 3 Adders
 //---------------------------------------------------------------------
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_conv or negedge rst_n)
 begin
     if(~rst_n)
     begin
         fp_add_tree_d3[0] <= 0;
         fp_add_tree_d3[1] <= 0;
     end
-    else
+    else if(ST_P_RD_DATA || ST_P_PROCESSING)
     begin
         fp_add_tree_d3[0] <= fp_add_tree_out[0];
         fp_add_tree_d3[1] <= fp_add_tree_out[1];
@@ -792,9 +799,9 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 
 
 //---------------------------------------------------------------------
-//      KERNALS, IMGS, WEIGHTS(RD DATA DOMAIN)
+//      CONTROLLERS
 //---------------------------------------------------------------------
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_conv or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -821,10 +828,10 @@ begin
         end
         else if(process_xptr == 3 && process_yptr == 3 && img_num_cnt == 1 && kernal_num_cnt == 2)
         begin
-            process_xptr <= process_xptr;
-            process_yptr <= process_yptr;
+            process_xptr   <= process_xptr;
+            process_yptr   <= process_yptr;
             kernal_num_cnt <= kernal_num_cnt;
-            img_num_cnt <= img_num_cnt;
+            img_num_cnt    <= img_num_cnt;
         end
         else if(convolution_done_f)
         begin
@@ -882,15 +889,7 @@ end
 //-----------------------
 //      EQ CTR
 //-----------------------
-reg[3:0] eq_cur_st;
-localparam  EQ_IDLE      = 4'b0001;
-localparam  EQ_IMG_1     = 4'b0010;
-localparam  EQ_WAIT_IMG_2= 4'b0100;
-localparam  EQ_IMG2      = 4'b1000;
-wire st_EQ_IDLE         = eq_cur_st[0];
-wire st_EQ_IMG_1        = eq_cur_st[1];
-wire st_EQ_WAIT_IMG_2   = eq_cur_st[2];
-wire st_EQ_IMG2         = eq_cur_st[3];
+
 
 // Controls
 reg[4:0] eq_xptr,eq_yptr;
@@ -907,7 +906,7 @@ reg eq_valid,eq_valid_d1,eq_valid_d2;
 wire one_equalized_done_f    = eq_xptr == 3 && eq_yptr == 3;
 wire eq_right_bound_reach_f  = eq_yptr == 3;
 wire eq_bottom_bound_reach_f = eq_xptr == 3;
-wire all_eq_done_f = one_eq_done_d2 && eq_cnt_d2 == 1;
+wire all_eq_done_f = one_eq_done_d2 && eq_cnt_d2 == 1 && eq_valid_d2;
 
 // Datapath components
 reg[DATA_WIDTH-1:0] equalized_result_rf[0:3][0:3][0:1];
@@ -1139,15 +1138,9 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B5 ( .a(eq_fp_add_out[3]), .b(adder_tree_in[8]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_eq or negedge rst_n)
 begin
-    if(~rst_n)
-    begin
-        adder_tree_pipe_d1[0] <= 0;
-        adder_tree_pipe_d1[1] <= 0;
-        adder_tree_pipe_d1[2] <= 0;
-    end
-    else
+    if(st_EQ_IMG_1  || st_EQ_IMG2)
     begin
         adder_tree_pipe_d1[0] <= eq_fp_add_out[0];
         adder_tree_pipe_d1[1] <= eq_fp_add_out[4];
@@ -1163,13 +1156,9 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B7 ( .a(adder_tree_pipe_d1[2]), .b(eq_fp_add_out[6]), .rnd(3'b000), .z(eq_fp_add_out[7]), .status() );
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_eq or negedge rst_n)
 begin
-    if(~rst_n)
-    begin
-        adder_tree_pipe_d2 <= 0;
-    end
-    else
+    if(st_EQ_IMG_1 || st_EQ_IMG2)
     begin
         adder_tree_pipe_d2 <= eq_fp_add_out[7];
     end
