@@ -261,24 +261,19 @@ wire st_EQ_IMG2         = eq_cur_st[3];
 //================================================================
 //	GATED CLK
 //================================================================
-wire clk_read_data,clk_conv,clk_eq;
-
-wire sleep_eq       ;
-wire sleep_mp       ;
-wire sleep_fc       ;
-wire sleep_norm_act ;
-wire sleep_l1       ;
+wire clk_read_data,clk_conv,clk_eq,clk_fc;
 
 wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
 wire sleep_conv     = ~(ST_P_RD_DATA || ST_P_PROCESSING);
 wire sleep_eq       = ~(st_EQ_IMG_1  || st_EQ_IMG2);
 wire sleep_mp       = ~(mm_next_st == MM_MAX_POOLING || ST_MM_MAX_POOLING);
+wire sleep_fc       = ~(ST_MM_FC || mm_next_st == MM_FC);
 
 GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
 GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv));
 GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq));
 GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mp), .RST_N(rst_n), .CLOCK_GATED(clk_mp));
-// GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
+GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_fc), .RST_N(rst_n), .CLOCK_GATED(clk_fc));
 // GATED_OR GATED_NORM_ACT( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
 // GATED_OR GATED_L1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
 
@@ -1144,7 +1139,7 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B5 ( .a(eq_fp_add_out[3]), .b(adder_tree_in[8]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
 
-always @(posedge clk_eq or negedge rst_n)
+always @(posedge clk_eq)
 begin
     if(st_EQ_IMG_1 || st_EQ_IMG2)
     begin
@@ -1162,7 +1157,7 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B7 ( .a(adder_tree_pipe_d1[2]), .b(eq_fp_add_out[6]), .rnd(3'b000), .z(eq_fp_add_out[7]), .status() );
 
-always @(posedge clk_eq or negedge rst_n)
+always @(posedge clk_eq)
 begin
     if(st_EQ_IMG_1 || st_EQ_IMG2)
     begin
@@ -1518,14 +1513,9 @@ begin
 end
 
 // Find min max during fc calculation
-always @(posedge clk or negedge rst_n)
+always @(posedge clk)
 begin
-    if(~rst_n)
-    begin
-        x_min_ff <= 0;
-        x_max_ff <= 0;
-    end
-    else if(ST_MM_FC)
+    if(ST_MM_FC)
     begin
         if(fc_valid_d1)
         begin
@@ -1547,16 +1537,9 @@ begin
     end
 end
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk)
 begin
-    if(~rst_n)
-    begin
-        fc_result_rf[0] <= 0;
-        fc_result_rf[1] <= 0;
-        fc_result_rf[2] <= 0;
-        fc_result_rf[3] <= 0;
-    end
-    else  if(fc_valid_d1)
+    if(fc_valid_d1)
     begin
         fc_result_rf[0] <= fc_result_rf[1];
         fc_result_rf[1] <= fc_result_rf[2];
