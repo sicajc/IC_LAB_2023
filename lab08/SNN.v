@@ -258,31 +258,22 @@ wire st_EQ_IMG_1        = eq_cur_st[1];
 wire st_EQ_WAIT_IMG_2   = eq_cur_st[2];
 wire st_EQ_IMG2         = eq_cur_st[3];
 
-reg cg_en_d1;
-always @(posedge clk or negedge rst_n)
-begin
-    if(~rst_n)
-        cg_en_d1 <= 0;
-    else
-        cg_en_d1 <= cg_en;
-end
-
 //================================================================
 //	GATED CLK
 //================================================================
 wire clk_read_data,clk_conv,clk_eq,clk_fc;
 
 // wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
-wire sleep_conv     = ST_P_IDLE;
-wire sleep_eq       = ~(st_EQ_IMG_1  || st_EQ_IMG2);
-wire sleep_mp       = ~(ST_MM_MAX_POOLING);
+wire sleep_conv     =  ST_P_IDLE;
+wire sleep_eq       =  st_EQ_WAIT_IMG_2 || st_EQ_IDLE;
+wire sleep_mp       = ~(ST_MM_MAX_POOLING || mm_next_st == MM_MAX_POOLING);
 wire sleep_fc       = ~(ST_MM_FC);
 
 //GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
-GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en_d1&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv));
-GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en_d1&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq));
-GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en_d1&&sleep_mp), .RST_N(rst_n), .CLOCK_GATED(clk_mp));
-GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en_d1&&sleep_fc), .RST_N(rst_n), .CLOCK_GATED(clk_fc));
+GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv));
+GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq));
+GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mp), .RST_N(rst_n), .CLOCK_GATED(clk_mp));
+GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_fc), .RST_N(rst_n), .CLOCK_GATED(clk_fc));
 // GATED_OR GATED_NORM_ACT( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
 // GATED_OR GATED_L1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
 
@@ -556,25 +547,50 @@ wire[4:0] col_21 = process_yptr + 1;
 wire[4:0] col_22 = process_yptr + 2;
 
 always @(*) begin
-    pixels[0] = img_rf[row_00][col_00];
-    pixels[1] = img_rf[row_01][col_01];
-    pixels[2] = img_rf[row_02][col_02];
-    pixels[3] = img_rf[row_10][col_10];
-    pixels[4] = img_rf[row_11][col_11];
-    pixels[5] = img_rf[row_12][col_12];
-    pixels[6] = img_rf[row_20][col_20];
-    pixels[7] = img_rf[row_21][col_21];
-    pixels[8] = img_rf[row_22][col_22];
+    if(cg_en && ~(ST_P_PROCESSING || (ST_P_RD_DATA & processing_f_ff)))
+    begin
+        pixels[0] = 0;
+        pixels[1] = 0;
+        pixels[2] = 0;
+        pixels[3] = 0;
+        pixels[4] = 0;
+        pixels[5] = 0;
+        pixels[6] = 0;
+        pixels[7] = 0;
+        pixels[8] = 0;
 
-    kernals[0] = kernal_rf[0][0][kernal_num_cnt];
-    kernals[1] = kernal_rf[0][1][kernal_num_cnt];
-    kernals[2] = kernal_rf[0][2][kernal_num_cnt];
-    kernals[3] = kernal_rf[1][0][kernal_num_cnt];
-    kernals[4] = kernal_rf[1][1][kernal_num_cnt];
-    kernals[5] = kernal_rf[1][2][kernal_num_cnt];
-    kernals[6] = kernal_rf[2][0][kernal_num_cnt];
-    kernals[7] = kernal_rf[2][1][kernal_num_cnt];
-    kernals[8] = kernal_rf[2][2][kernal_num_cnt];
+        kernals[0] =0;
+        kernals[1] =0;
+        kernals[2] =0;
+        kernals[3] =0;
+        kernals[4] =0;
+        kernals[5] =0;
+        kernals[6] =0;
+        kernals[7] =0;
+        kernals[8] =0;
+    end
+    else
+    begin
+        pixels[0] = img_rf[row_00][col_00];
+        pixels[1] = img_rf[row_01][col_01];
+        pixels[2] = img_rf[row_02][col_02];
+        pixels[3] = img_rf[row_10][col_10];
+        pixels[4] = img_rf[row_11][col_11];
+        pixels[5] = img_rf[row_12][col_12];
+        pixels[6] = img_rf[row_20][col_20];
+        pixels[7] = img_rf[row_21][col_21];
+        pixels[8] = img_rf[row_22][col_22];
+
+        kernals[0] = kernal_rf[0][0][kernal_num_cnt];
+        kernals[1] = kernal_rf[0][1][kernal_num_cnt];
+        kernals[2] = kernal_rf[0][2][kernal_num_cnt];
+        kernals[3] = kernal_rf[1][0][kernal_num_cnt];
+        kernals[4] = kernal_rf[1][1][kernal_num_cnt];
+        kernals[5] = kernal_rf[1][2][kernal_num_cnt];
+        kernals[6] = kernal_rf[2][0][kernal_num_cnt];
+        kernals[7] = kernal_rf[2][1][kernal_num_cnt];
+        kernals[8] = kernal_rf[2][2][kernal_num_cnt];
+    end
 end
 
 generate
@@ -591,7 +607,7 @@ generate
     end
 endgenerate
 
-always @(posedge clk_conv or negedge rst_n)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -640,7 +656,7 @@ DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_t
                     .status_inst  (   )
                 );
 
-always @(posedge clk_conv or negedge rst_n) begin
+always @(posedge clk or negedge rst_n) begin
     if(~rst_n)
     begin
         for(i=0;i<3;i=i+1)
@@ -804,7 +820,7 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 //---------------------------------------------------------------------
 //      CONTROLLERS
 //---------------------------------------------------------------------
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_conv or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -813,12 +829,19 @@ begin
         kernal_num_cnt <= 0;
         img_num_cnt <= 0;
     end
-    else if(ST_P_IDLE)
+    else if(ST_P_IDLE && (p_cur_st != p_next_st))
     begin
         process_xptr <= 0;
         process_yptr <= 0;
         kernal_num_cnt <= 0;
         img_num_cnt <= 0;
+    end
+    else if(ST_P_IDLE)
+    begin
+        process_xptr <= ~process_xptr;
+        process_yptr <= ~process_yptr;
+        kernal_num_cnt <= ~kernal_num_cnt;
+        img_num_cnt <= ~img_num_cnt;
     end
     else if((ST_P_RD_DATA || ST_P_PROCESSING) && processing_f_ff)
     begin
@@ -892,8 +915,6 @@ end
 //-----------------------
 //      EQ CTR
 //-----------------------
-
-
 // Controls
 reg[4:0] eq_xptr,eq_yptr;
 reg[4:0] eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
@@ -1025,10 +1046,20 @@ begin
         eq_xptr  <= 0; eq_yptr <= 0;
         eq_done_f <= 0; eq_cnt <= 0;
     end
-    else if(st_EQ_IDLE)
+    else if(st_EQ_WAIT_IMG_2 && (eq_next_st!=eq_cur_st))
+    begin
+        eq_xptr  <= 0; eq_yptr <= 0;
+        eq_done_f <= 0; eq_cnt <= 1;
+    end
+    else if(st_EQ_IDLE && (eq_next_st!=eq_cur_st))
     begin
         eq_xptr  <= 0; eq_yptr <= 0;
         eq_done_f <= 0; eq_cnt <= 0;
+    end
+    else if(st_EQ_IDLE || st_EQ_WAIT_IMG_2)
+    begin
+        eq_xptr  <= ~eq_xptr; eq_yptr <= ~eq_yptr;
+        eq_done_f <= 0; eq_cnt <= ~eq_cnt;
     end
     else if(st_EQ_IMG_1 || st_EQ_IMG2)
     begin
@@ -1061,11 +1092,6 @@ begin
             eq_yptr <= eq_yptr + 1;
         end
     end
-    else if(st_EQ_WAIT_IMG_2)
-    begin
-        eq_xptr  <= 0; eq_yptr <= 0;
-        eq_done_f <= 0; eq_cnt <= 1;
-    end
 end
 
 //-----------------------------=====================
@@ -1091,7 +1117,14 @@ begin
     eq_xptr_offset[7] = eq_xptr+2; eq_yptr_offset[7] = eq_yptr+1;
     eq_xptr_offset[8] = eq_xptr+2; eq_yptr_offset[8] = eq_yptr+2;
 
-    if(opt_ff == 2 || opt_ff == 0) // Replication
+    if(cg_en && (st_EQ_WAIT_IMG_2|| st_EQ_IDLE))
+    begin
+        for(i=0;i<9;i=i+1)
+        begin
+            adder_tree_in[i] = 0;
+        end
+    end
+    else if(opt_ff == 2 || opt_ff == 0) // Replication
     begin
         for(i=0;i<9;i=i+1)
         begin
@@ -1343,7 +1376,7 @@ end
 //---------------------------------------------------------------------
 //      Max Pooling DATAPATH
 //---------------------------------------------------------------------
-always @(posedge clk)
+always @(posedge clk_mp)
 begin
     // if(~rst_n)
     // begin
