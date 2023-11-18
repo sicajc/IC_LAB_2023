@@ -274,7 +274,6 @@ wire clk_read_data,clk_conv,clk_eq,clk_fc;
 
 // wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
 wire sleep_conv     = ST_P_IDLE;
-
 wire sleep_eq       = ~(st_EQ_IMG_1  || st_EQ_IMG2);
 wire sleep_mp       = ~(ST_MM_MAX_POOLING);
 wire sleep_fc       = ~(ST_MM_FC);
