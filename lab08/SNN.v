@@ -1210,23 +1210,13 @@ end
 //      EQ Datapath, DIV d2
 //-------------------------------------------
 wire[DATA_WIDTH-1:0] eq_div_out;
-localparam NINE = 32'h41100000;
+localparam NINE_BY_1 = 32'h3de38e39;
 
+// Instance of DW_fp_mult_DG
+DW_fp_mult_DG #(.sig_width(inst_sig_width), .exp_width(inst_exp_width), .ieee_compliance(inst_ieee_compliance))
+U1 ( .a(adder_tree_pipe_d2), .b(NINE_BY_1), .rnd(3'b000), .DG_ctrl(~sleep_eq), .z(eq_div_out),
+.status() );
 
-DW_fp_div_inst#(
-        .sig_width       (inst_sig_width),
-        .exp_width       (inst_exp_width       ),
-        .ieee_compliance (inst_ieee_compliance ),
-        .faithful_round  (faithful_round  ),
-        .en_ubr_flag     (en_ubr_flag     )
-    )
-    u_fp_eq_div(
-        .inst_a      (adder_tree_pipe_d2),
-        .inst_b      ( NINE ),
-        .inst_rnd    (3'b000    ),
-        .z_inst      (eq_div_out),
-        .status_inst (  )
-    );
 //----------------------------------------
 //      Equalization Result RF
 //----------------------------------------
