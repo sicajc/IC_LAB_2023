@@ -86,9 +86,9 @@ localparam  MM_WAIT_IMG1 = 8'b0010_0000;
 localparam  MM_L1_DISTANCE = 8'b0100_0000;
 localparam  MM_DONE = 8'b1000_0000;
 
-wire ST_P_IDLE = p_cur_st[0];
-wire ST_P_RD_DATA = p_cur_st[1];
-wire ST_P_PROCESSING = p_cur_st[2];
+wire ST_P_IDLE          = p_cur_st[0];
+wire ST_P_RD_DATA       = p_cur_st[1];
+wire ST_P_PROCESSING    = p_cur_st[2];
 
 wire ST_MM_IDLE   = mm_cur_st[0];
 wire ST_MM_MAX_POOLING   = mm_cur_st[1];
@@ -258,29 +258,39 @@ wire st_EQ_IMG_1        = eq_cur_st[1];
 wire st_EQ_WAIT_IMG_2   = eq_cur_st[2];
 wire st_EQ_IMG2         = eq_cur_st[3];
 
+reg cg_en_d1;
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+        cg_en_d1 <= 0;
+    else
+        cg_en_d1 <= cg_en;
+end
+
 //================================================================
 //	GATED CLK
 //================================================================
 wire clk_read_data,clk_conv,clk_eq,clk_fc;
 
-wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
-wire sleep_conv     = ~(ST_P_RD_DATA || ST_P_PROCESSING);
-wire sleep_eq       = ~(st_EQ_IMG_1  || st_EQ_IMG2);
-wire sleep_mp       = ~(mm_next_st == MM_MAX_POOLING || ST_MM_MAX_POOLING);
-wire sleep_fc       = ~(ST_MM_FC || mm_next_st == MM_FC);
+// wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
+wire sleep_conv     = ST_P_IDLE;
 
-GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
-GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv));
-GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq));
-GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mp), .RST_N(rst_n), .CLOCK_GATED(clk_mp));
-GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_fc), .RST_N(rst_n), .CLOCK_GATED(clk_fc));
+wire sleep_eq       = ~(st_EQ_IMG_1  || st_EQ_IMG2);
+wire sleep_mp       = ~(ST_MM_MAX_POOLING);
+wire sleep_fc       = ~(ST_MM_FC);
+
+//GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
+GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en_d1&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv));
+GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en_d1&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq));
+GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en_d1&&sleep_mp), .RST_N(rst_n), .CLOCK_GATED(clk_mp));
+GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en_d1&&sleep_fc), .RST_N(rst_n), .CLOCK_GATED(clk_fc));
 // GATED_OR GATED_NORM_ACT( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
 // GATED_OR GATED_L1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mul_sum), .RST_N(rst_n), .CLOCK_GATED(clk_mul_sum));
 
 //---------------------------------------------------------------------
 //      RD DATA Domain
 //---------------------------------------------------------------------
-always @(posedge clk_read_data or negedge rst_n)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -412,7 +422,7 @@ begin
         opt_ff <= in_valid ? Opt:opt_ff;
 end
 
-always @(posedge clk_read_data or negedge rst_n)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -591,7 +601,7 @@ begin
             mults_result_pipe_d1[i] <= 0;
         end
     end
-    else if(ST_P_RD_DATA || ST_P_PROCESSING)
+    else
     begin
         for(i=0;i<9;i=i+1)
         begin
@@ -639,7 +649,7 @@ always @(posedge clk_conv or negedge rst_n) begin
            partial_sum_pipe_d2[i] <= 0;
         end
     end
-    else if(ST_P_RD_DATA || ST_P_PROCESSING)
+    else
     begin
         for(i=0;i<3;i=i+1)
         begin
@@ -664,7 +674,7 @@ begin
     end
 end
 
-always @(posedge clk_conv or negedge rst_n)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -776,7 +786,7 @@ begin
         fp_add_tree_d3[0] <= 0;
         fp_add_tree_d3[1] <= 0;
     end
-    else if(ST_P_RD_DATA || ST_P_PROCESSING)
+    else
     begin
         fp_add_tree_d3[0] <= fp_add_tree_out[0];
         fp_add_tree_d3[1] <= fp_add_tree_out[1];
@@ -792,11 +802,10 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           adder_tree2 ( .a(fp_add_tree_in_a[2]), .b(fp_add_tree_in_b[2]), .rnd(3'b000), .z(fp_add_tree_out[2]), .status() );
 
-
 //---------------------------------------------------------------------
 //      CONTROLLERS
 //---------------------------------------------------------------------
-always @(posedge clk_conv or negedge rst_n)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -856,7 +865,7 @@ end
 //---------------------------------------------------------------------
 //      CONVOLUTION RESULTS
 //---------------------------------------------------------------------
-always @(posedge clk)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -912,7 +921,7 @@ wire[DATA_WIDTH-1:0] eq_fp_add_out[0:7];
 reg[DATA_WIDTH-1:0]  eq_fp_pipe_d1[0:2];
 reg[DATA_WIDTH-1:0]  eq_fp_pipe_d2;
 
-always @(posedge clk)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
