@@ -272,7 +272,7 @@ wire sleep_l1       ;
 wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
 wire sleep_conv     = ~(ST_P_RD_DATA || ST_P_PROCESSING);
 wire sleep_eq       = ~(st_EQ_IMG_1  || st_EQ_IMG2);
-wire sleep_mp       = ~(ST_MM_MAX_POOLING);
+wire sleep_mp       = ~(mm_next_st == MM_MAX_POOLING || ST_MM_MAX_POOLING);
 
 GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
 GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv));
@@ -977,28 +977,34 @@ begin
         all_eq_done_f_d2 <= all_eq_done_f_d1;
     end
 end
+reg[3:0] eq_next_st;
 
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
-    begin
         eq_cur_st <= EQ_IDLE;
-    end
-    else if(st_EQ_IMG_1)
+    else
+        eq_cur_st <= eq_next_st;
+end
+
+always @(*)
+begin
+    eq_next_st = eq_cur_st;
+    if(st_EQ_IMG_1)
     begin
-        if(eq_done_f_d2) eq_cur_st <= EQ_WAIT_IMG_2;
+        if(eq_done_f_d2) eq_next_st = EQ_WAIT_IMG_2;
     end
     else if(st_EQ_IMG2)
     begin
-        if(all_eq_done_f_d2) eq_cur_st <= EQ_IDLE;
+        if(all_eq_done_f_d2) eq_next_st = EQ_IDLE;
     end
     else if(st_EQ_IDLE)
     begin
-        if(convolution_done_f_d3) eq_cur_st <= EQ_IMG_1;
+        if(convolution_done_f_d3) eq_next_st = EQ_IMG_1;
     end
     else if(st_EQ_WAIT_IMG_2)
     begin
-        if(convolution_done_f_d3) eq_cur_st <= EQ_IMG2;
+        if(convolution_done_f_d3) eq_next_st = EQ_IMG2;
     end
 end
 
@@ -1140,7 +1146,7 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 
 always @(posedge clk_eq or negedge rst_n)
 begin
-    if(st_EQ_IMG_1  || st_EQ_IMG2)
+    if(st_EQ_IMG_1 || st_EQ_IMG2)
     begin
         adder_tree_pipe_d1[0] <= eq_fp_add_out[0];
         adder_tree_pipe_d1[1] <= eq_fp_add_out[4];
@@ -1190,7 +1196,7 @@ DW_fp_div_inst#(
 //----------------------------------------
 always @(posedge clk)
 begin
-    if(eq_valid_d2)
+    if(st_EQ_IMG_1 || st_EQ_IMG2)
     begin
        equalized_result_rf[eq_xptr_d2][eq_yptr_d2][eq_cnt_d2] <= eq_div_out;
     end
@@ -1334,21 +1340,21 @@ end
 //---------------------------------------------------------------------
 //      Max Pooling DATAPATH
 //---------------------------------------------------------------------
-always @(posedge clk or negedge rst_n)
+always @(posedge clk)
 begin
-    if(~rst_n)
-    begin
-        for(i=0;i<2;i=i+1)
-          for(j=0;j<2;j=j+1)
-              max_pooling_result_rf[i][j] <= 0;
-    end
-    else if(ST_MM_IDLE)
-    begin
-        for(i=0;i<2;i=i+1)
-         for(j=0;j<2;j=j+1)
-             max_pooling_result_rf[i][j] <= 0;
-    end
-    else if(ST_MM_MAX_POOLING)
+    // if(~rst_n)
+    // begin
+    //     for(i=0;i<2;i=i+1)
+    //       for(j=0;j<2;j=j+1)
+    //           max_pooling_result_rf[i][j] <= 0;
+    // end
+    // else if(ST_MM_IDLE)
+    // begin
+    //     for(i=0;i<2;i=i+1)
+    //      for(j=0;j<2;j=j+1)
+    //          max_pooling_result_rf[i][j] <= 0;
+    // end
+    if(mm_next_st == MM_MAX_POOLING || ST_MM_MAX_POOLING)
     begin
         case(mm_cnt)
             'd0:
@@ -1469,12 +1475,12 @@ begin
             end
             endcase
     end
-    else if(ST_MM_DONE)
-    begin
-            for(i=0;i<2;i=i+1)
-                for(j=0;j<2;j=j+1)
-                    max_pooling_result_rf[i][j] <= 0;
-    end
+    // else if(mm_next_st == MM_DONE)
+    // begin
+    //         for(i=0;i<2;i=i+1)
+    //             for(j=0;j<2;j=j+1)
+    //                 max_pooling_result_rf[i][j] <= 0;
+    // end
 end
 
 //---------------------------------------------------------------------
@@ -1592,9 +1598,9 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        fp_add0_FC_d2 <= 0;
         fp_mult_fc_d1[0] <= 0;
         fp_mult_fc_d1[1] <= 0;
+        fp_add0_FC_d2 <= 0;
         fp_div0_out_d2 <= 0;
 
         norm_act_d2 <= 0;
@@ -1603,10 +1609,10 @@ begin
     end
     else
     begin
-        fp_div0_out_d2 <= fp_div0_out;
-        fp_add0_FC_d2 <= fp_addsub0_out;
         fp_mult_fc_d1[0] <= fp_mult_FC_out[0];
         fp_mult_fc_d1[1] <= fp_mult_FC_out[1];
+        fp_div0_out_d2 <= fp_div0_out;
+        fp_add0_FC_d2 <= fp_addsub0_out;
 
         norm_act_d2 <= norm_act_d1;
         norm_act_d3 <= norm_act_d2;
