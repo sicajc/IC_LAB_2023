@@ -108,7 +108,7 @@ reg[DATA_WIDTH-1:0] x_min_ff,x_max_ff;
 
 reg[1:0] kernal_num_cnt,kernal_num_cnt_d1,kernal_num_cnt_d2,kernal_num_cnt_d3,kernal_num_cnt_d4;
 
-reg[3:0] process_xptr, process_yptr,process_xptr_d1, process_yptr_d1,process_xptr_d2,process_yptr_d2,process_xptr_d3,
+reg[1:0] process_xptr, process_yptr,process_xptr_d1, process_yptr_d1,process_xptr_d2,process_yptr_d2,process_xptr_d3,
 process_yptr_d3,process_xptr_d4,process_yptr_d4;
 
 reg[3:0] wr_img_xptr,wr_img_yptr;
@@ -1378,18 +1378,6 @@ end
 //---------------------------------------------------------------------
 always @(posedge clk_mp)
 begin
-    // if(~rst_n)
-    // begin
-    //     for(i=0;i<2;i=i+1)
-    //       for(j=0;j<2;j=j+1)
-    //           max_pooling_result_rf[i][j] <= 0;
-    // end
-    // else if(ST_MM_IDLE)
-    // begin
-    //     for(i=0;i<2;i=i+1)
-    //      for(j=0;j<2;j=j+1)
-    //          max_pooling_result_rf[i][j] <= 0;
-    // end
     if(mm_next_st == MM_MAX_POOLING || ST_MM_MAX_POOLING)
     begin
         case(mm_cnt)
@@ -1511,12 +1499,6 @@ begin
             end
             endcase
     end
-    // else if(mm_next_st == MM_DONE)
-    // begin
-    //         for(i=0;i<2;i=i+1)
-    //             for(j=0;j<2;j=j+1)
-    //                 max_pooling_result_rf[i][j] <= 0;
-    // end
 end
 
 //---------------------------------------------------------------------
