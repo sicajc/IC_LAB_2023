@@ -1,5 +1,3 @@
-// Area:2150731: CT:70  Latency: 50 Power 0.0343
-// Area:1996437: CT:70  Latency: 50 Power 0.0351 (Fail at 15500)
 //############################################################################
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //   (C) Copyright Laboratory System Integration and Silicon Implementation
@@ -268,7 +266,7 @@ wire st_EQ_IMG2         = eq_cur_st[3];
 wire clk_conv,clk_eq,clk_fc,clk_norm_act,clk_l1_distance;
 
 wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
-wire sleep_conv     = ST_P_IDLE;
+wire sleep_conv     = ~processing_f_ff;
 wire sleep_eq       = ~(st_EQ_IMG2 || st_EQ_IMG_1);
 
 wire sleep_mp       = ~(ST_MM_MAX_POOLING || mm_next_st == MM_MAX_POOLING);
@@ -589,11 +587,12 @@ end
 generate
     for(idx = 0; idx < 9 ; idx = idx+1)
     begin:PARRALLEL_MULTS
-        DW_fp_mult_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,en_ubr_flag)
+        DW_fp_mult_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance)
                         u_DW_fp_mult_inst(
                             .inst_a   ( pixels[idx]         ),
                             .inst_b   ( kernals[idx]        ),
                             .inst_rnd ( 3'b000              ),
+                            .inst_DG_ctrl(cg_en ? processing_f_ff : 1'b1),
                             .z_inst   ( mults_result[idx]   ),
                             .status_inst  (   )
                         );
@@ -616,31 +615,34 @@ begin
 end
 
 // 3x 3 inputs fp adders
-DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+DW_fp_sum3_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
                 u_DW_fp_sum3_inst1(
                     .inst_a   ( mults_result_pipe_d1[0]),
                     .inst_b   ( mults_result_pipe_d1[1]),
                     .inst_c   ( mults_result_pipe_d1[2]   ),
+                    .inst_DG_ctrl(~sleep_conv),
                     .inst_rnd ( 3'b000 ),
                     .z_inst   ( partial_sum[0]   ),
                     .status_inst  (   )
                 );
 
-DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+DW_fp_sum3_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
                 u_DW_fp_sum3_inst2(
                     .inst_a   ( mults_result_pipe_d1[3]),
                     .inst_b   ( mults_result_pipe_d1[4]),
                     .inst_c   ( mults_result_pipe_d1[5]   ),
+                    .inst_DG_ctrl(~sleep_conv),
                     .inst_rnd ( 3'b000 ),
                     .z_inst   ( partial_sum[1]),
                     .status_inst  (   )
                 );
 
-DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+DW_fp_sum3_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
                 u_DW_fp_sum3_inst3(
                     .inst_a   ( mults_result_pipe_d1[6]),
                     .inst_b   ( mults_result_pipe_d1[7]),
                     .inst_c   ( mults_result_pipe_d1[8]   ),
+                    .inst_DG_ctrl(~sleep_conv),
                     .inst_rnd ( 3'b000 ),
                     .z_inst   ( partial_sum[2]),
                     .status_inst  (   )
@@ -800,14 +802,14 @@ begin
     end
 end
 
-DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          adder_tree0 ( .a(fp_add_tree_in_a[0]), .b(fp_add_tree_in_b[0]), .rnd(3'b000), .z(fp_add_tree_out[0]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          adder_tree0 (.DG_ctrl(cg_en?valid_d2||l1_valid_d1:1'b1), .a(fp_add_tree_in_a[0]), .b(fp_add_tree_in_b[0]), .rnd(3'b000), .z(fp_add_tree_out[0]), .status() );
 
-DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          adder_tree1 ( .a(fp_add_tree_in_a[1]), .b(fp_add_tree_in_b[1]), .rnd(3'b000), .z(fp_add_tree_out[1]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          adder_tree1 (.DG_ctrl(cg_en?valid_d2||l1_valid_d1:1'b1), .a(fp_add_tree_in_a[1]), .b(fp_add_tree_in_b[1]), .rnd(3'b000), .z(fp_add_tree_out[1]), .status() );
 
-DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          adder_tree2 ( .a(fp_add_tree_in_a[2]), .b(fp_add_tree_in_b[2]), .rnd(3'b000), .z(fp_add_tree_out[2]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          adder_tree2 (.DG_ctrl(cg_en?valid_d3||l1_valid_d1:1'b1), .a(fp_add_tree_in_a[2]), .b(fp_add_tree_in_b[2]), .rnd(3'b000), .z(fp_add_tree_out[2]), .status() );
 
 //---------------------------------------------------------------------
 //      CONTROLLERS
@@ -828,12 +830,12 @@ begin
         kernal_num_cnt <= 0;
         img_num_cnt <= 0;
     end
-    else if(ST_P_IDLE && cg_en)
+    else if(sleep_conv && cg_en)
     begin
-        process_xptr <= process_xptr;
-        process_yptr <= process_yptr;
+        process_xptr   <= process_xptr;
+        process_yptr   <= process_yptr;
         kernal_num_cnt <= kernal_num_cnt;
-        img_num_cnt <= img_num_cnt;
+        img_num_cnt    <= img_num_cnt;
     end
     else if(ST_P_IDLE)
     begin
@@ -1155,19 +1157,19 @@ end
 //--------------------------------------------
 //      EQ Datapath,6 adds d0
 //--------------------------------------------
-DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B0 ( .a(adder_tree_in[0]), .b(adder_tree_in[1]), .rnd(3'b000), .z(eq_fp_add_out[0]), .status() );
-DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B1 ( .a(adder_tree_in[2]), .b(adder_tree_in[3]), .rnd(3'b000), .z(eq_fp_add_out[1]), .status() );
-DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B2 ( .a(adder_tree_in[4]), .b(adder_tree_in[5]), .rnd(3'b000), .z(eq_fp_add_out[2]), .status() );
-DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B3 ( .a(adder_tree_in[6]), .b(adder_tree_in[7]), .rnd(3'b000), .z(eq_fp_add_out[3]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B0 ( .DG_ctrl(cg_en?eq_valid:1'b1),.a(adder_tree_in[0]), .b(adder_tree_in[1]), .rnd(3'b000), .z(eq_fp_add_out[0]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B1 ( .DG_ctrl(cg_en?eq_valid:1'b1),.a(adder_tree_in[2]), .b(adder_tree_in[3]), .rnd(3'b000), .z(eq_fp_add_out[1]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B2 (.DG_ctrl(cg_en?eq_valid:1'b1), .a(adder_tree_in[4]), .b(adder_tree_in[5]), .rnd(3'b000), .z(eq_fp_add_out[2]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B3 (.DG_ctrl(cg_en?eq_valid:1'b1), .a(adder_tree_in[6]), .b(adder_tree_in[7]), .rnd(3'b000), .z(eq_fp_add_out[3]), .status() );
 
-DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B4 ( .a(eq_fp_add_out[1]), .b(eq_fp_add_out[2]), .rnd(3'b000), .z(eq_fp_add_out[4]), .status() );
-DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B5 ( .a(eq_fp_add_out[3]), .b(adder_tree_in[8]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B4 (.DG_ctrl(cg_en?eq_valid:1'b1), .a(eq_fp_add_out[1]), .b(eq_fp_add_out[2]), .rnd(3'b000), .z(eq_fp_add_out[4]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B5 (.DG_ctrl(cg_en?eq_valid:1'b1),.a(eq_fp_add_out[3]), .b(adder_tree_in[8]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
 
 always @(posedge clk)
 begin
@@ -1191,10 +1193,10 @@ end
 //-------------------------------------------
 //      EQ Datapath, 2 adds d1
 //-------------------------------------------
-DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B6 ( .a(adder_tree_pipe_d1[0]), .b(adder_tree_pipe_d1[1]), .rnd(3'b000), .z(eq_fp_add_out[6]), .status() );
-DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B7 ( .a(adder_tree_pipe_d1[2]), .b(eq_fp_add_out[6]), .rnd(3'b000), .z(eq_fp_add_out[7]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B6 (.DG_ctrl(cg_en ? eq_valid_d1 :1'b1), .a(adder_tree_pipe_d1[0]), .b(adder_tree_pipe_d1[1]), .rnd(3'b000), .z(eq_fp_add_out[6]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B7 (.DG_ctrl(cg_en ? eq_valid_d1 :1'b1), .a(adder_tree_pipe_d1[2]), .b(eq_fp_add_out[6]), .rnd(3'b000), .z(eq_fp_add_out[7]), .status() );
 
 always @(posedge clk)
 begin
@@ -1838,16 +1840,17 @@ generate
     for(idx = 0;idx<2;idx = idx+1)
         for(jdx = 0;jdx < 2;jdx=jdx+1)
         begin
-            DW_fp_cmp_inst
+            DW_fp_cmp_DG_inst
                 #(
                     .sig_width       (inst_sig_width),
                     .exp_width       (inst_exp_width),
                     .ieee_compliance (inst_ieee_compliance)
                 )
-                u_DW_fp_cmp_inst(
+                u_DW_fp_cmp_DG_inst(
                     .inst_a         (  fp_cmp_input_a[idx][jdx]  ),
                     .inst_b         (  fp_cmp_input_b[idx][jdx]  ),
                     .inst_zctr      (           ),
+                    .inst_DG_ctrl   (cg_en ? ST_MM_MAX_POOLING || fc_valid_d1 : 1'b1),
                     .aeqb_inst      (           ),
                     .altb_inst      (           ),
                     .agtb_inst      ( fp_cmp_results[idx][jdx]  ),
@@ -1863,18 +1866,20 @@ endgenerate
 //---------------------------------------------------------------------
 //   FULLY CONNECTED LAYERS FP_MULTS x2 , 1 ADD
 //---------------------------------------------------------------------
-DW_fp_mult_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,en_ubr_flag)
+DW_fp_mult_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance)
                         u_DW_fp_mult_FC0(
                             .inst_a   (  fp_mult_fc_in_a[0]),
                             .inst_b   (  fp_mult_fc_in_b[0]),
                             .inst_rnd ( 3'b000              ),
+                            .inst_DG_ctrl(cg_en ? ST_MM_FC || norm_act_d1:1'b1),
                             .z_inst   (  fp_mult_FC_out[0]),
                             .status_inst  (   )
                         );
-DW_fp_mult_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,en_ubr_flag)
+DW_fp_mult_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance)
                         u_DW_fp_mult_FC1(
                             .inst_a   (   fp_mult_fc_in_a[1]),
                             .inst_b   (   fp_mult_fc_in_b[1]),
+                            .inst_DG_ctrl(cg_en ? ST_MM_FC || norm_act_d1:1'b1),
                             .inst_rnd ( 3'b000              ),
                             .z_inst   (  fp_mult_FC_out[1] ),
                             .status_inst  (   )
@@ -1955,18 +1960,18 @@ localparam  div_discarded_sig = inst_sig_width - div_sig_width;
 
 wire[DATA_WIDTH-1-div_discarded_sig : 0] div1_temp_out;
 
-DW_fp_div_inst
+DW_fp_div_DG_inst
     #(
         .sig_width       (div_sig_width        ),
         .exp_width       (inst_exp_width       ),
         .ieee_compliance (inst_ieee_compliance ),
-        .faithful_round  (faithful_round  ),
-        .en_ubr_flag     (en_ubr_flag     )
+        .faithful_round  (faithful_round  )
     )
     u_DW_fp_div_1(
         .inst_a      (    fp_div1_in_a[DATA_WIDTH-1:div_discarded_sig] ),
         .inst_b      (    fp_div1_in_b[DATA_WIDTH-1:div_discarded_sig] ),
         .inst_rnd    (3'b000    ),
+        .inst_DG_ctrl(norm_act_d4),
         .z_inst      (  div1_temp_out),
         .status_inst (  )
     );
@@ -2128,23 +2133,23 @@ begin
 end
 
 // Instance of DW_fp_addsub
-DW_fp_addsub #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-fp_addsub0_inst ( .a(fp_addsub0_in_a), .b(fp_addsub0_in_b), .rnd(3'b000),
+DW_fp_addsub_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+fp_addsub0_inst ( .DG_ctrl(ST_MM_FC||ST_MM_NORM_ACT||ST_MM_L1_DISTANCE),.a(fp_addsub0_in_a), .b(fp_addsub0_in_b), .rnd(3'b000),
 .op(fp_addsub0_mode), .z(fp_addsub0_out), .status() );
 
 // Instance of DW_fp_addsub
-DW_fp_addsub #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-fp_addsub1_inst( .a(fp_addsub1_in_a), .b(fp_addsub1_in_b), .rnd(3'b000),
+DW_fp_addsub_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+fp_addsub1_inst( .DG_ctrl(ST_MM_NORM_ACT||ST_MM_L1_DISTANCE),.a(fp_addsub1_in_a), .b(fp_addsub1_in_b), .rnd(3'b000),
 .op(fp_addsub1_mode), .z(fp_addsub1_out), .status() );
 
 // Instance of DW_fp_addsub
-DW_fp_addsub #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-fp_addsub2_inst( .a(fp_addsub2_in_a), .b(fp_addsub2_in_b), .rnd(3'b000),
+DW_fp_addsub_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+fp_addsub2_inst( .DG_ctrl(norm_act_d3||ST_MM_L1_DISTANCE),.a(fp_addsub2_in_a), .b(fp_addsub2_in_b), .rnd(3'b000),
 .op(fp_addsub2_mode), .z(fp_addsub2_out), .status() );
 
 // Instance of DW_fp_addsub
-DW_fp_addsub #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-fp_addsub3_inst( .a(fp_addsub3_in_a), .b(fp_addsub3_in_b), .rnd(3'b000),
+DW_fp_addsub_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+fp_addsub3_inst(.DG_ctrl(norm_act_d3||ST_MM_L1_DISTANCE), .a(fp_addsub3_in_a), .b(fp_addsub3_in_b), .rnd(3'b000),
 .op(fp_addsub3_mode), .z(fp_addsub3_out), .status() );
 
 endmodule
@@ -2169,30 +2174,30 @@ DW_fp_mult #(sig_width, exp_width, ieee_compliance, en_ubr_flag)
            U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .z(z_inst), .status(status_inst) );
 endmodule
 
-    module DW_fp_sum3_inst( inst_a, inst_b, inst_c, inst_rnd, z_inst,
-                            status_inst );
+//     module DW_fp_sum3_inst( inst_a, inst_b, inst_c, inst_rnd, z_inst,
+//                             status_inst );
 
-parameter inst_sig_width = 23;
-parameter inst_exp_width = 8;
-parameter inst_ieee_compliance = 0;
-parameter inst_arch_type = 0;
+// parameter inst_sig_width = 23;
+// parameter inst_exp_width = 8;
+// parameter inst_ieee_compliance = 0;
+// parameter inst_arch_type = 0;
 
-input [inst_sig_width+inst_exp_width : 0] inst_a;
-input [inst_sig_width+inst_exp_width : 0] inst_b;
-input [inst_sig_width+inst_exp_width : 0] inst_c;
-input [2 : 0] inst_rnd;
-output [inst_sig_width+inst_exp_width : 0] z_inst;
-output [7 : 0] status_inst;
-// Instance of DW_fp_sum3
-DW_fp_sum3 #(inst_sig_width, inst_exp_width, inst_ieee_compliance, inst_arch_type)
-           U1 (
-               .a(inst_a),
-               .b(inst_b),
-               .c(inst_c),
-               .rnd(inst_rnd),
-               .z(z_inst),
-               .status(status_inst) );
-endmodule
+// input [inst_sig_width+inst_exp_width : 0] inst_a;
+// input [inst_sig_width+inst_exp_width : 0] inst_b;
+// input [inst_sig_width+inst_exp_width : 0] inst_c;
+// input [2 : 0] inst_rnd;
+// output [inst_sig_width+inst_exp_width : 0] z_inst;
+// output [7 : 0] status_inst;
+// // Instance of DW_fp_sum3
+// DW_fp_sum3 #(inst_sig_width, inst_exp_width, inst_ieee_compliance, inst_arch_type)
+//            U1 (
+//                .a(inst_a),
+//                .b(inst_b),
+//                .c(inst_c),
+//                .rnd(inst_rnd),
+//                .z(z_inst),
+//                .status(status_inst) );
+// endmodule
 
     module DW_fp_exp_inst( inst_a, z_inst, status_inst );
 parameter inst_sig_width = 10;
@@ -2215,77 +2220,77 @@ DW_fp_exp #(inst_sig_width, inst_exp_width, inst_ieee_compliance, inst_arch) U1 
 endmodule
 
 
-    module DW_fp_div_inst( inst_a, inst_b, inst_rnd, z_inst, status_inst );
-parameter sig_width = 23;
-parameter exp_width = 8;
-parameter ieee_compliance = 0;
-parameter faithful_round = 0;
-parameter en_ubr_flag = 0;
+//     module DW_fp_div_inst( inst_a, inst_b, inst_rnd, z_inst, status_inst );
+// parameter sig_width = 23;
+// parameter exp_width = 8;
+// parameter ieee_compliance = 0;
+// parameter faithful_round = 0;
+// parameter en_ubr_flag = 0;
 
-input [sig_width+exp_width : 0] inst_a;
-input [sig_width+exp_width : 0] inst_b;
-input [2 : 0] inst_rnd;
-output [sig_width+exp_width : 0] z_inst;
-output [7 : 0] status_inst;
-// Instance of DW_fp_div
-DW_fp_div #(sig_width, exp_width, ieee_compliance, faithful_round, en_ubr_flag) U1
-          ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .z(z_inst), .status(status_inst)
-          );
-endmodule
+// input [sig_width+exp_width : 0] inst_a;
+// input [sig_width+exp_width : 0] inst_b;
+// input [2 : 0] inst_rnd;
+// output [sig_width+exp_width : 0] z_inst;
+// output [7 : 0] status_inst;
+// // Instance of DW_fp_div
+// DW_fp_div #(sig_width, exp_width, ieee_compliance, faithful_round, en_ubr_flag) U1
+//           ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .z(z_inst), .status(status_inst)
+//           );
+// endmodule
 
-    module DW_fp_cmp_inst( inst_a, inst_b, inst_zctr, aeqb_inst, altb_inst,
-                           agtb_inst, unordered_inst, z0_inst, z1_inst, status0_inst,
-                           status1_inst );
-parameter sig_width = 23;
-parameter exp_width = 8;
-parameter ieee_compliance = 0;
-input [sig_width+exp_width : 0] inst_a;
-input [sig_width+exp_width : 0] inst_b;
-input inst_zctr;
-output aeqb_inst;
-output altb_inst;
-output agtb_inst;
-output unordered_inst;
-output [sig_width+exp_width : 0] z0_inst;
-output [sig_width+exp_width : 0] z1_inst;
-output [7 : 0] status0_inst;
-output [7 : 0] status1_inst;
-// Instance of DW_fp_cmp
-DW_fp_cmp #(sig_width, exp_width, ieee_compliance)
-          U1 ( .a(inst_a), .b(inst_b), .zctr(inst_zctr), .aeqb(aeqb_inst),
-               .altb(altb_inst), .agtb(agtb_inst), .unordered(unordered_inst),
-               .z0(z0_inst), .z1(z1_inst), .status0(status0_inst),
-               .status1(status1_inst) );
-endmodule
+//     module DW_fp_cmp_inst( inst_a, inst_b, inst_zctr, aeqb_inst, altb_inst,
+//                            agtb_inst, unordered_inst, z0_inst, z1_inst, status0_inst,
+//                            status1_inst );
+// parameter sig_width = 23;
+// parameter exp_width = 8;
+// parameter ieee_compliance = 0;
+// input [sig_width+exp_width : 0] inst_a;
+// input [sig_width+exp_width : 0] inst_b;
+// input inst_zctr;
+// output aeqb_inst;
+// output altb_inst;
+// output agtb_inst;
+// output unordered_inst;
+// output [sig_width+exp_width : 0] z0_inst;
+// output [sig_width+exp_width : 0] z1_inst;
+// output [7 : 0] status0_inst;
+// output [7 : 0] status1_inst;
+// // Instance of DW_fp_cmp
+// DW_fp_cmp #(sig_width, exp_width, ieee_compliance)
+//           U1 ( .a(inst_a), .b(inst_b), .zctr(inst_zctr), .aeqb(aeqb_inst),
+//                .altb(altb_inst), .agtb(agtb_inst), .unordered(unordered_inst),
+//                .z0(z0_inst), .z1(z1_inst), .status0(status0_inst),
+//                .status1(status1_inst) );
+// endmodule
 
-    module DW_fp_add_inst( inst_a, inst_b, inst_rnd, z_inst, status_inst );
-parameter sig_width = 23;
-parameter exp_width = 8;
-parameter ieee_compliance = 0;
-input [sig_width+exp_width : 0] inst_a;
-input [sig_width+exp_width : 0] inst_b;
-input [2 : 0] inst_rnd;
-output [sig_width+exp_width : 0] z_inst;
-output [7 : 0] status_inst;
-// Instance of DW_fp_add
-DW_fp_add #(sig_width, exp_width, ieee_compliance)
-          U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .z(z_inst), .status(status_inst) );
-endmodule
+//     module DW_fp_add_inst( inst_a, inst_b, inst_rnd, z_inst, status_inst );
+// parameter sig_width = 23;
+// parameter exp_width = 8;
+// parameter ieee_compliance = 0;
+// input [sig_width+exp_width : 0] inst_a;
+// input [sig_width+exp_width : 0] inst_b;
+// input [2 : 0] inst_rnd;
+// output [sig_width+exp_width : 0] z_inst;
+// output [7 : 0] status_inst;
+// // Instance of DW_fp_add
+// DW_fp_add #(sig_width, exp_width, ieee_compliance)
+//           U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .z(z_inst), .status(status_inst) );
+// endmodule
 
 
-    module DW_fp_sub_inst( inst_a, inst_b, inst_rnd, z_inst, status_inst );
-parameter sig_width = 23;
-parameter exp_width = 8;
-parameter ieee_compliance = 0;
-input [sig_width+exp_width : 0] inst_a;
-input [sig_width+exp_width : 0] inst_b;
-input [2 : 0] inst_rnd;
-output [sig_width+exp_width : 0] z_inst;
-output [7 : 0] status_inst;
-// Instance of DW_fp_sub
-DW_fp_sub #(sig_width, exp_width, ieee_compliance)
-          U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .z(z_inst), .status(status_inst) );
-endmodule
+//     module DW_fp_sub_inst( inst_a, inst_b, inst_rnd, z_inst, status_inst );
+// parameter sig_width = 23;
+// parameter exp_width = 8;
+// parameter ieee_compliance = 0;
+// input [sig_width+exp_width : 0] inst_a;
+// input [sig_width+exp_width : 0] inst_b;
+// input [2 : 0] inst_rnd;
+// output [sig_width+exp_width : 0] z_inst;
+// output [7 : 0] status_inst;
+// // Instance of DW_fp_sub
+// DW_fp_sub #(sig_width, exp_width, ieee_compliance)
+//           U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .z(z_inst), .status(status_inst) );
+// endmodule
 
 module DW_fp_addsub_inst( inst_a, inst_b, inst_rnd, inst_op, z_inst,
 status_inst );
@@ -2334,6 +2339,87 @@ output [sig_width+exp_width : 0] z_inst;
 output [7 : 0] status_inst;
 // Instance of DW_fp_add_DG
 DW_fp_add_DG #(sig_width, exp_width, ieee_compliance)
+U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .DG_ctrl(inst_DG_ctrl), .z(z_inst),
+.status(status_inst) );
+endmodule
+
+module DW_fp_mult_DG_inst( inst_a, inst_b, inst_rnd, inst_DG_ctrl, z_inst,
+status_inst );
+parameter sig_width = 23;
+parameter exp_width = 8;
+parameter ieee_compliance = 1;
+input [sig_width+exp_width : 0] inst_a;
+input [sig_width+exp_width : 0] inst_b;
+input [2 : 0] inst_rnd;
+input inst_DG_ctrl;
+output [sig_width+exp_width : 0] z_inst;
+output [7 : 0] status_inst;
+// Instance of DW_fp_mult_DG
+DW_fp_mult_DG #(sig_width, exp_width, ieee_compliance)
+U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .DG_ctrl(inst_DG_ctrl), .z(z_inst),
+.status(status_inst) );
+endmodule
+
+module DW_fp_sum3_DG_inst( inst_a, inst_b, inst_c, inst_rnd, inst_DG_ctrl,
+z_inst, status_inst );
+parameter sig_width = 23;
+parameter exp_width = 8;
+parameter ieee_compliance = 0;
+parameter arch_type = 0;
+
+input [sig_width+exp_width : 0] inst_a;
+input [sig_width+exp_width : 0] inst_b;
+input [sig_width+exp_width : 0] inst_c;
+input [2 : 0] inst_rnd;
+input inst_DG_ctrl;
+output [sig_width+exp_width : 0] z_inst;
+output [7 : 0] status_inst;
+// Instance of DW_fp_sum3_DG
+DW_fp_sum3_DG #(sig_width, exp_width, ieee_compliance, arch_type)
+U1 ( .a(inst_a), .b(inst_b), .c(inst_c), .rnd(inst_rnd), .DG_ctrl(inst_DG_ctrl),
+.z(z_inst), .status(status_inst) );
+endmodule
+
+module DW_fp_cmp_DG_inst( inst_a, inst_b, inst_zctr, inst_DG_ctrl, aeqb_inst,
+altb_inst, agtb_inst, unordered_inst, z0_inst, z1_inst,
+status0_inst, status1_inst );
+parameter sig_width = 23;
+parameter exp_width = 8;
+parameter ieee_compliance = 0;
+input [sig_width+exp_width : 0] inst_a;
+input [sig_width+exp_width : 0] inst_b;
+input inst_zctr;
+input inst_DG_ctrl;
+output aeqb_inst;
+output altb_inst;
+output agtb_inst;
+output unordered_inst;
+output [sig_width+exp_width : 0] z0_inst;
+output [sig_width+exp_width : 0] z1_inst;
+output [7 : 0] status0_inst;
+output [7 : 0] status1_inst;
+// Instance of DW_fp_cmp_DG
+DW_fp_cmp_DG #(sig_width, exp_width, ieee_compliance)
+U1 ( .a(inst_a), .b(inst_b), .zctr(inst_zctr), .DG_ctrl(inst_DG_ctrl),
+.aeqb(aeqb_inst), .altb(altb_inst), .agtb(agtb_inst), .unordered(unordered_inst),
+.z0(z0_inst), .z1(z1_inst), .status0(status0_inst), .status1(status1_inst) );
+endmodule
+
+module DW_fp_div_DG_inst( inst_a, inst_b, inst_rnd, inst_DG_ctrl, z_inst,
+status_inst );
+parameter sig_width = 23;
+parameter exp_width = 8;
+parameter ieee_compliance = 0;
+parameter faithful_round = 0;
+
+input [sig_width+exp_width : 0] inst_a;
+input [sig_width+exp_width : 0] inst_b;
+input [2 : 0] inst_rnd;
+input inst_DG_ctrl;
+output [sig_width+exp_width : 0] z_inst;
+output [7 : 0] status_inst;
+// Instance of DW_fp_div_DG
+DW_fp_div_DG #(sig_width, exp_width, ieee_compliance, faithful_round)
 U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .DG_ctrl(inst_DG_ctrl), .z(z_inst),
 .status(status_inst) );
 endmodule
