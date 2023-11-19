@@ -800,7 +800,7 @@ end
 //---------------------------------------------------------------------
 //      CONVOLUTION RESULTS
 //---------------------------------------------------------------------
-always @(posedge clk)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -864,7 +864,7 @@ wire[DATA_WIDTH-1:0] eq_fp_add_out[0:7];
 reg[DATA_WIDTH-1:0]  eq_fp_pipe_d1[0:2];
 reg[DATA_WIDTH-1:0]  eq_fp_pipe_d2;
 
-always @(posedge clk)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
