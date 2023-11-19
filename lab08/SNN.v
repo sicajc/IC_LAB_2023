@@ -1014,11 +1014,11 @@ begin
     end
     else if(st_EQ_IDLE)
     begin
-        if(eq_early_start_f) eq_next_st = EQ_IMG_1;
+        if(convolution_done_f_d3) eq_next_st = EQ_IMG_1;
     end
     else if(st_EQ_WAIT_IMG_2)
     begin
-        if(eq_early_start_f) eq_next_st = EQ_IMG2;
+        if(convolution_done_f_d3) eq_next_st = EQ_IMG2;
     end
 end
 
@@ -1261,7 +1261,7 @@ begin
     case(mm_cur_st)
     MM_IDLE:
     begin
-        if(mm_early_start_f) mm_next_st = MM_MAX_POOLING;
+        if(eq_done_f_d2) mm_next_st = MM_MAX_POOLING;
     end
     MM_MAX_POOLING:
     begin
@@ -1283,7 +1283,7 @@ begin
     end
     MM_WAIT_IMG1:
     begin
-        if(mm_early_start_f)  mm_next_st = MM_MAX_POOLING;
+        if(eq_done_f_d2)  mm_next_st = MM_MAX_POOLING;
     end
     MM_L1_DISTANCE:
     begin
@@ -1321,7 +1321,7 @@ begin
         end
         MM_FC:
         begin
-            mm_cnt      <= fc_done_f ? 0 : (mm_cnt == 4 ? mm_cnt : mm_cnt + 1);
+            mm_cnt <= fc_done_f ? 0 : (mm_cnt == 4 ? mm_cnt : mm_cnt + 1);
         end
         MM_NORM_ACT:
         begin
@@ -1624,7 +1624,7 @@ begin
     end
 end
 
-always @(posedge clk_norm_act or negedge rst_n)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
