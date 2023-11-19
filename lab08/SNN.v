@@ -774,6 +774,7 @@ begin
     end
 end
 
+
 always @(*)
 begin
     p_next_st = p_cur_st;
@@ -934,6 +935,10 @@ wire eq_right_bound_reach_f  = eq_yptr == 3;
 wire eq_bottom_bound_reach_f = eq_xptr == 3;
 wire all_eq_done_f = one_eq_done_d2 && eq_cnt_d2 == 1 && eq_valid_d2;
 
+wire eq_early_start_f = kernal_num_cnt_d3 == 2 && img_num_cnt_d3 == 2 && process_xptr_d3 == 1
+&& process_yptr_d3 == 3;
+
+
 // Datapath components
 reg[DATA_WIDTH-1:0] equalized_result_rf[0:3][0:3][0:1];
 reg[DATA_WIDTH-1:0] adder_tree_in[0:8];
@@ -1026,11 +1031,11 @@ begin
     end
     else if(st_EQ_IDLE)
     begin
-        if(convolution_done_f_d3) eq_next_st = EQ_IMG_1;
+        if(eq_early_start_f) eq_next_st = EQ_IMG_1;
     end
     else if(st_EQ_WAIT_IMG_2)
     begin
-        if(convolution_done_f_d3) eq_next_st = EQ_IMG2;
+        if(eq_early_start_f) eq_next_st = EQ_IMG2;
     end
 end
 
