@@ -935,8 +935,8 @@ wire eq_right_bound_reach_f  = eq_yptr == 3;
 wire eq_bottom_bound_reach_f = eq_xptr == 3;
 wire all_eq_done_f = one_eq_done_d2 && eq_cnt_d2 == 1 && eq_valid_d2;
 
-wire eq_early_start_f = kernal_num_cnt_d3 == 2 && img_num_cnt_d3 == 2 && process_xptr_d3 == 1
-&& process_yptr_d3 == 3;
+wire eq_early_start_f = kernal_num_cnt_d3 == 2 && process_xptr_d3 == 1
+&& process_yptr_d3 == 1;
 
 
 // Datapath components
