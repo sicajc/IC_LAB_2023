@@ -1241,6 +1241,8 @@ end
 //------------------------------------
 //      MM CTRs
 //------------------------------------
+wire mm_early_start_f = eq_xptr_d2 == 3 && eq_yptr_d2 == 1;
+
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -1260,7 +1262,7 @@ begin
     case(mm_cur_st)
     MM_IDLE:
     begin
-        if(eq_done_f_d2) mm_next_st = MM_MAX_POOLING;
+        if(mm_early_start_f) mm_next_st = MM_MAX_POOLING;
     end
     MM_MAX_POOLING:
     begin
@@ -1282,7 +1284,7 @@ begin
     end
     MM_WAIT_IMG1:
     begin
-        if(eq_done_f_d2)  mm_next_st = MM_MAX_POOLING;
+        if(mm_early_start_f)  mm_next_st = MM_MAX_POOLING;
     end
     MM_L1_DISTANCE:
     begin
