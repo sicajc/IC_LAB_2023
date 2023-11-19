@@ -933,7 +933,7 @@ reg eq_valid,eq_valid_d1,eq_valid_d2;
 wire one_equalized_done_f    = eq_xptr == 3 && eq_yptr == 3;
 wire eq_right_bound_reach_f  = eq_yptr == 3;
 wire eq_bottom_bound_reach_f = eq_xptr == 3;
-wire all_eq_done_f = one_eq_done_d1 && eq_cnt_d1 == 1 && eq_valid_d1;
+wire all_eq_done_f = one_eq_done_d2 && eq_cnt_d2 == 1 && eq_valid_d2;
 
 wire eq_early_start_f = kernal_num_cnt_d3 == 2 && process_xptr_d3 == 1
 && process_yptr_d3 == 1;
@@ -967,7 +967,7 @@ begin
         all_eq_done_f_d1 <= 0;
         all_eq_done_f_d2 <=0;
     end
-    else if(eq_done_f_d1 || all_eq_done_f_d1)
+    else if(eq_done_f_d2 || all_eq_done_f_d2)
     begin
         eq_xptr_d1  <= 0;
         eq_yptr_d1  <= 0;
@@ -983,7 +983,7 @@ begin
         eq_done_f_d2 <= 0;
         one_eq_done_d1 <= 0;
         one_eq_done_d2 <= 0;
-        if(all_eq_done_f_d1)
+        if(all_eq_done_f_d2)
         begin
             all_eq_done_f_d1 <= 0;
             all_eq_done_f_d2 <= 0;
@@ -1023,11 +1023,11 @@ begin
     eq_next_st = eq_cur_st;
     if(st_EQ_IMG_1)
     begin
-        if(eq_done_f_d1) eq_next_st = EQ_WAIT_IMG_2;
+        if(eq_done_f_d2) eq_next_st = EQ_WAIT_IMG_2;
     end
     else if(st_EQ_IMG2)
     begin
-        if(all_eq_done_f_d1) eq_next_st = EQ_IDLE;
+        if(all_eq_done_f_d2) eq_next_st = EQ_IDLE;
     end
     else if(st_EQ_IDLE)
     begin
@@ -1071,13 +1071,13 @@ begin
     else if(st_EQ_IMG_1 || st_EQ_IMG2)
     begin
         // Ptrs
-        if(eq_done_f_d1 || all_eq_done_f_d1)
+        if(eq_done_f_d2 || all_eq_done_f_d2)
         begin
             eq_xptr   <= 0;
             eq_yptr   <= 0;
             eq_done_f <= 0;
         end
-        else if(one_eq_done_d1)
+        else if(one_eq_done_d2)
         begin
             eq_xptr   <= 0;
             eq_yptr   <= 0;
@@ -1189,9 +1189,12 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 
 always @(posedge clk_eq)
 begin
-    adder_tree_pipe_d1[0] <= eq_fp_add_out[0];
-    adder_tree_pipe_d1[1] <= eq_fp_add_out[4];
-    adder_tree_pipe_d1[2] <= eq_fp_add_out[5];
+    if(st_EQ_IMG_1 || st_EQ_IMG2)
+    begin
+        adder_tree_pipe_d1[0] <= eq_fp_add_out[0];
+        adder_tree_pipe_d1[1] <= eq_fp_add_out[4];
+        adder_tree_pipe_d1[2] <= eq_fp_add_out[5];
+    end
 end
 
 //-------------------------------------------
@@ -1202,13 +1205,13 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B7 ( .a(adder_tree_pipe_d1[2]), .b(eq_fp_add_out[6]), .rnd(3'b000), .z(eq_fp_add_out[7]), .status() );
 
-// always @(posedge clk_eq)
-// begin
-//     if(st_EQ_IMG_1 || st_EQ_IMG2)
-//     begin
-//         adder_tree_pipe_d2 <= eq_fp_add_out[7];
-//     end
-// end
+always @(posedge clk_eq)
+begin
+    if(st_EQ_IMG_1 || st_EQ_IMG2)
+    begin
+        adder_tree_pipe_d2 <= eq_fp_add_out[7];
+    end
+end
 
 //-------------------------------------------
 //      EQ Datapath, DIV d2
@@ -1218,7 +1221,7 @@ localparam NINE_BY_1 = 32'h3de38e39;
 
 // Instance of DW_fp_mult_DG
 DW_fp_mult_DG #(.sig_width(inst_sig_width), .exp_width(inst_exp_width), .ieee_compliance(inst_ieee_compliance))
-U1 ( .a(eq_fp_add_out[7]), .b(NINE_BY_1), .rnd(3'b000), .DG_ctrl(~sleep_eq), .z(eq_div_out),
+U1 ( .a(adder_tree_pipe_d2), .b(NINE_BY_1), .rnd(3'b000), .DG_ctrl(~sleep_eq), .z(eq_div_out),
 .status() );
 
 //----------------------------------------
@@ -1228,7 +1231,7 @@ always @(posedge clk)
 begin
     if(st_EQ_IMG_1 || st_EQ_IMG2)
     begin
-       equalized_result_rf[eq_xptr_d1][eq_yptr_d1][eq_cnt_d1] <= eq_div_out;
+       equalized_result_rf[eq_xptr_d2][eq_yptr_d2][eq_cnt_d2] <= eq_div_out;
     end
 end
 
@@ -1238,7 +1241,7 @@ end
 //------------------------------------
 //      MM CTRs
 //------------------------------------
-wire mm_early_start_f = eq_xptr_d1 == 3 && eq_yptr_d1 == 1;
+wire mm_early_start_f = eq_xptr_d2 == 3 && eq_yptr_d2 == 1;
 
 always @(posedge clk or negedge rst_n)
 begin
