@@ -1209,7 +1209,6 @@ begin
     begin
         adder_tree_pipe_d2 <= eq_fp_add_out[7];
     end
-
 end
 
 //-------------------------------------------
