@@ -1,3 +1,5 @@
+// Area:2150731: CT:70  Latency: 50 Power 0.0343
+// Area:1996437: CT:70  Latency: 50 Power 0.0351 (Fail at 15500)
 //############################################################################
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //   (C) Copyright Laboratory System Integration and Silicon Implementation
@@ -135,8 +137,8 @@ reg[DATA_WIDTH-1:0] fp_add0_in_b;
 reg[DATA_WIDTH-1:0] fp_mult_fc_in_a[0:1];
 reg[DATA_WIDTH-1:0] fp_mult_fc_in_b[0:1];
 
-reg[DATA_WIDTH-1:0] fp_div0_in_a;
-reg[DATA_WIDTH-1:0] fp_div0_in_b;
+reg[DATA_WIDTH-1:0] fp_mult1_in_b;
+reg[DATA_WIDTH-1:0] fp_mult1_in_a;
 wire[DATA_WIDTH-1:0] fp_div0_out;
 
 reg[DATA_WIDTH-1:0] fp_sub0_in_a;
@@ -157,7 +159,7 @@ reg[DATA_WIDTH-1:0] l1_distance_ff;
 wire[DATA_WIDTH-1:0] negation = {~negation_in[31],negation_in[30:0]};
 wire[DATA_WIDTH-1:0] exp_neg_result;
 wire[DATA_WIDTH-1:0] exp_pos_result;
-reg[DATA_WIDTH-1:0]  fp_div0_out_d2;
+reg[DATA_WIDTH-1:0]  activation_var_d2;
 
 reg[DATA_WIDTH-1:0] fp_div1_in_a;
 reg[DATA_WIDTH-1:0] fp_div1_in_b;
@@ -165,7 +167,7 @@ wire[DATA_WIDTH-1:0] fp_div1_out;
 
 wire fp_cmp_results[0:1][0:1];
 
-reg[DATA_WIDTH-1:0] min_max_diff_ff;
+reg[DATA_WIDTH-1:0] min_max_diff_reci_ff;
 reg[DATA_WIDTH-1:0] kernal_rf[0:2][0:2][0:2];
 reg[DATA_WIDTH-1:0] img_rf[0:5][0:5];
 reg[DATA_WIDTH-1:0] weight_rf[0:1][0:1];
@@ -1571,21 +1573,23 @@ end
 //---------------------------------------------------------------------
 //      NORM ACT DOMAIN
 //---------------------------------------------------------------------
+wire[DATA_WIDTH-1:0] max_min_reci_out;
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        min_max_diff_ff   <= 0;
+        min_max_diff_reci_ff   <= 0;
         norm_act_d1 <= 0;
     end
     else if(ST_MM_IDLE)
     begin
-        min_max_diff_ff   <= 0;
+        min_max_diff_reci_ff   <= 0;
         norm_act_d1 <= 0;
     end
     else if(ST_MM_NORM_ACT)
     begin
-        min_max_diff_ff  <= fp_addsub1_out;
+        // min_max_diff_reci_ff  <= fp_addsub1_out;
+        min_max_diff_reci_ff  <= max_min_reci_out;
         norm_act_d1 <= (mm_cnt == 4) ? 0 : 1;
     end
 end
@@ -1597,7 +1601,7 @@ begin
         fp_mult_fc_d1[0] <= 0;
         fp_mult_fc_d1[1] <= 0;
         fp_add0_FC_d2 <= 0;
-        fp_div0_out_d2 <= 0;
+        activation_var_d2 <= 0;
 
         norm_act_d2 <= 0;
         norm_act_d3 <= 0;
@@ -1607,8 +1611,9 @@ begin
     begin
         fp_mult_fc_d1[0] <= fp_mult_FC_out[0];
         fp_mult_fc_d1[1] <= fp_mult_FC_out[1];
-        fp_div0_out_d2 <= fp_div0_out;
-        fp_add0_FC_d2 <= fp_addsub0_out;
+        fp_add0_FC_d2  <= fp_addsub0_out;
+
+        activation_var_d2 <= negation;
 
         norm_act_d2 <= norm_act_d1;
         norm_act_d3 <= norm_act_d2;
@@ -1656,14 +1661,14 @@ always @(posedge clk or negedge rst_n) begin
         fp_sub2_act_d4<=0;
         fp_add3_act_d4 <=0;
         exp_pos_result_d3 <= 0;
-        exp_neg_result_d3 <= 0;
+        // exp_neg_result_d3 <= 0;
         act_valid_d2 <= 0;
     end
     else
     begin
         act_valid_d2 <= act_valid_d1;
         exp_pos_result_d3 <= exp_pos_result;
-        exp_neg_result_d3 <= exp_neg_result;
+        // exp_neg_result_d3 <= exp_neg_result;
 
         if(ST_MM_NORM_ACT)
         begin
@@ -1681,6 +1686,15 @@ always @(posedge clk or negedge rst_n) begin
         end
     end
 end
+//---------------------------
+//      RECIPROCAL
+//---------------------------
+// Instance of DW_fp_recip_DG
+DW_fp_recip_DG #(.sig_width(inst_sig_width), .exp_width(inst_exp_width), .ieee_compliance(inst_ieee_compliance),
+.faithful_round(faithful_round))
+reciprocal_one( .a(fp_addsub1_out), .rnd(3'b000), .DG_ctrl(1'b1), .z(max_min_reci_out),
+.status() );
+
 
 //---------------------------------------------------------------------
 //      L1 distance domain
@@ -1902,6 +1916,11 @@ begin
         end
         endcase
     end
+    else if(ST_MM_NORM_ACT)
+    begin
+        fp_mult_fc_in_a[0] = min_max_diff_reci_ff;
+        fp_mult_fc_in_b[0] = fp_norm_sub0_out_d1;
+    end
 end
 
 //---------------------------------------------------------------------------------
@@ -1909,12 +1928,9 @@ end
 //---------------------------------------------------------------------------------
 always @(*)
 begin
-    fp_div0_in_b = min_max_diff_ff;
-    fp_div0_in_a = fp_norm_sub0_out_d1;
-
+    // tanh
     if(opt_ff == 2 || opt_ff == 3)
     begin
-        // tanh
         fp_div1_in_a = fp_sub2_act_d4;
         fp_div1_in_b = fp_add3_act_d4;
     end
@@ -1926,30 +1942,9 @@ begin
 end
 
 localparam  div_sig_width = 23;
-localparam  discarded_sig = inst_sig_width - div_sig_width;
+localparam  div_discarded_sig = inst_sig_width - div_sig_width;
 
-wire[DATA_WIDTH-1-discarded_sig : 0] div0_temp_out;
-
-DW_fp_div_inst
-    #(
-        .sig_width       (div_sig_width        ),
-        .exp_width       (inst_exp_width       ),
-        .ieee_compliance (inst_ieee_compliance ),
-        .faithful_round  (faithful_round  ),
-        .en_ubr_flag     (en_ubr_flag     )
-    )
-    u_DW_fp_div_0(
-        .inst_a      (    fp_div0_in_a[DATA_WIDTH-1:discarded_sig] ),
-        .inst_b      (    fp_div0_in_b[DATA_WIDTH-1:discarded_sig] ),
-        .inst_rnd    (3'b000    ),
-        .z_inst      (  div0_temp_out),
-        .status_inst (  )
-    );
-
-assign fp_div0_out = {div0_temp_out,{discarded_sig{1'b0}}};
-
-
-wire[DATA_WIDTH-1-discarded_sig : 0] div1_temp_out;
+wire[DATA_WIDTH-1-div_discarded_sig : 0] div1_temp_out;
 
 DW_fp_div_inst
     #(
@@ -1960,51 +1955,53 @@ DW_fp_div_inst
         .en_ubr_flag     (en_ubr_flag     )
     )
     u_DW_fp_div_1(
-        .inst_a      (    fp_div1_in_a[DATA_WIDTH-1:discarded_sig] ),
-        .inst_b      (    fp_div1_in_b[DATA_WIDTH-1:discarded_sig] ),
+        .inst_a      (    fp_div1_in_a[DATA_WIDTH-1:div_discarded_sig] ),
+        .inst_b      (    fp_div1_in_b[DATA_WIDTH-1:div_discarded_sig] ),
         .inst_rnd    (3'b000    ),
         .z_inst      (  div1_temp_out),
         .status_inst (  )
     );
 
-assign fp_div1_out = {div1_temp_out,{discarded_sig{1'b0}}};
+assign fp_div1_out = {div1_temp_out,{div_discarded_sig{1'b0}}};
 //---------------------------------------------------------------------
-//   Activation Sigmoid or tanh, 2 e^x and 1 Sub, 1 Add
+//   Activation Sigmoid or tanh, 1 e^x and 2 ADD Sub, 1 more add
 //---------------------------------------------------------------------
+
+// FP_TWO
+localparam FP_TWO = 32'h40000000;
+
+// z
+wire[DATA_WIDTH-1:0] z_value = fp_mult_FC_out[0];
+wire[DATA_WIDTH-1:0] norm_act_x2_d1_out;
+
+
+// Instance of DW_fp_mult_DG
+DW_fp_mult_DG #(.sig_width(inst_sig_width), .exp_width(inst_exp_width), .ieee_compliance(inst_ieee_compliance))
+norm_act_M2 ( .a(FP_TWO), .b(z_value), .rnd(3'b000), .DG_ctrl(1'b1), .z(norm_act_x2_d1_out),
+.status() );
+
+// norm_act_x2_d1_out
+
 always @(*) begin
     negation_in = 0;
-    pos_exp_in  = 0;
+    pos_exp_in  = activation_var_d2;
 
+    // Sigmoid
     if(opt_ff == 0 || opt_ff == 1)
     begin
-        negation_in = fp_div0_out_d2;
+        negation_in = z_value;
     end
     else
     begin
-        negation_in = fp_div0_out_d2;
-        pos_exp_in  = fp_div0_out_d2;
+        // tanh
+        negation_in = norm_act_x2_d1_out;
     end
 end
-
 
 localparam  exp_sig_width = 23;
 localparam  exp_discarded_sig = inst_sig_width - exp_sig_width;
 
-wire[DATA_WIDTH-1-exp_discarded_sig : 0] exp_neg_result_temp;
 wire[DATA_WIDTH-1-exp_discarded_sig : 0] exp_pos_result_temp;
-
-DW_fp_exp_inst
-    #(
-        .inst_sig_width       (exp_sig_width       ),
-        .inst_exp_width       (inst_exp_width       ),
-        .inst_ieee_compliance (inst_ieee_compliance ),
-        .inst_arch            (inst_arch            )
-    )
-    u_DW_fp_exp1(
-        .inst_a      (negation[DATA_WIDTH-1:exp_discarded_sig]      ),
-        .z_inst      (exp_neg_result_temp      ),
-        .status_inst ( )
-    );
 
 DW_fp_exp_inst
     #(
@@ -2019,7 +2016,6 @@ DW_fp_exp_inst
         .status_inst ( )
     );
 
-assign exp_neg_result =  {exp_neg_result_temp , {exp_discarded_sig{1'b0}}};
 assign exp_pos_result =  {exp_pos_result_temp , {exp_discarded_sig{1'b0}}};
 
 //---------------------------------------------------------------------
@@ -2107,26 +2103,18 @@ begin
         fp_addsub1_in_a = x_max_ff;
         fp_addsub1_in_b = x_min_ff;
 
-        fp_addsub2_mode = 1;
+        // Tanh
+        fp_addsub2_mode = 1;//subtract mode
         if(opt_ff == 2 || opt_ff == 3)
         begin
-            fp_addsub2_in_a = exp_pos_result_d3;
-            fp_addsub2_in_b = exp_neg_result_d3;
+            fp_addsub2_in_a = FP_ONE;
+            fp_addsub2_in_b = exp_pos_result_d3;
         end
 
-        fp_addsub3_mode = 0;
-        if(opt_ff == 2 || opt_ff == 3)
-        begin
-            // tanh
-            fp_addsub3_in_a = exp_pos_result_d3;
-            fp_addsub3_in_b = exp_neg_result_d3;
-        end
-        else
-        begin
-            // sigmoid
-            fp_addsub3_in_a = FP_ONE;
-            fp_addsub3_in_b = exp_neg_result_d3;
-        end
+        // Both tanh and sigmoid needs this
+        fp_addsub3_mode = 0; // add
+        fp_addsub3_in_a = FP_ONE;
+        fp_addsub3_in_b = exp_pos_result_d3;
     end
 end
 
@@ -2305,4 +2293,38 @@ output [7 : 0] status_inst;
 DW_fp_addsub #(sig_width, exp_width, ieee_compliance)
 U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd),
 .op(inst_op), .z(z_inst), .status(status_inst) );
+endmodule
+
+module DW_fp_recip_DG_inst( inst_a, inst_rnd, inst_DG_ctrl, z_inst, status_inst );
+parameter sig_width = 23;
+parameter exp_width = 8;
+parameter ieee_compliance = 0;
+parameter faithful_round = 0;
+
+input [sig_width+exp_width : 0] inst_a;
+input [2 : 0] inst_rnd;
+input inst_DG_ctrl;
+output [sig_width+exp_width : 0] z_inst;
+output [7 : 0] status_inst;
+// Instance of DW_fp_recip_DG
+DW_fp_recip_DG #(sig_width, exp_width, ieee_compliance, faithful_round)
+U1 ( .a(inst_a), .rnd(inst_rnd), .DG_ctrl(inst_DG_ctrl), .z(z_inst),
+.status(status_inst) );
+endmodule
+
+module DW_fp_add_DG_inst( inst_a, inst_b, inst_rnd, inst_DG_ctrl, z_inst,
+status_inst );
+parameter sig_width = 23;
+parameter exp_width = 8;
+parameter ieee_compliance = 0;
+input [sig_width+exp_width : 0] inst_a;
+input [sig_width+exp_width : 0] inst_b;
+input [2 : 0] inst_rnd;
+input inst_DG_ctrl;
+output [sig_width+exp_width : 0] z_inst;
+output [7 : 0] status_inst;
+// Instance of DW_fp_add_DG
+DW_fp_add_DG #(sig_width, exp_width, ieee_compliance)
+U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .DG_ctrl(inst_DG_ctrl), .z(z_inst),
+.status(status_inst) );
 endmodule
