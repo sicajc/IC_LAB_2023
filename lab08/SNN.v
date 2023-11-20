@@ -263,24 +263,31 @@ wire st_EQ_IMG2         = eq_cur_st[3];
 //================================================================
 //	GATED CLK
 //================================================================
-wire clk_eq,clk_fc,clk_norm_act,clk_l1_distance;
+wire clk_fc,clk_norm_act,clk_l1_distance;
 
 wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
-wire sleep_conv     = ~(processing_f_ff);
+wire sleep_conv     = ~(processing_f_ff || start_processing_f);
 wire sleep_eq       = ~(st_EQ_IMG2 || st_EQ_IMG_1);
 
 wire sleep_mp       = ~(ST_MM_MAX_POOLING || mm_next_st == MM_MAX_POOLING);
 wire sleep_fc       = ~(ST_MM_FC);
 wire sleep_norm_act = ~ST_MM_NORM_ACT;
 wire sleep_l1       = ~ST_MM_L1_DISTANCE;
-wire clk_conv[0:3];
+wire clk_conv[0:4];
+wire clk_eq[0:4];
 
 // GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
 GATED_OR GATED_CONV0( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[0]));
 GATED_OR GATED_CONV1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[1]));
 GATED_OR GATED_CONV2( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[2]));
 GATED_OR GATED_CONV3( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[3]));
-GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq));
+GATED_OR GATED_CONV4( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[4]));
+GATED_OR GATED_EQ0( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[0]));
+GATED_OR GATED_EQ1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[1]));
+GATED_OR GATED_EQ2( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[2]));
+GATED_OR GATED_EQ3( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[3]));
+GATED_OR GATED_EQ4( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[4]));
+
 GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mp), .RST_N(rst_n), .CLOCK_GATED(clk_mp));
 GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_fc), .RST_N(rst_n), .CLOCK_GATED(clk_fc));
 GATED_OR GATED_NORM_ACT( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act));
@@ -894,9 +901,17 @@ end
 //---------------------------------------------------------------------
 always @(posedge clk)
 begin
-    if(valid_d3)
+    if(valid_d3 && img_num_cnt_d3 == 1'b0)
     begin
-       convolution_result_rf[process_xptr_d3][process_yptr_d3][img_num_cnt_d3] <= fp_add_tree_out[2];
+       convolution_result_rf[process_xptr_d3][process_yptr_d3][0] <= fp_add_tree_out[2];
+    end
+end
+
+always @(posedge clk)
+begin
+    if(valid_d3 && img_num_cnt_d3 == 1'b1)
+    begin
+       convolution_result_rf[process_xptr_d3][process_yptr_d3][1] <= fp_add_tree_out[2];
     end
 end
 
@@ -907,8 +922,8 @@ end
 //      EQ CTR
 //-----------------------
 // Controls
-reg[4:0] eq_xptr,eq_yptr;
-reg[4:0] eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
+reg[2:0] eq_xptr,eq_yptr;
+reg[2:0] eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
 reg[1:0] eq_cnt,eq_cnt_d1,eq_cnt_d2;
 
 //Delays
@@ -936,7 +951,7 @@ wire[DATA_WIDTH-1:0] eq_fp_add_out[0:7];
 reg[DATA_WIDTH-1:0]  eq_fp_pipe_d1[0:2];
 reg[DATA_WIDTH-1:0]  eq_fp_pipe_d2;
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_eq[2] or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -1175,7 +1190,7 @@ DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B5 (.DG_ctrl(cg_en?eq_valid:1'b1),.a(eq_fp_add_out[3]), .b(adder_tree_in[8]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
 
-always @(posedge clk)
+always @(posedge clk_eq[0])
 begin
     if(cg_en)
     begin
@@ -1202,7 +1217,7 @@ DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B7 (.DG_ctrl(cg_en ? eq_valid_d1 :1'b1), .a(adder_tree_pipe_d1[2]), .b(eq_fp_add_out[6]), .rnd(3'b000), .z(eq_fp_add_out[7]), .status() );
 
-always @(posedge clk)
+always @(posedge clk_eq[1])
 begin
     if(cg_en)
     begin
