@@ -263,7 +263,7 @@ wire st_EQ_IMG2         = eq_cur_st[3];
 //================================================================
 //	GATED CLK
 //================================================================
-wire clk_fc,clk_norm_act,clk_l1_distance;
+wire clk_fc,clk_l1_distance;
 
 wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
 wire sleep_conv     = ~(processing_f_ff || start_processing_f);
@@ -275,6 +275,7 @@ wire sleep_norm_act = ~ST_MM_NORM_ACT;
 wire sleep_l1       = ~ST_MM_L1_DISTANCE;
 wire clk_conv[0:4];
 wire clk_eq[0:4];
+wire clk_norm_act[0:3];
 
 // GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
 GATED_OR GATED_CONV0( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[0]));
@@ -290,7 +291,10 @@ GATED_OR GATED_EQ4( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .C
 
 GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mp), .RST_N(rst_n), .CLOCK_GATED(clk_mp));
 GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_fc), .RST_N(rst_n), .CLOCK_GATED(clk_fc));
-GATED_OR GATED_NORM_ACT( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act));
+GATED_OR GATED_NORM_ACT0( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[0]));
+GATED_OR GATED_NORM_ACT1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[1]));
+GATED_OR GATED_NORM_ACT2( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[2]));
+GATED_OR GATED_NORM_ACT3( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[3]));
 GATED_OR GATED_L1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_l1), .RST_N(rst_n), .CLOCK_GATED(clk_l1_distance));
 
 //---------------------------------------------------------------------
@@ -1611,9 +1615,9 @@ end
 //      NORM ACT DOMAIN
 //---------------------------------------------------------------------
 wire[DATA_WIDTH-1:0] max_min_reci_out;
-always @(posedge clk)
+always @(posedge clk_norm_act[0])
 begin
-    if(ST_MM_NORM_ACT)
+    if(ST_MM_NORM_ACT && (mm_cnt == 0))
     begin
         // min_max_diff_reci_ff  <= fp_addsub1_out;
         min_max_diff_reci_ff  <= max_min_reci_out;
@@ -1636,7 +1640,7 @@ begin
     end
 end
 
-always @(posedge clk)
+always @(posedge clk_norm_act[0])
 begin
     if(cg_en)
     begin
@@ -1649,7 +1653,7 @@ begin
     end
 end
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_norm_act[1] or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -1690,7 +1694,7 @@ begin
     end
 end
 
-always @(posedge clk)
+always @(posedge clk_norm_act[2])
 begin
     if(ST_MM_NORM_ACT)
     begin
@@ -1698,7 +1702,7 @@ begin
     end
 end
 
-always @(posedge clk)
+always @(posedge clk_norm_act[3])
 begin
     if(norm_act_d2)
     begin
@@ -1726,7 +1730,7 @@ end
 // Instance of DW_fp_recip_DG
 DW_fp_recip_DG #(.sig_width(inst_sig_width), .exp_width(inst_exp_width), .ieee_compliance(inst_ieee_compliance),
 .faithful_round(faithful_round))
-reciprocal_one( .a(fp_addsub1_out), .rnd(3'b000), .DG_ctrl(~sleep_norm_act), .z(max_min_reci_out),
+reciprocal_one( .a(fp_addsub1_out), .rnd(3'b000), .DG_ctrl((ST_MM_NORM_ACT && (mm_cnt == 0))), .z(max_min_reci_out),
 .status() );
 
 
@@ -2162,7 +2166,7 @@ fp_addsub0_inst ( .DG_ctrl(ST_MM_FC||ST_MM_NORM_ACT||ST_MM_L1_DISTANCE),.a(fp_ad
 
 // Instance of DW_fp_addsub
 DW_fp_addsub_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-fp_addsub1_inst( .DG_ctrl(ST_MM_NORM_ACT||ST_MM_L1_DISTANCE),.a(fp_addsub1_in_a), .b(fp_addsub1_in_b), .rnd(3'b000),
+fp_addsub1_inst( .DG_ctrl((ST_MM_NORM_ACT||ST_MM_L1_DISTANCE||(ST_MM_NORM_ACT && (mm_cnt == 0)))),.a(fp_addsub1_in_a), .b(fp_addsub1_in_b), .rnd(3'b000),
 .op(fp_addsub1_mode), .z(fp_addsub1_out), .status() );
 
 // Instance of DW_fp_addsub
