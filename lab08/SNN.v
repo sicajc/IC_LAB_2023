@@ -277,25 +277,7 @@ wire clk_conv[0:4];
 wire clk_eq[0:4];
 wire clk_norm_act[0:3];
 
-// GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
-GATED_OR GATED_CONV0( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[0]));
-GATED_OR GATED_CONV1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[1]));
-GATED_OR GATED_CONV2( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[2]));
-GATED_OR GATED_CONV3( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[3]));
-GATED_OR GATED_CONV4( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[4]));
-GATED_OR GATED_EQ0( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[0]));
-GATED_OR GATED_EQ1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[1]));
-GATED_OR GATED_EQ2( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[2]));
-GATED_OR GATED_EQ3( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[3]));
-GATED_OR GATED_EQ4( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[4]));
-
-GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mp), .RST_N(rst_n), .CLOCK_GATED(clk_mp));
 GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_fc), .RST_N(rst_n), .CLOCK_GATED(clk_fc));
-GATED_OR GATED_NORM_ACT0( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[0]));
-GATED_OR GATED_NORM_ACT1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[1]));
-GATED_OR GATED_NORM_ACT2( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[2]));
-GATED_OR GATED_NORM_ACT3( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[3]));
-GATED_OR GATED_L1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_l1), .RST_N(rst_n), .CLOCK_GATED(clk_l1_distance));
 
 //---------------------------------------------------------------------
 //      RD DATA Domain
@@ -710,7 +692,7 @@ fp_sum3_2_u( .clk(clk), .rst_n(rst_n), .a(mults_result_pipe_d1[6]), .b(mults_res
 //                 );
 
 
-always @(posedge clk_conv[1])
+always @(posedge clk)
 begin
     if(cg_en)
     begin
@@ -892,7 +874,7 @@ end
 //---------------------------------------------------------------------
 //   pipelined 3 Adders
 //---------------------------------------------------------------------
-always @(posedge clk_conv[2])
+always @(posedge clk)
 begin
     if(cg_en)
     begin
@@ -1322,17 +1304,27 @@ DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B3 (.DG_ctrl(cg_en?eq_valid:1'b1), .a(adder_tree_in[6]), .b(adder_tree_in[7]), .rnd(3'b000), .z(eq_fp_add_out[3]), .status() );
 
 // Pipeline
-always @(posedge clk_eq[2])
+always @(posedge clk)
 begin
-    adder_tree_pipe_d0[0] <= eq_fp_add_out[0];
-    adder_tree_pipe_d0[1] <= eq_fp_add_out[1];
-end
-
-always @(posedge clk_eq[3] )
-begin
-    adder_tree_pipe_d0[2] <= eq_fp_add_out[2];
-    adder_tree_pipe_d0[3] <= eq_fp_add_out[3];
-    adder_tree_pipe_d0[4] <= adder_tree_in[8];
+    if(cg_en)
+    begin
+        if(eq_valid)
+        begin
+            adder_tree_pipe_d0[0] <= eq_fp_add_out[0];
+            adder_tree_pipe_d0[1] <= eq_fp_add_out[1];
+            adder_tree_pipe_d0[2] <= eq_fp_add_out[2];
+            adder_tree_pipe_d0[3] <= eq_fp_add_out[3];
+            adder_tree_pipe_d0[4] <= adder_tree_in[8];
+        end
+    end
+    else
+    begin
+        adder_tree_pipe_d0[0] <= eq_fp_add_out[0];
+        adder_tree_pipe_d0[1] <= eq_fp_add_out[1];
+        adder_tree_pipe_d0[2] <= eq_fp_add_out[2];
+        adder_tree_pipe_d0[3] <= eq_fp_add_out[3];
+        adder_tree_pipe_d0[4] <= adder_tree_in[8];
+    end
 end
 
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
@@ -1340,7 +1332,7 @@ DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B5 (.DG_ctrl(cg_en?eq_valid_d0:1'b1), .a(adder_tree_pipe_d0[3]), .b(adder_tree_pipe_d0[4]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
 
-always @(posedge clk_eq[0])
+always @(posedge clk)
 begin
     if(cg_en)
     begin
@@ -1367,7 +1359,7 @@ DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B7 (.DG_ctrl(cg_en ? eq_valid_d1 :1'b1), .a(adder_tree_pipe_d1[2]), .b(eq_fp_add_out[6]), .rnd(3'b000), .z(eq_fp_add_out[7]), .status() );
 
-always @(posedge clk_eq[1])
+always @(posedge clk)
 begin
     if(cg_en)
     begin
@@ -1546,10 +1538,11 @@ begin
         mm_cnt_d4 <= mm_cnt_d3;
     end
 end
+
 //---------------------------------------------------------------------
 //      Max Pooling DATAPATH
 //---------------------------------------------------------------------
-always @(posedge clk_mp)
+always @(posedge clk)
 begin
     if(mm_next_st == MM_MAX_POOLING || ST_MM_MAX_POOLING)
     begin
@@ -1696,18 +1689,6 @@ begin
     end
 end
 
-always @(posedge clk or negedge rst_n)
-begin
-    if(~rst_n)
-    begin
-        fc_valid_d2 <= 0;
-    end
-    else
-    begin
-        fc_valid_d2 <= fc_valid_d1;
-    end
-end
-
 // Find min max during fc calculation
 always @(posedge clk_fc)
 begin
@@ -1733,10 +1714,13 @@ begin
     end
 end
 
-always @(posedge clk_fc)
+always @(posedge clk)
 begin
-    fp_mult_fc_d1[0] <= fp_mult_FC_out[0];
-    fp_mult_fc_d1[1] <= fp_mult_FC_out[1];
+    if(ST_MM_FC)
+    begin
+        fp_mult_fc_d1[0] <= fp_mult_FC_out[0];
+        fp_mult_fc_d1[1] <= fp_mult_FC_out[1];
+    end
 end
 
 always @(posedge clk)
@@ -1761,7 +1745,7 @@ end
 //      NORM ACT DOMAIN
 //---------------------------------------------------------------------
 wire[DATA_WIDTH-1:0] max_min_reci_out;
-always @(posedge clk_norm_act[0])
+always @(posedge clk)
 begin
     if(ST_MM_NORM_ACT && (mm_cnt == 0))
     begin
@@ -1786,7 +1770,7 @@ begin
     end
 end
 
-always @(posedge clk_norm_act[0])
+always @(posedge clk)
 begin
     if(cg_en)
     begin
@@ -1799,7 +1783,7 @@ begin
     end
 end
 
-always @(posedge clk_norm_act[1] or negedge rst_n)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -1840,7 +1824,7 @@ begin
     end
 end
 
-always @(posedge clk_norm_act[2])
+always @(posedge clk)
 begin
     if(ST_MM_NORM_ACT)
     begin
@@ -1848,7 +1832,7 @@ begin
     end
 end
 
-always @(posedge clk_norm_act[3])
+always @(posedge clk)
 begin
     if(norm_act_d2)
     begin
@@ -1919,20 +1903,10 @@ end
 
 always @(*)
 begin
-    // if(~rst_n)
-    // begin
-    //     abs_out_0_d1 = 0;
-    //     abs_out_1_d1 = 0;
-    //     abs_out_2_d1 = 0;
-    //     abs_out_3_d1 = 0;
-    // end
-    // else
-    begin
-        abs_out_0_d1 =  (fp_addsub0_out[31] == 1) ? {1'b0,fp_addsub0_out[30:0]} : fp_addsub0_out;
-        abs_out_1_d1 =  (fp_addsub1_out[31] == 1) ? {1'b0,fp_addsub1_out[30:0]} : fp_addsub1_out;
-        abs_out_2_d1 =  (fp_addsub2_out[31] == 1) ? {1'b0,fp_addsub2_out[30:0]} : fp_addsub2_out;
-        abs_out_3_d1 =  (fp_addsub3_out[31] == 1) ? {1'b0,fp_addsub3_out[30:0]} : fp_addsub3_out;
-    end
+    abs_out_0_d1 =  (fp_addsub0_out[31] == 1) ? {1'b0,fp_addsub0_out[30:0]} : fp_addsub0_out;
+    abs_out_1_d1 =  (fp_addsub1_out[31] == 1) ? {1'b0,fp_addsub1_out[30:0]} : fp_addsub1_out;
+    abs_out_2_d1 =  (fp_addsub2_out[31] == 1) ? {1'b0,fp_addsub2_out[30:0]} : fp_addsub2_out;
+    abs_out_3_d1 =  (fp_addsub3_out[31] == 1) ? {1'b0,fp_addsub3_out[30:0]} : fp_addsub3_out;
 end
 
 
