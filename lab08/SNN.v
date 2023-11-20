@@ -552,6 +552,13 @@ wire[4:0] col_20 = process_yptr;
 wire[4:0] col_21 = process_yptr + 1;
 wire[4:0] col_22 = process_yptr + 2;
 
+reg img_num_cnt_d0,img_num_cnt_d12;
+reg[1:0] kernal_num_cnt_d0,kernal_num_cnt_d12;
+reg[1:0] process_xptr_d0,process_yptr_d0,process_xptr_d12,process_yptr_d12;
+reg valid_d0,valid_d12;
+reg convolution_done_f_d0,convolution_done_f_d12;
+
+
 always @(*) begin
     if(cg_en && sleep_conv)
     begin
@@ -629,11 +636,11 @@ endgenerate
 //     end
 // endgenerate
 
-always @(posedge clk_conv[0])
+always @(posedge clk)
 begin
     if(cg_en == 1'b1)
     begin
-        if(processing_f_ff)
+        if(valid_d0)
             for(i=0;i<9;i=i+1)
                 mults_result_pipe_d1[i] <= mults_result[i];
     end
@@ -702,11 +709,12 @@ fp_sum3_2_u( .clk(clk), .rst_n(rst_n), .a(mults_result_pipe_d1[6]), .b(mults_res
 //                     .status_inst  (   )
 //                 );
 
+
 always @(posedge clk_conv[1])
 begin
     if(cg_en)
     begin
-        if(valid_d1)
+        if(valid_d12)
             for(i=0;i<3;i=i+1)
                 partial_sum_pipe_d2[i]<=partial_sum[i];
     end
@@ -733,11 +741,7 @@ begin
     end
 end
 
-reg img_num_cnt_d0,img_num_cnt_d12;
-reg[1:0] kernal_num_cnt_d0,kernal_num_cnt_d12;
-reg[1:0] process_xptr_d0,process_yptr_d0,process_xptr_d12,process_yptr_d12;
-reg valid_d0,valid_d12;
-reg convolution_done_f_d0,convolution_done_f_d12;
+
 
 always @(posedge clk or negedge rst_n)
 begin
