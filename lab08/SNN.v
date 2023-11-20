@@ -602,17 +602,32 @@ end
 generate
     for(idx = 0; idx < 9 ; idx = idx+1)
     begin:PARRALLEL_MULTS
-        DW_fp_mult_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance)
-                        u_DW_fp_mult_inst(
-                            .inst_a   ( pixels[idx]         ),
-                            .inst_b   ( kernals[idx]        ),
-                            .inst_rnd ( 3'b000              ),
-                            .inst_DG_ctrl(cg_en ? processing_f_ff : 1'b1),
-                            .z_inst   ( mults_result[idx]   ),
-                            .status_inst  (   )
-                        );
+       // Instance of DW_lp_piped_fp_mult
+       DW_lp_piped_fp_mult #(.sig_width(inst_sig_width), .exp_width(inst_exp_width),
+       .ieee_compliance(inst_ieee_compliance), .op_iso_mode(2), .id_width(1),
+       .in_reg(0), .stages(2), .out_reg(0), .no_pm(1), .rst_mode(1))
+       lp_pipe_mult_u( .clk(clk), .rst_n(rst_n), .a(pixels[idx]), .b(kernals[idx]), .rnd(3'b000),
+       .z(mults_result[idx]), .status(), .launch(processing_f_ff), .launch_id(0),
+       .pipe_full(), .pipe_ovf(), .accept_n(),
+       .arrive(), .arrive_id(), .push_out_n(),
+       .pipe_census());
     end
 endgenerate
+
+// generate
+//     for(idx = 0; idx < 9 ; idx = idx+1)
+//     begin:PARRALLEL_MULTS
+//         DW_fp_mult_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance)
+//                         u_DW_fp_mult_inst(
+//                             .inst_a   ( pixels[idx]         ),
+//                             .inst_b   ( kernals[idx]        ),
+//                             .inst_rnd ( 3'b000              ),
+//                             .inst_DG_ctrl(cg_en ? processing_f_ff : 1'b1),
+//                             .z_inst   ( mults_result[idx]   ),
+//                             .status_inst  (   )
+//                         );
+//     end
+// endgenerate
 
 always @(posedge clk_conv[0])
 begin
@@ -629,39 +644,63 @@ begin
     end
 end
 
-// 3x 3 inputs fp adders
-DW_fp_sum3_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
-                u_DW_fp_sum3_inst1(
-                    .inst_a   ( mults_result_pipe_d1[0]),
-                    .inst_b   ( mults_result_pipe_d1[1]),
-                    .inst_c   ( mults_result_pipe_d1[2]   ),
-                    .inst_DG_ctrl(~sleep_conv),
-                    .inst_rnd ( 3'b000 ),
-                    .z_inst   ( partial_sum[0]   ),
-                    .status_inst  (   )
-                );
+DW_lp_piped_fp_sum3 #(.sig_width(inst_sig_width), .exp_width(inst_exp_width),
+       .ieee_compliance(inst_ieee_compliance), .op_iso_mode(2), .id_width(1),
+       .in_reg(0), .stages(2), .out_reg(0), .no_pm(1), .rst_mode(1))
+fp_sum3_0_u( .clk(clk), .rst_n(rst_n), .a(mults_result_pipe_d1[0]), .b(mults_result_pipe_d1[1]), .rnd(3'b000),
+       .c(mults_result_pipe_d1[2]), .z(partial_sum[0]), .status(), .launch(valid_d1), .launch_id(0),
+       .pipe_full(), .pipe_ovf(), .accept_n(),
+       .arrive(), .arrive_id(), .push_out_n(),
+       .pipe_census());
 
-DW_fp_sum3_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
-                u_DW_fp_sum3_inst2(
-                    .inst_a   ( mults_result_pipe_d1[3]),
-                    .inst_b   ( mults_result_pipe_d1[4]),
-                    .inst_c   ( mults_result_pipe_d1[5]   ),
-                    .inst_DG_ctrl(~sleep_conv),
-                    .inst_rnd ( 3'b000 ),
-                    .z_inst   ( partial_sum[1]),
-                    .status_inst  (   )
-                );
+// // 3x 3 inputs fp adders
+// DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+//                 u_DW_fp_sum3_inst1(
+//                     .inst_a   ( mults_result_pipe_d1[0]),
+//                     .inst_b   ( mults_result_pipe_d1[1]),
+//                     .inst_c   ( mults_result_pipe_d1[2]   ),
+//                     .inst_rnd ( 3'b000 ),
+//                     .z_inst   ( partial_sum[0]   ),
+//                     .status_inst  (   )
+//                 );
 
-DW_fp_sum3_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
-                u_DW_fp_sum3_inst3(
-                    .inst_a   ( mults_result_pipe_d1[6]),
-                    .inst_b   ( mults_result_pipe_d1[7]),
-                    .inst_c   ( mults_result_pipe_d1[8]   ),
-                    .inst_DG_ctrl(~sleep_conv),
-                    .inst_rnd ( 3'b000 ),
-                    .z_inst   ( partial_sum[2]),
-                    .status_inst  (   )
-                );
+DW_lp_piped_fp_sum3 #(.sig_width(inst_sig_width), .exp_width(inst_exp_width),
+       .ieee_compliance(inst_ieee_compliance), .op_iso_mode(2), .id_width(1),
+       .in_reg(0), .stages(2), .out_reg(0), .no_pm(1), .rst_mode(1))
+fp_sum3_1_u( .clk(clk), .rst_n(rst_n), .a(mults_result_pipe_d1[3]), .b(mults_result_pipe_d1[4]), .rnd(3'b000),
+       .c(mults_result_pipe_d1[5]), .z(partial_sum[1]), .status(), .launch(valid_d1), .launch_id(0),
+       .pipe_full(), .pipe_ovf(), .accept_n(),
+       .arrive(), .arrive_id(), .push_out_n(),
+       .pipe_census());
+
+// DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+//                 u_DW_fp_sum3_inst2(
+//                     .inst_a   ( mults_result_pipe_d1[3]),
+//                     .inst_b   ( mults_result_pipe_d1[4]),
+//                     .inst_c   ( mults_result_pipe_d1[5]   ),
+//                     .inst_rnd ( 3'b000 ),
+//                     .z_inst   ( partial_sum[1]),
+//                     .status_inst  (   )
+//                 );
+
+DW_lp_piped_fp_sum3 #(.sig_width(inst_sig_width), .exp_width(inst_exp_width),
+       .ieee_compliance(inst_ieee_compliance), .op_iso_mode(2), .id_width(1),
+       .in_reg(0), .stages(2), .out_reg(0), .no_pm(1), .rst_mode(1))
+fp_sum3_2_u( .clk(clk), .rst_n(rst_n), .a(mults_result_pipe_d1[6]), .b(mults_result_pipe_d1[7]), .rnd(3'b000),
+       .c(mults_result_pipe_d1[8]), .z(partial_sum[2]), .status(), .launch(valid_d1), .launch_id(0),
+       .pipe_full(), .pipe_ovf(), .accept_n(),
+       .arrive(), .arrive_id(), .push_out_n(),
+       .pipe_census());
+
+// DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+//                 u_DW_fp_sum3_inst3(
+//                     .inst_a   ( mults_result_pipe_d1[6]),
+//                     .inst_b   ( mults_result_pipe_d1[7]),
+//                     .inst_c   ( mults_result_pipe_d1[8]   ),
+//                     .inst_rnd ( 3'b000 ),
+//                     .z_inst   ( partial_sum[2]),
+//                     .status_inst  (   )
+//                 );
 
 always @(posedge clk_conv[1])
 begin
@@ -694,20 +733,37 @@ begin
     end
 end
 
+reg img_num_cnt_d0,img_num_cnt_d12;
+reg[1:0] kernal_num_cnt_d0,kernal_num_cnt_d12;
+reg[1:0] process_xptr_d0,process_yptr_d0,process_xptr_d12,process_yptr_d12;
+reg valid_d0,valid_d12;
+reg convolution_done_f_d0,convolution_done_f_d12;
+
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
+        img_num_cnt_d0 <= 0;
         img_num_cnt_d1 <= 0;
+        img_num_cnt_d12 <= 0;
         img_num_cnt_d2 <= 0;
         img_num_cnt_d3 <= 0;
 
+        kernal_num_cnt_d0 <= 0;
         kernal_num_cnt_d1 <= 0;
+        kernal_num_cnt_d12 <= 0;
         kernal_num_cnt_d2 <= 0;
         kernal_num_cnt_d3 <= 0;
 
+
+        process_xptr_d0 <= 0;
+        process_yptr_d0 <= 0;
+
         process_xptr_d1 <= 0;
         process_yptr_d1 <= 0;
+
+        process_xptr_d12 <= 0;
+        process_yptr_d12 <= 0;
 
         process_xptr_d2 <= 0;
         process_yptr_d2 <= 0;
@@ -715,64 +771,96 @@ begin
         process_xptr_d3 <= 0;
         process_yptr_d3 <= 0;
 
-        valid_d1 <= 0;
-        valid_d2 <= 0;
-        valid_d3 <= 0;
+        valid_d0  <= 0;
+        valid_d1  <= 0;
+        valid_d12 <= 0;
+        valid_d2  <= 0;
+        valid_d3  <= 0;
 
+        convolution_done_f_d0 <= 0;
         convolution_done_f_d1 <= 0;
+        convolution_done_f_d12 <= 0;
         convolution_done_f_d2 <= 0;
         convolution_done_f_d3 <= 0;
     end
     else if(all_convolution_done_f)
     begin
+        img_num_cnt_d0 <= 0;
         img_num_cnt_d1 <= 0;
+        img_num_cnt_d12 <= 0;
         img_num_cnt_d2 <= 0;
         img_num_cnt_d3 <= 0;
 
+        kernal_num_cnt_d0 <= 0;
         kernal_num_cnt_d1 <= 0;
+        kernal_num_cnt_d12 <= 0;
         kernal_num_cnt_d2 <= 0;
         kernal_num_cnt_d3 <= 0;
 
-        process_xptr_d1 <= 0;
-        process_xptr_d2 <= 0;
-        process_xptr_d3 <= 0;
 
+        process_xptr_d0 <= 0;
+        process_yptr_d0 <= 0;
+
+        process_xptr_d1 <= 0;
         process_yptr_d1 <= 0;
+
+        process_xptr_d12 <= 0;
+        process_yptr_d12 <= 0;
+
+        process_xptr_d2 <= 0;
         process_yptr_d2 <= 0;
+
+        process_xptr_d3 <= 0;
         process_yptr_d3 <= 0;
 
-        valid_d1 <= 0;
-        valid_d2 <= 0;
-        valid_d3 <= 0;
+        valid_d0  <= 0;
+        valid_d1  <= 0;
+        valid_d12 <= 0;
+        valid_d2  <= 0;
+        valid_d3  <= 0;
 
+        convolution_done_f_d0 <= 0;
         convolution_done_f_d1 <= 0;
+        convolution_done_f_d12 <= 0;
         convolution_done_f_d2 <= 0;
         convolution_done_f_d3 <= 0;
     end
     else
     begin
-        img_num_cnt_d1 <= img_num_cnt;
-        img_num_cnt_d2 <= img_num_cnt_d1;
+        img_num_cnt_d0 <= img_num_cnt;
+        img_num_cnt_d1 <= img_num_cnt_d0;
+        img_num_cnt_d12 <= img_num_cnt_d1;
+        img_num_cnt_d2 <= img_num_cnt_d12;
         img_num_cnt_d3 <= img_num_cnt_d2;
 
-        kernal_num_cnt_d1 <= kernal_num_cnt;
-        kernal_num_cnt_d2 <= kernal_num_cnt_d1;
+        kernal_num_cnt_d0 <= kernal_num_cnt;
+        kernal_num_cnt_d1 <= kernal_num_cnt_d0;
+        kernal_num_cnt_d12 <= kernal_num_cnt_d1;
+        kernal_num_cnt_d2 <= kernal_num_cnt_d12;
         kernal_num_cnt_d3 <= kernal_num_cnt_d2;
 
-        process_xptr_d1 <= process_xptr;
-        process_xptr_d2 <= process_xptr_d1;
+        process_xptr_d0 <= process_xptr;
+        process_xptr_d1 <= process_xptr_d0;
+        process_xptr_d12 <= process_xptr_d1;
+        process_xptr_d2 <= process_xptr_d12;
         process_xptr_d3 <= process_xptr_d2;
 
-        process_yptr_d1 <= process_yptr;
-        process_yptr_d2 <= process_yptr_d1;
+        process_yptr_d0 <= process_yptr;
+        process_yptr_d1 <= process_yptr_d0;
+        process_yptr_d12 <= process_yptr_d1;
+        process_yptr_d2 <= process_yptr_d12;
         process_yptr_d3 <= process_yptr_d2;
 
-        valid_d1 <= processing_f_ff;
-        valid_d2 <= valid_d1;
+        valid_d0 <= processing_f_ff;
+        valid_d1 <= valid_d0;
+        valid_d12 <= valid_d1;
+        valid_d2 <= valid_d12;
         valid_d3 <= valid_d2;
 
-        convolution_done_f_d1 <= convolution_done_f;
-        convolution_done_f_d2 <= convolution_done_f_d1;
+        convolution_done_f_d0 <= convolution_done_f;
+        convolution_done_f_d1 <= convolution_done_f_d0;
+        convolution_done_f_d12 <= convolution_done_f_d1;
+        convolution_done_f_d2 <= convolution_done_f_d12;
         convolution_done_f_d3 <= convolution_done_f_d2;
     end
 end
@@ -925,13 +1013,13 @@ end
 //-----------------------
 //      EQ CTR
 //-----------------------
-/ Controls
-reg[1:0] eq_xptr,eq_yptr;
+// Controls
+reg[2:0] eq_xptr,eq_yptr;
 reg eq_cnt;
 reg eq_done_f;
 reg eq_valid;
 
-reg[1:0] eq_xptr_d0,eq_yptr_d0,eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
+reg[2:0] eq_xptr_d0,eq_yptr_d0,eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
 reg eq_done_f_d0,eq_done_f_d1,eq_done_f_d2;
 reg eq_valid_d0,eq_valid_d1,eq_valid_d2;
 reg eq_cnt_d0,eq_cnt_d1,eq_cnt_d2;
@@ -1246,7 +1334,7 @@ end
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B4 (.DG_ctrl(cg_en?eq_valid_d0:1'b1), .a(adder_tree_pipe_d0[1]), .b(adder_tree_pipe_d0[2]), .rnd(3'b000), .z(eq_fp_add_out[4]), .status() );
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B5 (.DG_ctrl(cg_en?eq_valid_d0:1'b1),.a.a(adder_tree_pipe_d0[3]), .b(adder_tree_pipe_d0[4]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
+          fp_add_B5 (.DG_ctrl(cg_en?eq_valid_d0:1'b1), .a(adder_tree_pipe_d0[3]), .b(adder_tree_pipe_d0[4]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
 
 always @(posedge clk_eq[0])
 begin
