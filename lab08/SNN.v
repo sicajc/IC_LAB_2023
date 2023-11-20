@@ -263,20 +263,24 @@ wire st_EQ_IMG2         = eq_cur_st[3];
 //================================================================
 //	GATED CLK
 //================================================================
-wire clk_conv,clk_eq,clk_fc,clk_norm_act,clk_l1_distance;
+wire clk_eq,clk_fc,clk_norm_act,clk_l1_distance;
 
 wire sleep_rd_data  = ~(p_next_st == P_RD_DATA || ST_P_IDLE || ST_P_RD_DATA);
-wire sleep_conv     = ~processing_f_ff;
+wire sleep_conv     = ~(processing_f_ff);
 wire sleep_eq       = ~(st_EQ_IMG2 || st_EQ_IMG_1);
 
 wire sleep_mp       = ~(ST_MM_MAX_POOLING || mm_next_st == MM_MAX_POOLING);
 wire sleep_fc       = ~(ST_MM_FC);
 wire sleep_norm_act = ~ST_MM_NORM_ACT;
 wire sleep_l1       = ~ST_MM_L1_DISTANCE;
+wire clk_conv[0:3];
 
 // GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
-// GATED_OR GATED_CONV( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv));
-// GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq));
+GATED_OR GATED_CONV0( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[0]));
+GATED_OR GATED_CONV1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[1]));
+GATED_OR GATED_CONV2( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[2]));
+GATED_OR GATED_CONV3( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[3]));
+GATED_OR GATED_EQ( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq));
 GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mp), .RST_N(rst_n), .CLOCK_GATED(clk_mp));
 GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_fc), .RST_N(rst_n), .CLOCK_GATED(clk_fc));
 GATED_OR GATED_NORM_ACT( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act));
@@ -599,7 +603,7 @@ generate
     end
 endgenerate
 
-always @(posedge clk)
+always @(posedge clk_conv[0])
 begin
     if(cg_en == 1'b1)
     begin
@@ -648,7 +652,7 @@ DW_fp_sum3_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arc
                     .status_inst  (   )
                 );
 
-always @(posedge clk)
+always @(posedge clk_conv[1])
 begin
     if(cg_en)
     begin
@@ -785,7 +789,7 @@ end
 //---------------------------------------------------------------------
 //   pipelined 3 Adders
 //---------------------------------------------------------------------
-always @(posedge clk)
+always @(posedge clk_conv[2])
 begin
     if(cg_en)
     begin

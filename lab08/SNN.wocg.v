@@ -924,6 +924,8 @@ begin
         all_eq_done_f_d2 <= all_eq_done_f_d1;
     end
 end
+wire eq_early_start_f = kernal_num_cnt_d3 == 2 && process_xptr_d3 == 1
+&& process_yptr_d3 == 1;
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -941,11 +943,11 @@ begin
     end
     else if(st_EQ_IDLE)
     begin
-        if(convolution_done_f_d3) eq_cur_st <= EQ_IMG_1;
+        if(eq_early_start_f) eq_cur_st <= EQ_IMG_1;
     end
     else if(st_EQ_WAIT_IMG_2)
     begin
-        if(convolution_done_f_d3) eq_cur_st <= EQ_IMG2;
+        if(eq_early_start_f) eq_cur_st <= EQ_IMG2;
     end
 end
 
@@ -1169,6 +1171,8 @@ end
 //------------------------------------
 //      MM CTRs
 //------------------------------------
+wire mm_early_start_f = eq_xptr_d2 == 3 && eq_yptr_d2 == 1;
+
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -1188,7 +1192,7 @@ begin
     case(mm_cur_st)
     MM_IDLE:
     begin
-        if(eq_done_f_d2) mm_next_st = MM_MAX_POOLING;
+        if(mm_early_start_f) mm_next_st = MM_MAX_POOLING;
     end
     MM_MAX_POOLING:
     begin
@@ -1210,11 +1214,11 @@ begin
     end
     MM_WAIT_IMG1:
     begin
-        if(eq_done_f_d2)  mm_next_st = MM_MAX_POOLING;
+        if(mm_early_start_f)  mm_next_st = MM_MAX_POOLING;
     end
     MM_L1_DISTANCE:
     begin
-        if(l1_distance_cal_f)   mm_next_st = MM_DONE;
+        mm_next_st = MM_DONE;
     end
     MM_DONE:
     begin
@@ -1262,12 +1266,19 @@ begin
                 mm_cnt <= 0;
             end
         end
+        MM_L1_DISTANCE:
+        begin
+            mm_cnt <= 0;
+            mm_img_cnt <= 0;
+            out <= fp_add_tree_out[2];
+            out_valid <= 1;
+        end
         MM_DONE:
         begin
             mm_cnt <= 0;
             mm_img_cnt <= 0;
-            out <= l1_distance_ff;
-            out_valid <= 1;
+            out <= 0;
+            out_valid <= 0;
         end
         endcase
     end
@@ -1682,15 +1693,7 @@ begin
     end
     else if(ST_MM_L1_DISTANCE)
     begin
-        if(l1_valid_d1)
-        begin
-            l1_valid_d1 <= 0;
-            l1_distance_ff <= fp_add_tree_out[2];
-        end
-        else
-        begin
-            l1_valid_d1 <= 1;
-        end
+        l1_distance_ff <= fp_add_tree_out[2];
     end
     else if(ST_MM_DONE)
     begin
@@ -1702,21 +1705,21 @@ end
 //   L1 distance Datapath
 //---------------------------------------------------------------------
 
-always @(posedge clk or negedge rst_n)
-begin:FP_ABS
-    if(~rst_n)
+always @(*)
+begin
+    // if(~rst_n)
+    // begin
+    //     abs_out_0_d1 = 0;
+    //     abs_out_1_d1 = 0;
+    //     abs_out_2_d1 = 0;
+    //     abs_out_3_d1 = 0;
+    // end
+    // else
     begin
-        abs_out_0_d1 <= 0;
-        abs_out_1_d1 <= 0;
-        abs_out_2_d1 <= 0;
-        abs_out_3_d1 <= 0;
-    end
-    else
-    begin
-        abs_out_0_d1 <=  (fp_addsub0_out[31] == 1) ? {1'b0,fp_addsub0_out[30:0]} : fp_addsub0_out;
-        abs_out_1_d1 <=  (fp_addsub1_out[31] == 1) ? {1'b0,fp_addsub1_out[30:0]} : fp_addsub1_out;
-        abs_out_2_d1 <=  (fp_addsub2_out[31] == 1) ? {1'b0,fp_addsub2_out[30:0]} : fp_addsub2_out;
-        abs_out_3_d1 <=  (fp_addsub3_out[31] == 1) ? {1'b0,fp_addsub3_out[30:0]} : fp_addsub3_out;
+        abs_out_0_d1 =  (fp_addsub0_out[31] == 1) ? {1'b0,fp_addsub0_out[30:0]} : fp_addsub0_out;
+        abs_out_1_d1 =  (fp_addsub1_out[31] == 1) ? {1'b0,fp_addsub1_out[30:0]} : fp_addsub1_out;
+        abs_out_2_d1 =  (fp_addsub2_out[31] == 1) ? {1'b0,fp_addsub2_out[30:0]} : fp_addsub2_out;
+        abs_out_3_d1 =  (fp_addsub3_out[31] == 1) ? {1'b0,fp_addsub3_out[30:0]} : fp_addsub3_out;
     end
 end
 
