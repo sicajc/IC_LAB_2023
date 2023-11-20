@@ -840,14 +840,18 @@ wire st_EQ_IMG2         = eq_cur_st[3];
 
 // Controls
 reg[1:0] eq_xptr,eq_yptr;
-reg[1:0] eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
-reg eq_cnt,eq_cnt_d1,eq_cnt_d2;
+reg eq_cnt;
+reg eq_done_f;
+reg eq_valid;
+
+reg[1:0] eq_xptr_d0,eq_yptr_d0,eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
+reg eq_done_f_d0,eq_done_f_d1,eq_done_f_d2;
+reg eq_valid_d0,eq_valid_d1,eq_valid_d2;
+reg eq_cnt_d0,eq_cnt_d1,eq_cnt_d2;
 
 //Delays
-reg all_eq_done_f_d1,all_eq_done_f_d2;
-reg one_eq_done_d1,one_eq_done_d2;
-reg eq_done_f,eq_done_f_d1,eq_done_f_d2;
-reg eq_valid,eq_valid_d1,eq_valid_d2;
+reg all_eq_done_f_d0,all_eq_done_f_d1,all_eq_done_f_d2;
+reg one_eq_done_d0,one_eq_done_d1,one_eq_done_d2;
 
 // Flags
 wire one_equalized_done_f    = eq_xptr == 3 && eq_yptr == 3;
@@ -858,6 +862,7 @@ wire all_eq_done_f = one_eq_done_d2 && eq_cnt_d2 == 1;
 // Datapath components
 reg[DATA_WIDTH-1:0] equalized_result_rf[0:3][0:3][0:1];
 reg[DATA_WIDTH-1:0] adder_tree_in[0:8];
+reg[DATA_WIDTH-1:0] adder_tree_pipe_d0[0:4];
 reg[DATA_WIDTH-1:0] adder_tree_pipe_d1[0:2];
 reg[DATA_WIDTH-1:0] adder_tree_pipe_d2;
 wire[DATA_WIDTH-1:0] eq_fp_add_out[0:7];
@@ -868,23 +873,40 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
+        eq_xptr_d0  <= 0;
         eq_xptr_d1  <= 0;
+        eq_yptr_d0  <= 0;
+
         eq_yptr_d1  <= 0;
         eq_xptr_d2  <= 0;
         eq_yptr_d2  <= 0;
+
+        eq_valid_d0 <= 0;
         eq_valid_d1 <= 0;
         eq_valid_d2 <= 0;
+
+        eq_cnt_d0   <= 0;
         eq_cnt_d1   <= 0;
         eq_cnt_d2   <= 0;
+
+        eq_done_f_d0 <= 0;
         eq_done_f_d1 <= 0;
         eq_done_f_d2 <= 0;
+
+        one_eq_done_d0 <= 0;
         one_eq_done_d1 <= 0;
         one_eq_done_d2 <= 0;
-        all_eq_done_f_d1 <= 0;
+
+        all_eq_done_f_d0 <=0;
+        all_eq_done_f_d1 <=0;
         all_eq_done_f_d2 <=0;
     end
     else if(eq_done_f_d2 || all_eq_done_f_d2)
     begin
+        eq_xptr_d0  <= 0;
+        eq_yptr_d0  <= 0;
+        eq_valid_d0 <= 0;
+
         eq_xptr_d1  <= 0;
         eq_yptr_d1  <= 0;
         eq_valid_d1 <= 0;
@@ -893,34 +915,52 @@ begin
         eq_xptr_d2  <= 0;
         eq_yptr_d2  <= 0;
 
+        eq_cnt_d0   <= 0;
         eq_cnt_d1   <= 0;
         eq_cnt_d2   <= 0;
+
+        eq_done_f_d0 <= 0;
         eq_done_f_d1 <= 0;
         eq_done_f_d2 <= 0;
+
+        one_eq_done_d0 <= 0;
         one_eq_done_d1 <= 0;
         one_eq_done_d2 <= 0;
         if(all_eq_done_f_d2)
         begin
+            all_eq_done_f_d0 <= 0;
             all_eq_done_f_d1 <= 0;
             all_eq_done_f_d2 <= 0;
         end
     end
     else
     begin
-        eq_xptr_d1  <= eq_xptr;
-        eq_yptr_d1  <= eq_yptr;
-        eq_valid_d1 <= eq_valid;
-
-        eq_valid_d2 <= eq_valid_d1;
+        eq_xptr_d0  <= eq_xptr;
+        eq_xptr_d1  <= eq_xptr_d0;
         eq_xptr_d2  <= eq_xptr_d1;
+
+        eq_yptr_d0  <= eq_yptr;
+        eq_yptr_d1  <= eq_yptr_d0;
         eq_yptr_d2  <= eq_yptr_d1;
-        eq_cnt_d1   <= eq_cnt;
+
+        eq_valid_d0 <= eq_valid;
+        eq_valid_d1 <= eq_valid_d0;
+        eq_valid_d2 <= eq_valid_d1;
+
+        eq_cnt_d0   <= eq_cnt;
+        eq_cnt_d1   <= eq_cnt_d0;
         eq_cnt_d2   <= eq_cnt_d1;
-        one_eq_done_d1 <= one_equalized_done_f;
+
+        one_eq_done_d0 <= one_equalized_done_f;
+        one_eq_done_d1 <= one_eq_done_d0;
         one_eq_done_d2 <= one_eq_done_d1;
-        eq_done_f_d1 <= eq_done_f;
+
+        eq_done_f_d0 <= eq_done_f;
+        eq_done_f_d1 <= eq_done_f_d0;
         eq_done_f_d2 <= eq_done_f_d1;
-        all_eq_done_f_d1 <= all_eq_done_f;
+
+        all_eq_done_f_d0 <= all_eq_done_f;
+        all_eq_done_f_d1 <= all_eq_done_f_d0;
         all_eq_done_f_d2 <= all_eq_done_f_d1;
     end
 end
@@ -1092,10 +1132,31 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B3 ( .a(adder_tree_in[6]), .b(adder_tree_in[7]), .rnd(3'b000), .z(eq_fp_add_out[3]), .status() );
 
+// Pipeline
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        adder_tree_pipe_d0[0] <= 0;
+        adder_tree_pipe_d0[1] <= 0;
+        adder_tree_pipe_d0[2] <= 0;
+        adder_tree_pipe_d0[3] <= 0;
+        adder_tree_pipe_d0[4] <= 0;
+    end
+    else
+    begin
+        adder_tree_pipe_d0[0] <= eq_fp_add_out[0];
+        adder_tree_pipe_d0[1] <= eq_fp_add_out[1];
+        adder_tree_pipe_d0[2] <= eq_fp_add_out[2];
+        adder_tree_pipe_d0[3] <= eq_fp_add_out[3];
+        adder_tree_pipe_d0[4] <= adder_tree_in[8];
+    end
+end
+
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B4 ( .a(eq_fp_add_out[1]), .b(eq_fp_add_out[2]), .rnd(3'b000), .z(eq_fp_add_out[4]), .status() );
+          fp_add_B4 ( .a(adder_tree_pipe_d0[1]), .b(adder_tree_pipe_d0[2]), .rnd(3'b000), .z(eq_fp_add_out[4]), .status() );
 DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B5 ( .a(eq_fp_add_out[3]), .b(adder_tree_in[8]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
+          fp_add_B5 ( .a(adder_tree_pipe_d0[3]), .b(adder_tree_pipe_d0[4]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -1107,7 +1168,7 @@ begin
     end
     else
     begin
-        adder_tree_pipe_d1[0] <= eq_fp_add_out[0];
+        adder_tree_pipe_d1[0] <= adder_tree_pipe_d0[0];
         adder_tree_pipe_d1[1] <= eq_fp_add_out[4];
         adder_tree_pipe_d1[2] <= eq_fp_add_out[5];
     end
