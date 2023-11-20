@@ -510,19 +510,35 @@ always @(*) begin
     kernals[8] = kernal_rf[2][2][kernal_num_cnt];
 end
 
+
 generate
     for(idx = 0; idx < 9 ; idx = idx+1)
     begin:PARRALLEL_MULTS
-        DW_fp_mult_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,en_ubr_flag)
-                        u_DW_fp_mult_inst(
-                            .inst_a   ( pixels[idx]         ),
-                            .inst_b   ( kernals[idx]        ),
-                            .inst_rnd ( 3'b000              ),
-                            .z_inst   ( mults_result[idx]   ),
-                            .status_inst  (   )
-                        );
+       // Instance of DW_lp_piped_fp_mult
+       DW_lp_piped_fp_mult #(.sig_width(inst_sig_width), .exp_width(inst_exp_width),
+       .ieee_compliance(inst_ieee_compliance), .op_iso_mode(2), .id_width(1),
+       .in_reg(0), .stages(2), .out_reg(0), .no_pm(1), .rst_mode(1))
+       lp_pipe_mult_u( .clk(clk), .rst_n(rst_n), .a(pixels[idx]), .b(kernals[idx]), .rnd(3'b000),
+       .z(mults_result[idx]), .status(), .launch(processing_f_ff), .launch_id(0),
+       .pipe_full(), .pipe_ovf(), .accept_n(),
+       .arrive(), .arrive_id(), .push_out_n(),
+       .pipe_census());
     end
 endgenerate
+
+// generate
+//     for(idx = 0; idx < 9 ; idx = idx+1)
+//     begin:PARRALLEL_MULTS
+//         DW_fp_mult_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,en_ubr_flag)
+//                         u_DW_fp_mult_inst(
+//                             .inst_a   ( pixels[idx]         ),
+//                             .inst_b   ( kernals[idx]        ),
+//                             .inst_rnd ( 3'b000              ),
+//                             .z_inst   ( mults_result[idx]   ),
+//                             .status_inst  (   )
+//                         );
+//     end
+// endgenerate
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -606,17 +622,29 @@ begin
     end
 end
 
+reg img_num_cnt_d0;
+reg[1:0] kernal_num_cnt_d0;
+reg[1:0] process_xptr_d0,process_yptr_d0;
+reg valid_d0;
+reg convolution_done_f_d0;
+
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
+        img_num_cnt_d0 <= 0;
         img_num_cnt_d1 <= 0;
         img_num_cnt_d2 <= 0;
         img_num_cnt_d3 <= 0;
 
+        kernal_num_cnt_d0 <= 0;
         kernal_num_cnt_d1 <= 0;
         kernal_num_cnt_d2 <= 0;
         kernal_num_cnt_d3 <= 0;
+
+
+        process_xptr_d0 <= 0;
+        process_yptr_d0 <= 0;
 
         process_xptr_d1 <= 0;
         process_yptr_d1 <= 0;
@@ -627,63 +655,80 @@ begin
         process_xptr_d3 <= 0;
         process_yptr_d3 <= 0;
 
+        valid_d0 <= 0;
         valid_d1 <= 0;
         valid_d2 <= 0;
         valid_d3 <= 0;
 
+        convolution_done_f_d0 <= 0;
         convolution_done_f_d1 <= 0;
         convolution_done_f_d2 <= 0;
         convolution_done_f_d3 <= 0;
     end
     else if(all_convolution_done_f)
     begin
+        img_num_cnt_d0 <= 0;
         img_num_cnt_d1 <= 0;
         img_num_cnt_d2 <= 0;
         img_num_cnt_d3 <= 0;
 
+        kernal_num_cnt_d0 <= 0;
         kernal_num_cnt_d1 <= 0;
         kernal_num_cnt_d2 <= 0;
         kernal_num_cnt_d3 <= 0;
 
-        process_xptr_d1 <= 0;
-        process_xptr_d2 <= 0;
-        process_xptr_d3 <= 0;
 
+        process_xptr_d0 <= 0;
+        process_yptr_d0 <= 0;
+
+        process_xptr_d1 <= 0;
         process_yptr_d1 <= 0;
+
+        process_xptr_d2 <= 0;
         process_yptr_d2 <= 0;
+
+        process_xptr_d3 <= 0;
         process_yptr_d3 <= 0;
 
+        valid_d0 <= 0;
         valid_d1 <= 0;
         valid_d2 <= 0;
         valid_d3 <= 0;
 
+        convolution_done_f_d0 <= 0;
         convolution_done_f_d1 <= 0;
         convolution_done_f_d2 <= 0;
         convolution_done_f_d3 <= 0;
     end
     else
     begin
-        img_num_cnt_d1 <= img_num_cnt;
+        img_num_cnt_d0 <= img_num_cnt;
+        img_num_cnt_d1 <= img_num_cnt_d0;
         img_num_cnt_d2 <= img_num_cnt_d1;
         img_num_cnt_d3 <= img_num_cnt_d2;
 
-        kernal_num_cnt_d1 <= kernal_num_cnt;
+        kernal_num_cnt_d0 <= kernal_num_cnt;
+        kernal_num_cnt_d1 <= kernal_num_cnt_d0;
         kernal_num_cnt_d2 <= kernal_num_cnt_d1;
         kernal_num_cnt_d3 <= kernal_num_cnt_d2;
 
-        process_xptr_d1 <= process_xptr;
+        process_xptr_d0 <= process_xptr;
+        process_xptr_d1 <= process_xptr_d0;
         process_xptr_d2 <= process_xptr_d1;
         process_xptr_d3 <= process_xptr_d2;
 
-        process_yptr_d1 <= process_yptr;
+        process_yptr_d0 <= process_yptr;
+        process_yptr_d1 <= process_yptr_d0;
         process_yptr_d2 <= process_yptr_d1;
         process_yptr_d3 <= process_yptr_d2;
 
-        valid_d1 <= processing_f_ff;
+        valid_d0 <= processing_f_ff;
+        valid_d1 <= valid_d0;
         valid_d2 <= valid_d1;
         valid_d3 <= valid_d2;
 
-        convolution_done_f_d1 <= convolution_done_f;
+        convolution_done_f_d0 <= convolution_done_f;
+        convolution_done_f_d1 <= convolution_done_f_d0;
         convolution_done_f_d2 <= convolution_done_f_d1;
         convolution_done_f_d3 <= convolution_done_f_d2;
     end
@@ -738,8 +783,6 @@ DW_fp_add #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 //---------------------------------------------------------------------
 //      KERNALS, IMGS, WEIGHTS(RD DATA DOMAIN)
 //---------------------------------------------------------------------
-
-
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -2353,3 +2396,52 @@ DW_fp_addsub #(sig_width, exp_width, ieee_compliance)
 U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd),
 .op(inst_op), .z(z_inst), .status(status_inst) );
 endmodule
+
+// module DW_lp_piped_fp_mult_inst( inst_clk, inst_rst_n, inst_a, inst_b, inst_rnd,
+// z_inst, status_inst, inst_launch, inst_launch_id, pipe_full_inst,
+// pipe_ovf_inst, inst_accept_n, arrive_inst, arrive_id_inst, push_out_n_inst,
+// pipe_census_inst );
+// // Set op iso mode 2, in reg 0, out reg 0, stages = 2
+// parameter sig_width = 23;
+// parameter exp_width = 8;
+// parameter ieee_compliance = 0;
+// parameter op_iso_mode = 0;
+// parameter id_width = 8;
+// parameter in_reg = 0;
+// parameter stages = 4;
+// parameter out_reg = 0;
+// parameter no_pm = 1;
+// parameter rst_mode = 0;
+
+// `define t1 ((((1>in_reg+(stages-1)+out_reg)?1:in_reg+(stages-1)+out_reg))+1)
+// `define bit_width_MX_1__in_reg_P_stages_M_1_P_out_reg_P_1 ((`t1>4096)? ((`t1>262144)?
+// ((`t1>2097152)? ((`t1>8388608)? 24 : ((`t1> 4194304)? 23 : 22)) : ((`t1>1048576)? 21 :
+// ((`t1>524288)? 20 : 19))) : ((`t1>32768)? ((`t1>131072)? 18 : ((`t1>65536)? 17 : 16))
+// : ((`t1>16384)? 15 : ((`t1>8192)? 14 : 13)))) : ((`t1>64)? ((`t1>512)? ((`t1>2048)? 12
+// : ((`t1>1024)? 11 : 10)) : ((`t1>256)? 9 : ((`t1>128)? 8 : 7))) : ((`t1>8)? ((`t1> 32)?
+// 6 : ((`t1>16)? 5 : 4)) : ((`t1>4)? 3 : ((`t1>2)? 2 : 1)))))
+// input inst_clk;
+// input inst_rst_n;
+// input [sig_width+exp_width : 0] inst_a;
+// input [sig_width+exp_width : 0] inst_b;
+// input [2 : 0] inst_rnd;
+// output [sig_width+exp_width : 0] z_inst;
+// output [7 : 0] status_inst;
+// input inst_launch;
+// input [id_width-1 : 0] inst_launch_id;
+// output pipe_full_inst;
+// output pipe_ovf_inst;
+// input inst_accept_n;
+// output arrive_inst;
+// output [id_width-1 : 0] arrive_id_inst;
+// output push_out_n_inst;
+// output [(`bit_width_MX_1__in_reg_P_stages_M_1_P_out_reg_P_1)-1 : 0] pipe_census_inst;
+// // Instance of DW_lp_piped_fp_mult
+// DW_lp_piped_fp_mult #(sig_width, exp_width, ieee_compliance, op_iso_mode, id_width,
+// in_reg, stages, out_reg, no_pm, rst_mode)
+// U1 ( .clk(inst_clk), .rst_n(inst_rst_n), .a(inst_a), .b(inst_b), .rnd(inst_rnd),
+// .z(z_inst), .status(status_inst), .launch(inst_launch), .launch_id(inst_launch_id),
+// .pipe_full(pipe_full_inst), .pipe_ovf(pipe_ovf_inst), .accept_n(inst_accept_n),
+// .arrive(arrive_inst), .arrive_id(arrive_id_inst), .push_out_n(push_out_n_inst),
+// .pipe_census(pipe_census_inst) );
+// endmodule

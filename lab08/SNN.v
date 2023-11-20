@@ -925,22 +925,26 @@ end
 //-----------------------
 //      EQ CTR
 //-----------------------
-// Controls
-reg[2:0] eq_xptr,eq_yptr;
-reg[2:0] eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
-reg[1:0] eq_cnt,eq_cnt_d1,eq_cnt_d2;
+/ Controls
+reg[1:0] eq_xptr,eq_yptr;
+reg eq_cnt;
+reg eq_done_f;
+reg eq_valid;
+
+reg[1:0] eq_xptr_d0,eq_yptr_d0,eq_xptr_d1,eq_yptr_d1,eq_xptr_d2,eq_yptr_d2;
+reg eq_done_f_d0,eq_done_f_d1,eq_done_f_d2;
+reg eq_valid_d0,eq_valid_d1,eq_valid_d2;
+reg eq_cnt_d0,eq_cnt_d1,eq_cnt_d2;
 
 //Delays
-reg all_eq_done_f_d1,all_eq_done_f_d2;
-reg one_eq_done_d1,one_eq_done_d2;
-reg eq_done_f,eq_done_f_d1,eq_done_f_d2;
-reg eq_valid,eq_valid_d1,eq_valid_d2;
+reg all_eq_done_f_d0,all_eq_done_f_d1,all_eq_done_f_d2;
+reg one_eq_done_d0,one_eq_done_d1,one_eq_done_d2;
 
 // Flags
 wire one_equalized_done_f    = eq_xptr == 3 && eq_yptr == 3;
 wire eq_right_bound_reach_f  = eq_yptr == 3;
 wire eq_bottom_bound_reach_f = eq_xptr == 3;
-wire all_eq_done_f = one_eq_done_d2 && eq_cnt_d2 == 1 && eq_valid_d2;
+wire all_eq_done_f = one_eq_done_d2 && eq_cnt_d2 == 1;
 
 wire eq_early_start_f = kernal_num_cnt_d3 == 2 && process_xptr_d3 == 1
 && process_yptr_d3 == 1;
@@ -949,33 +953,51 @@ wire eq_early_start_f = kernal_num_cnt_d3 == 2 && process_xptr_d3 == 1
 // Datapath components
 reg[DATA_WIDTH-1:0] equalized_result_rf[0:3][0:3][0:1];
 reg[DATA_WIDTH-1:0] adder_tree_in[0:8];
+reg[DATA_WIDTH-1:0] adder_tree_pipe_d0[0:4];
 reg[DATA_WIDTH-1:0] adder_tree_pipe_d1[0:2];
 reg[DATA_WIDTH-1:0] adder_tree_pipe_d2;
 wire[DATA_WIDTH-1:0] eq_fp_add_out[0:7];
 reg[DATA_WIDTH-1:0]  eq_fp_pipe_d1[0:2];
 reg[DATA_WIDTH-1:0]  eq_fp_pipe_d2;
 
-always @(posedge clk_eq[2] or negedge rst_n)
+always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
+        eq_xptr_d0  <= 0;
         eq_xptr_d1  <= 0;
+        eq_yptr_d0  <= 0;
+
         eq_yptr_d1  <= 0;
         eq_xptr_d2  <= 0;
         eq_yptr_d2  <= 0;
+
+        eq_valid_d0 <= 0;
         eq_valid_d1 <= 0;
         eq_valid_d2 <= 0;
+
+        eq_cnt_d0   <= 0;
         eq_cnt_d1   <= 0;
         eq_cnt_d2   <= 0;
+
+        eq_done_f_d0 <= 0;
         eq_done_f_d1 <= 0;
         eq_done_f_d2 <= 0;
+
+        one_eq_done_d0 <= 0;
         one_eq_done_d1 <= 0;
         one_eq_done_d2 <= 0;
-        all_eq_done_f_d1 <= 0;
+
+        all_eq_done_f_d0 <=0;
+        all_eq_done_f_d1 <=0;
         all_eq_done_f_d2 <=0;
     end
     else if(eq_done_f_d2 || all_eq_done_f_d2)
     begin
+        eq_xptr_d0  <= 0;
+        eq_yptr_d0  <= 0;
+        eq_valid_d0 <= 0;
+
         eq_xptr_d1  <= 0;
         eq_yptr_d1  <= 0;
         eq_valid_d1 <= 0;
@@ -984,34 +1006,52 @@ begin
         eq_xptr_d2  <= 0;
         eq_yptr_d2  <= 0;
 
+        eq_cnt_d0   <= 0;
         eq_cnt_d1   <= 0;
         eq_cnt_d2   <= 0;
+
+        eq_done_f_d0 <= 0;
         eq_done_f_d1 <= 0;
         eq_done_f_d2 <= 0;
+
+        one_eq_done_d0 <= 0;
         one_eq_done_d1 <= 0;
         one_eq_done_d2 <= 0;
         if(all_eq_done_f_d2)
         begin
+            all_eq_done_f_d0 <= 0;
             all_eq_done_f_d1 <= 0;
             all_eq_done_f_d2 <= 0;
         end
     end
     else
     begin
-        eq_xptr_d1  <= eq_xptr;
-        eq_yptr_d1  <= eq_yptr;
-        eq_valid_d1 <= eq_valid;
-
-        eq_valid_d2 <= eq_valid_d1;
+        eq_xptr_d0  <= eq_xptr;
+        eq_xptr_d1  <= eq_xptr_d0;
         eq_xptr_d2  <= eq_xptr_d1;
+
+        eq_yptr_d0  <= eq_yptr;
+        eq_yptr_d1  <= eq_yptr_d0;
         eq_yptr_d2  <= eq_yptr_d1;
-        eq_cnt_d1   <= eq_cnt;
+
+        eq_valid_d0 <= eq_valid;
+        eq_valid_d1 <= eq_valid_d0;
+        eq_valid_d2 <= eq_valid_d1;
+
+        eq_cnt_d0   <= eq_cnt;
+        eq_cnt_d1   <= eq_cnt_d0;
         eq_cnt_d2   <= eq_cnt_d1;
-        one_eq_done_d1 <= one_equalized_done_f;
+
+        one_eq_done_d0 <= one_equalized_done_f;
+        one_eq_done_d1 <= one_eq_done_d0;
         one_eq_done_d2 <= one_eq_done_d1;
-        eq_done_f_d1 <= eq_done_f;
+
+        eq_done_f_d0 <= eq_done_f;
+        eq_done_f_d1 <= eq_done_f_d0;
         eq_done_f_d2 <= eq_done_f_d1;
-        all_eq_done_f_d1 <= all_eq_done_f;
+
+        all_eq_done_f_d0 <= all_eq_done_f;
+        all_eq_done_f_d1 <= all_eq_done_f_d0;
         all_eq_done_f_d2 <= all_eq_done_f_d1;
     end
 end
@@ -1189,25 +1229,39 @@ DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           fp_add_B3 (.DG_ctrl(cg_en?eq_valid:1'b1), .a(adder_tree_in[6]), .b(adder_tree_in[7]), .rnd(3'b000), .z(eq_fp_add_out[3]), .status() );
 
+// Pipeline
+always @(posedge clk_eq[2])
+begin
+    adder_tree_pipe_d0[0] <= eq_fp_add_out[0];
+    adder_tree_pipe_d0[1] <= eq_fp_add_out[1];
+end
+
+always @(posedge clk_eq[3] )
+begin
+    adder_tree_pipe_d0[2] <= eq_fp_add_out[2];
+    adder_tree_pipe_d0[3] <= eq_fp_add_out[3];
+    adder_tree_pipe_d0[4] <= adder_tree_in[8];
+end
+
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B4 (.DG_ctrl(cg_en?eq_valid:1'b1), .a(eq_fp_add_out[1]), .b(eq_fp_add_out[2]), .rnd(3'b000), .z(eq_fp_add_out[4]), .status() );
+          fp_add_B4 (.DG_ctrl(cg_en?eq_valid_d0:1'b1), .a(adder_tree_pipe_d0[1]), .b(adder_tree_pipe_d0[2]), .rnd(3'b000), .z(eq_fp_add_out[4]), .status() );
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B5 (.DG_ctrl(cg_en?eq_valid:1'b1),.a(eq_fp_add_out[3]), .b(adder_tree_in[8]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
+          fp_add_B5 (.DG_ctrl(cg_en?eq_valid_d0:1'b1),.a.a(adder_tree_pipe_d0[3]), .b(adder_tree_pipe_d0[4]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
 
 always @(posedge clk_eq[0])
 begin
     if(cg_en)
     begin
-        if(eq_valid)
+        if(eq_valid_d0)
         begin
-            adder_tree_pipe_d1[0] <= eq_fp_add_out[0];
-            adder_tree_pipe_d1[1] <= eq_fp_add_out[4];
-            adder_tree_pipe_d1[2] <= eq_fp_add_out[5];
+          adder_tree_pipe_d1[0] <= adder_tree_pipe_d0[0];
+          adder_tree_pipe_d1[1] <= eq_fp_add_out[4];
+          adder_tree_pipe_d1[2] <= eq_fp_add_out[5];
         end
     end
     else
     begin
-        adder_tree_pipe_d1[0] <= eq_fp_add_out[0];
+        adder_tree_pipe_d1[0] <= adder_tree_pipe_d0[0];
         adder_tree_pipe_d1[1] <= eq_fp_add_out[4];
         adder_tree_pipe_d1[2] <= eq_fp_add_out[5];
     end
@@ -2246,78 +2300,6 @@ DW_fp_exp #(inst_sig_width, inst_exp_width, inst_ieee_compliance, inst_arch) U1 
               .status(status_inst) );
 endmodule
 
-
-//     module DW_fp_div_inst( inst_a, inst_b, inst_rnd, z_inst, status_inst );
-// parameter sig_width = 23;
-// parameter exp_width = 8;
-// parameter ieee_compliance = 0;
-// parameter faithful_round = 0;
-// parameter en_ubr_flag = 0;
-
-// input [sig_width+exp_width : 0] inst_a;
-// input [sig_width+exp_width : 0] inst_b;
-// input [2 : 0] inst_rnd;
-// output [sig_width+exp_width : 0] z_inst;
-// output [7 : 0] status_inst;
-// // Instance of DW_fp_div
-// DW_fp_div #(sig_width, exp_width, ieee_compliance, faithful_round, en_ubr_flag) U1
-//           ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .z(z_inst), .status(status_inst)
-//           );
-// endmodule
-
-//     module DW_fp_cmp_inst( inst_a, inst_b, inst_zctr, aeqb_inst, altb_inst,
-//                            agtb_inst, unordered_inst, z0_inst, z1_inst, status0_inst,
-//                            status1_inst );
-// parameter sig_width = 23;
-// parameter exp_width = 8;
-// parameter ieee_compliance = 0;
-// input [sig_width+exp_width : 0] inst_a;
-// input [sig_width+exp_width : 0] inst_b;
-// input inst_zctr;
-// output aeqb_inst;
-// output altb_inst;
-// output agtb_inst;
-// output unordered_inst;
-// output [sig_width+exp_width : 0] z0_inst;
-// output [sig_width+exp_width : 0] z1_inst;
-// output [7 : 0] status0_inst;
-// output [7 : 0] status1_inst;
-// // Instance of DW_fp_cmp
-// DW_fp_cmp #(sig_width, exp_width, ieee_compliance)
-//           U1 ( .a(inst_a), .b(inst_b), .zctr(inst_zctr), .aeqb(aeqb_inst),
-//                .altb(altb_inst), .agtb(agtb_inst), .unordered(unordered_inst),
-//                .z0(z0_inst), .z1(z1_inst), .status0(status0_inst),
-//                .status1(status1_inst) );
-// endmodule
-
-//     module DW_fp_add_inst( inst_a, inst_b, inst_rnd, z_inst, status_inst );
-// parameter sig_width = 23;
-// parameter exp_width = 8;
-// parameter ieee_compliance = 0;
-// input [sig_width+exp_width : 0] inst_a;
-// input [sig_width+exp_width : 0] inst_b;
-// input [2 : 0] inst_rnd;
-// output [sig_width+exp_width : 0] z_inst;
-// output [7 : 0] status_inst;
-// // Instance of DW_fp_add
-// DW_fp_add #(sig_width, exp_width, ieee_compliance)
-//           U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .z(z_inst), .status(status_inst) );
-// endmodule
-
-
-//     module DW_fp_sub_inst( inst_a, inst_b, inst_rnd, z_inst, status_inst );
-// parameter sig_width = 23;
-// parameter exp_width = 8;
-// parameter ieee_compliance = 0;
-// input [sig_width+exp_width : 0] inst_a;
-// input [sig_width+exp_width : 0] inst_b;
-// input [2 : 0] inst_rnd;
-// output [sig_width+exp_width : 0] z_inst;
-// output [7 : 0] status_inst;
-// // Instance of DW_fp_sub
-// DW_fp_sub #(sig_width, exp_width, ieee_compliance)
-//           U1 ( .a(inst_a), .b(inst_b), .rnd(inst_rnd), .z(z_inst), .status(status_inst) );
-// endmodule
 
 module DW_fp_addsub_inst( inst_a, inst_b, inst_rnd, inst_op, z_inst,
 status_inst );
