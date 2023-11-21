@@ -632,7 +632,7 @@ generate
     end
 endgenerate
 
-always @(posedge clk_conv[0])
+always @(posedge clk)
 begin
     if(cg_en == 1'b1)
     begin
