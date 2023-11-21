@@ -277,7 +277,25 @@ wire clk_conv[0:4];
 wire clk_eq[0:4];
 wire clk_norm_act[0:3];
 
+// GATED_OR GATED_RD_DATA( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_rd_data), .RST_N(rst_n), .CLOCK_GATED(clk_read_data));
+GATED_OR GATED_CONV0( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[0]));
+GATED_OR GATED_CONV1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[1]));
+GATED_OR GATED_CONV2( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[2]));
+GATED_OR GATED_CONV3( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[3]));
+GATED_OR GATED_CONV4( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_conv), .RST_N(rst_n), .CLOCK_GATED(clk_conv[4]));
+GATED_OR GATED_EQ0( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[0]));
+GATED_OR GATED_EQ1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[1]));
+GATED_OR GATED_EQ2( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[2]));
+GATED_OR GATED_EQ3( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[3]));
+GATED_OR GATED_EQ4( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_eq), .RST_N(rst_n), .CLOCK_GATED(clk_eq[4]));
+
+GATED_OR GATED_MP( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_mp), .RST_N(rst_n), .CLOCK_GATED(clk_mp));
 GATED_OR GATED_FC( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_fc), .RST_N(rst_n), .CLOCK_GATED(clk_fc));
+GATED_OR GATED_NORM_ACT0( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[0]));
+GATED_OR GATED_NORM_ACT1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[1]));
+GATED_OR GATED_NORM_ACT2( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[2]));
+GATED_OR GATED_NORM_ACT3( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_norm_act), .RST_N(rst_n), .CLOCK_GATED(clk_norm_act[3]));
+GATED_OR GATED_L1( .CLOCK(clk), .SLEEP_CTRL(cg_en&&sleep_l1), .RST_N(rst_n), .CLOCK_GATED(clk_l1_distance));
 
 //---------------------------------------------------------------------
 //      RD DATA Domain
@@ -534,12 +552,7 @@ wire[4:0] col_20 = process_yptr;
 wire[4:0] col_21 = process_yptr + 1;
 wire[4:0] col_22 = process_yptr + 2;
 
-reg img_num_cnt_d0,img_num_cnt_d12;
-reg[1:0] kernal_num_cnt_d0,kernal_num_cnt_d12;
-reg[1:0] process_xptr_d0,process_yptr_d0,process_xptr_d12,process_yptr_d12;
-reg valid_d0,valid_d12;
-reg convolution_done_f_d0,convolution_done_f_d12;
-
+reg shut_mults_f[0:8];
 
 always @(*) begin
     if(cg_en && sleep_conv)
@@ -588,43 +601,53 @@ always @(*) begin
     end
 end
 
+always @(*)
+begin
+    // Initilization
+    for(i=0;i<9;i=i+1)
+        shut_mults_f[i] = 1'b1;
+
+    for(i=0;i<9;i=i+1)
+    begin
+        if(pixels[i] == 0)
+        begin
+            shut_mults_f[i] = 1'b0;
+        end
+    end
+end
+
+// zero shut down multiplier by pass 0
 generate
     for(idx = 0; idx < 9 ; idx = idx+1)
     begin:PARRALLEL_MULTS
-       // Instance of DW_lp_piped_fp_mult
-       DW_lp_piped_fp_mult #(.sig_width(inst_sig_width), .exp_width(inst_exp_width),
-       .ieee_compliance(inst_ieee_compliance), .op_iso_mode(2), .id_width(1),
-       .in_reg(0), .stages(2), .out_reg(0), .no_pm(1), .rst_mode(1))
-       lp_pipe_mult_u( .clk(clk), .rst_n(rst_n), .a(pixels[idx]), .b(kernals[idx]), .rnd(3'b000),
-       .z(mults_result[idx]), .status(), .launch(processing_f_ff), .launch_id(0),
-       .pipe_full(), .pipe_ovf(), .accept_n(),
-       .arrive(), .arrive_id(), .push_out_n(),
-       .pipe_census());
+        DW_fp_mult_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance)
+                        u_DW_fp_mult_inst(
+                            .inst_a   ( pixels[idx]         ),
+                            .inst_b   ( kernals[idx]        ),
+                            .inst_rnd ( 3'b000              ),
+                            .inst_DG_ctrl(cg_en ? processing_f_ff&&shut_mults_f[idx] : 1'b1),
+                            .z_inst   ( mults_result[idx]   ),
+                            .status_inst  (   )
+                        );
     end
 endgenerate
 
-// generate
-//     for(idx = 0; idx < 9 ; idx = idx+1)
-//     begin:PARRALLEL_MULTS
-//         DW_fp_mult_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance)
-//                         u_DW_fp_mult_inst(
-//                             .inst_a   ( pixels[idx]         ),
-//                             .inst_b   ( kernals[idx]        ),
-//                             .inst_rnd ( 3'b000              ),
-//                             .inst_DG_ctrl(cg_en ? processing_f_ff : 1'b1),
-//                             .z_inst   ( mults_result[idx]   ),
-//                             .status_inst  (   )
-//                         );
-//     end
-// endgenerate
-
-always @(posedge clk)
+always @(posedge clk_conv[0])
 begin
     if(cg_en == 1'b1)
     begin
-        if(valid_d0)
+        if(processing_f_ff)
             for(i=0;i<9;i=i+1)
-                mults_result_pipe_d1[i] <= mults_result[i];
+            begin
+                if(shut_mults_f[i] == 1'b1)
+                begin
+                    mults_result_pipe_d1[i] <= mults_result[i];
+                end
+                else
+                begin
+                    mults_result_pipe_d1[i] <= 0;
+                end
+            end
     end
     else
     begin
@@ -633,70 +656,45 @@ begin
     end
 end
 
-DW_lp_piped_fp_sum3 #(.sig_width(inst_sig_width), .exp_width(inst_exp_width),
-       .ieee_compliance(inst_ieee_compliance), .op_iso_mode(2), .id_width(1),
-       .in_reg(0), .stages(2), .out_reg(0), .no_pm(1), .rst_mode(1))
-fp_sum3_0_u( .clk(clk), .rst_n(rst_n), .a(mults_result_pipe_d1[0]), .b(mults_result_pipe_d1[1]), .rnd(3'b000),
-       .c(mults_result_pipe_d1[2]), .z(partial_sum[0]), .status(), .launch(valid_d1), .launch_id(0),
-       .pipe_full(), .pipe_ovf(), .accept_n(),
-       .arrive(), .arrive_id(), .push_out_n(),
-       .pipe_census());
+// 3x 3 inputs fp adders
+DW_fp_sum3_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+                u_DW_fp_sum3_inst1(
+                    .inst_a   ( mults_result_pipe_d1[0]),
+                    .inst_b   ( mults_result_pipe_d1[1]),
+                    .inst_c   ( mults_result_pipe_d1[2]   ),
+                    .inst_DG_ctrl(~sleep_conv),
+                    .inst_rnd ( 3'b000 ),
+                    .z_inst   ( partial_sum[0]   ),
+                    .status_inst  (   )
+                );
 
-// // 3x 3 inputs fp adders
-// DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
-//                 u_DW_fp_sum3_inst1(
-//                     .inst_a   ( mults_result_pipe_d1[0]),
-//                     .inst_b   ( mults_result_pipe_d1[1]),
-//                     .inst_c   ( mults_result_pipe_d1[2]   ),
-//                     .inst_rnd ( 3'b000 ),
-//                     .z_inst   ( partial_sum[0]   ),
-//                     .status_inst  (   )
-//                 );
+DW_fp_sum3_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+                u_DW_fp_sum3_inst2(
+                    .inst_a   ( mults_result_pipe_d1[3]),
+                    .inst_b   ( mults_result_pipe_d1[4]),
+                    .inst_c   ( mults_result_pipe_d1[5]   ),
+                    .inst_DG_ctrl(~sleep_conv),
+                    .inst_rnd ( 3'b000 ),
+                    .z_inst   ( partial_sum[1]),
+                    .status_inst  (   )
+                );
 
-DW_lp_piped_fp_sum3 #(.sig_width(inst_sig_width), .exp_width(inst_exp_width),
-       .ieee_compliance(inst_ieee_compliance), .op_iso_mode(2), .id_width(1),
-       .in_reg(0), .stages(2), .out_reg(0), .no_pm(1), .rst_mode(1))
-fp_sum3_1_u( .clk(clk), .rst_n(rst_n), .a(mults_result_pipe_d1[3]), .b(mults_result_pipe_d1[4]), .rnd(3'b000),
-       .c(mults_result_pipe_d1[5]), .z(partial_sum[1]), .status(), .launch(valid_d1), .launch_id(0),
-       .pipe_full(), .pipe_ovf(), .accept_n(),
-       .arrive(), .arrive_id(), .push_out_n(),
-       .pipe_census());
+DW_fp_sum3_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
+                u_DW_fp_sum3_inst3(
+                    .inst_a   ( mults_result_pipe_d1[6]),
+                    .inst_b   ( mults_result_pipe_d1[7]),
+                    .inst_c   ( mults_result_pipe_d1[8]   ),
+                    .inst_DG_ctrl(~sleep_conv),
+                    .inst_rnd ( 3'b000 ),
+                    .z_inst   ( partial_sum[2]),
+                    .status_inst  (   )
+                );
 
-// DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
-//                 u_DW_fp_sum3_inst2(
-//                     .inst_a   ( mults_result_pipe_d1[3]),
-//                     .inst_b   ( mults_result_pipe_d1[4]),
-//                     .inst_c   ( mults_result_pipe_d1[5]   ),
-//                     .inst_rnd ( 3'b000 ),
-//                     .z_inst   ( partial_sum[1]),
-//                     .status_inst  (   )
-//                 );
-
-DW_lp_piped_fp_sum3 #(.sig_width(inst_sig_width), .exp_width(inst_exp_width),
-       .ieee_compliance(inst_ieee_compliance), .op_iso_mode(2), .id_width(1),
-       .in_reg(0), .stages(2), .out_reg(0), .no_pm(1), .rst_mode(1))
-fp_sum3_2_u( .clk(clk), .rst_n(rst_n), .a(mults_result_pipe_d1[6]), .b(mults_result_pipe_d1[7]), .rnd(3'b000),
-       .c(mults_result_pipe_d1[8]), .z(partial_sum[2]), .status(), .launch(valid_d1), .launch_id(0),
-       .pipe_full(), .pipe_ovf(), .accept_n(),
-       .arrive(), .arrive_id(), .push_out_n(),
-       .pipe_census());
-
-// DW_fp_sum3_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance,inst_arch_type)
-//                 u_DW_fp_sum3_inst3(
-//                     .inst_a   ( mults_result_pipe_d1[6]),
-//                     .inst_b   ( mults_result_pipe_d1[7]),
-//                     .inst_c   ( mults_result_pipe_d1[8]   ),
-//                     .inst_rnd ( 3'b000 ),
-//                     .z_inst   ( partial_sum[2]),
-//                     .status_inst  (   )
-//                 );
-
-
-always @(posedge clk)
+always @(posedge clk_conv[1])
 begin
     if(cg_en)
     begin
-        if(valid_d12)
+        if(valid_d1)
             for(i=0;i<3;i=i+1)
                 partial_sum_pipe_d2[i]<=partial_sum[i];
     end
@@ -723,33 +721,20 @@ begin
     end
 end
 
-
-
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        img_num_cnt_d0 <= 0;
         img_num_cnt_d1 <= 0;
-        img_num_cnt_d12 <= 0;
         img_num_cnt_d2 <= 0;
         img_num_cnt_d3 <= 0;
 
-        kernal_num_cnt_d0 <= 0;
         kernal_num_cnt_d1 <= 0;
-        kernal_num_cnt_d12 <= 0;
         kernal_num_cnt_d2 <= 0;
         kernal_num_cnt_d3 <= 0;
 
-
-        process_xptr_d0 <= 0;
-        process_yptr_d0 <= 0;
-
         process_xptr_d1 <= 0;
         process_yptr_d1 <= 0;
-
-        process_xptr_d12 <= 0;
-        process_yptr_d12 <= 0;
 
         process_xptr_d2 <= 0;
         process_yptr_d2 <= 0;
@@ -757,96 +742,64 @@ begin
         process_xptr_d3 <= 0;
         process_yptr_d3 <= 0;
 
-        valid_d0  <= 0;
-        valid_d1  <= 0;
-        valid_d12 <= 0;
-        valid_d2  <= 0;
-        valid_d3  <= 0;
+        valid_d1 <= 0;
+        valid_d2 <= 0;
+        valid_d3 <= 0;
 
-        convolution_done_f_d0 <= 0;
         convolution_done_f_d1 <= 0;
-        convolution_done_f_d12 <= 0;
         convolution_done_f_d2 <= 0;
         convolution_done_f_d3 <= 0;
     end
     else if(all_convolution_done_f)
     begin
-        img_num_cnt_d0 <= 0;
         img_num_cnt_d1 <= 0;
-        img_num_cnt_d12 <= 0;
         img_num_cnt_d2 <= 0;
         img_num_cnt_d3 <= 0;
 
-        kernal_num_cnt_d0 <= 0;
         kernal_num_cnt_d1 <= 0;
-        kernal_num_cnt_d12 <= 0;
         kernal_num_cnt_d2 <= 0;
         kernal_num_cnt_d3 <= 0;
 
-
-        process_xptr_d0 <= 0;
-        process_yptr_d0 <= 0;
-
         process_xptr_d1 <= 0;
-        process_yptr_d1 <= 0;
-
-        process_xptr_d12 <= 0;
-        process_yptr_d12 <= 0;
-
         process_xptr_d2 <= 0;
-        process_yptr_d2 <= 0;
-
         process_xptr_d3 <= 0;
+
+        process_yptr_d1 <= 0;
+        process_yptr_d2 <= 0;
         process_yptr_d3 <= 0;
 
-        valid_d0  <= 0;
-        valid_d1  <= 0;
-        valid_d12 <= 0;
-        valid_d2  <= 0;
-        valid_d3  <= 0;
+        valid_d1 <= 0;
+        valid_d2 <= 0;
+        valid_d3 <= 0;
 
-        convolution_done_f_d0 <= 0;
         convolution_done_f_d1 <= 0;
-        convolution_done_f_d12 <= 0;
         convolution_done_f_d2 <= 0;
         convolution_done_f_d3 <= 0;
     end
     else
     begin
-        img_num_cnt_d0 <= img_num_cnt;
-        img_num_cnt_d1 <= img_num_cnt_d0;
-        img_num_cnt_d12 <= img_num_cnt_d1;
-        img_num_cnt_d2 <= img_num_cnt_d12;
+        img_num_cnt_d1 <= img_num_cnt;
+        img_num_cnt_d2 <= img_num_cnt_d1;
         img_num_cnt_d3 <= img_num_cnt_d2;
 
-        kernal_num_cnt_d0 <= kernal_num_cnt;
-        kernal_num_cnt_d1 <= kernal_num_cnt_d0;
-        kernal_num_cnt_d12 <= kernal_num_cnt_d1;
-        kernal_num_cnt_d2 <= kernal_num_cnt_d12;
+        kernal_num_cnt_d1 <= kernal_num_cnt;
+        kernal_num_cnt_d2 <= kernal_num_cnt_d1;
         kernal_num_cnt_d3 <= kernal_num_cnt_d2;
 
-        process_xptr_d0 <= process_xptr;
-        process_xptr_d1 <= process_xptr_d0;
-        process_xptr_d12 <= process_xptr_d1;
-        process_xptr_d2 <= process_xptr_d12;
+        process_xptr_d1 <= process_xptr;
+        process_xptr_d2 <= process_xptr_d1;
         process_xptr_d3 <= process_xptr_d2;
 
-        process_yptr_d0 <= process_yptr;
-        process_yptr_d1 <= process_yptr_d0;
-        process_yptr_d12 <= process_yptr_d1;
-        process_yptr_d2 <= process_yptr_d12;
+        process_yptr_d1 <= process_yptr;
+        process_yptr_d2 <= process_yptr_d1;
         process_yptr_d3 <= process_yptr_d2;
 
-        valid_d0 <= processing_f_ff;
-        valid_d1 <= valid_d0;
-        valid_d12 <= valid_d1;
-        valid_d2 <= valid_d12;
+        valid_d1 <= processing_f_ff;
+        valid_d2 <= valid_d1;
         valid_d3 <= valid_d2;
 
-        convolution_done_f_d0 <= convolution_done_f;
-        convolution_done_f_d1 <= convolution_done_f_d0;
-        convolution_done_f_d12 <= convolution_done_f_d1;
-        convolution_done_f_d2 <= convolution_done_f_d12;
+        convolution_done_f_d1 <= convolution_done_f;
+        convolution_done_f_d2 <= convolution_done_f_d1;
         convolution_done_f_d3 <= convolution_done_f_d2;
     end
 end
@@ -874,14 +827,22 @@ end
 //---------------------------------------------------------------------
 //   pipelined 3 Adders
 //---------------------------------------------------------------------
-always @(posedge clk)
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          adder_tree0 (.DG_ctrl(cg_en?valid_d2||ST_MM_L1_DISTANCE:1'b1), .a(fp_add_tree_in_a[0]), .b(fp_add_tree_in_b[0]), .rnd(3'b000), .z(fp_add_tree_out[0]), .status() );
+
+// This usually adding zeroes
+wire bypass_a1_f =  (fp_add_tree_in_b[1] == 0) ? 0 : 1;
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          adder_tree1 (.DG_ctrl(cg_en?(valid_d2&&bypass_a1_f)||ST_MM_L1_DISTANCE:1'b1), .a(fp_add_tree_in_a[1]), .b(fp_add_tree_in_b[1]), .rnd(3'b000), .z(fp_add_tree_out[1]), .status() );
+
+always @(posedge clk_conv[2])
 begin
     if(cg_en)
     begin
         if(valid_d2)
         begin
             fp_add_tree_d3[0] <= fp_add_tree_out[0];
-            fp_add_tree_d3[1] <= fp_add_tree_out[1];
+            fp_add_tree_d3[1] <= (bypass_a1_f == 1'b0) ? partial_sum_pipe_d2[2] :fp_add_tree_out[1];
         end
     end
     else
@@ -890,12 +851,6 @@ begin
         fp_add_tree_d3[1] <= fp_add_tree_out[1];
     end
 end
-
-DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          adder_tree0 (.DG_ctrl(cg_en?valid_d2||ST_MM_L1_DISTANCE:1'b1), .a(fp_add_tree_in_a[0]), .b(fp_add_tree_in_b[0]), .rnd(3'b000), .z(fp_add_tree_out[0]), .status() );
-
-DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          adder_tree1 (.DG_ctrl(cg_en?valid_d2||ST_MM_L1_DISTANCE:1'b1), .a(fp_add_tree_in_a[1]), .b(fp_add_tree_in_b[1]), .rnd(3'b000), .z(fp_add_tree_out[1]), .status() );
 
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
           adder_tree2 (.DG_ctrl(cg_en?valid_d3||ST_MM_L1_DISTANCE:1'b1), .a(fp_add_tree_in_a[2]), .b(fp_add_tree_in_b[2]), .rnd(3'b000), .z(fp_add_tree_out[2]), .status() );
@@ -1291,56 +1246,191 @@ begin
     end
 end
 
+// reg shut_adder_in_f[0:7];
+// always @(*)
+// begin
+//     // Initilization
+//     for(i=0;i<9;i=i+1)
+//         shut_adder_in_f[i] = 1'b1;
+
+//     for(i=0;i<9;i=i+1)
+//     begin
+//         if(adder_tree_in[i] == 0)
+//         begin
+//             shut_adder_in_f[i] = 1'b0;
+//         end
+//     end
+// end
+
 //--------------------------------------------
 //      EQ Datapath,6 adds d0
 //--------------------------------------------
-DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B0 ( .DG_ctrl(cg_en?eq_valid:1'b1),.a(adder_tree_in[0]), .b(adder_tree_in[1]), .rnd(3'b000), .z(eq_fp_add_out[0]), .status() );
-DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B1 ( .DG_ctrl(cg_en?eq_valid:1'b1),.a(adder_tree_in[2]), .b(adder_tree_in[3]), .rnd(3'b000), .z(eq_fp_add_out[1]), .status() );
-DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B2 (.DG_ctrl(cg_en?eq_valid:1'b1), .a(adder_tree_in[4]), .b(adder_tree_in[5]), .rnd(3'b000), .z(eq_fp_add_out[2]), .status() );
-DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B3 (.DG_ctrl(cg_en?eq_valid:1'b1), .a(adder_tree_in[6]), .b(adder_tree_in[7]), .rnd(3'b000), .z(eq_fp_add_out[3]), .status() );
 
-// Pipeline
-always @(posedge clk)
+reg bypass_adder_f[0:7];
+reg[DATA_WIDTH-1:0] bypass_adder_value[0:7];
+always @(*)
 begin
-    if(cg_en)
+    // Initilization
+    for(i=0;i<4;i=i+1)
     begin
-        if(eq_valid)
-        begin
-            adder_tree_pipe_d0[0] <= eq_fp_add_out[0];
-            adder_tree_pipe_d0[1] <= eq_fp_add_out[1];
-            adder_tree_pipe_d0[2] <= eq_fp_add_out[2];
-            adder_tree_pipe_d0[3] <= eq_fp_add_out[3];
-            adder_tree_pipe_d0[4] <= adder_tree_in[8];
-        end
+        bypass_adder_value[i] = 0;
+        bypass_adder_f[i]    = 1'b1;
+    end
+
+    //B0
+    if(adder_tree_in[0] == 0)
+    begin
+        bypass_adder_f[0] = 1'b0;
+        bypass_adder_value[0] = adder_tree_in[1];
+    end
+    else if(adder_tree_in[1] == 0)
+    begin
+        bypass_adder_f[0] = 1'b0;
+        bypass_adder_value[0] = adder_tree_in[0];
     end
     else
     begin
-        adder_tree_pipe_d0[0] <= eq_fp_add_out[0];
-        adder_tree_pipe_d0[1] <= eq_fp_add_out[1];
-        adder_tree_pipe_d0[2] <= eq_fp_add_out[2];
-        adder_tree_pipe_d0[3] <= eq_fp_add_out[3];
-        adder_tree_pipe_d0[4] <= adder_tree_in[8];
+        bypass_adder_f[0] = 1'b1;
+        bypass_adder_value[0] = 0;
+    end
+
+    //B1
+    if(adder_tree_in[2] == 0)
+    begin
+        bypass_adder_f[1] = 1'b0;
+        bypass_adder_value[1] = adder_tree_in[3];
+    end
+    else if(adder_tree_in[3] == 0)
+    begin
+        bypass_adder_f[1] = 1'b0;
+        bypass_adder_value[1] = adder_tree_in[2];
+    end
+    else
+    begin
+        bypass_adder_f[1] = 1'b1;
+        bypass_adder_value[1] = 0;
+    end
+
+    //B2
+    if(adder_tree_in[4] == 0)
+    begin
+        bypass_adder_f[2] = 1'b0;
+        bypass_adder_value[2] = adder_tree_in[2];
+    end
+    else if(adder_tree_in[5] == 0)
+    begin
+        bypass_adder_f[2] = 1'b0;
+        bypass_adder_value[2] = adder_tree_in[4];
+    end
+    else
+    begin
+        bypass_adder_f[2] = 1'b1;
+        bypass_adder_value[2] = 0;
+    end
+
+
+    //B3
+    if(adder_tree_in[6] == 0)
+    begin
+        bypass_adder_f[3] = 1'b0;
+        bypass_adder_value[3] = adder_tree_in[7];
+    end
+    else if(adder_tree_in[7] == 0)
+    begin
+        bypass_adder_f[3] = 1'b0;
+        bypass_adder_value[3] = adder_tree_in[6];
+    end
+    else
+    begin
+        bypass_adder_f[3] = 1'b1;
+        bypass_adder_value[3] = 0;
+    end
+end
+
+
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B0 ( .DG_ctrl(cg_en?(eq_valid&&bypass_adder_f[0]):1'b1),.a(adder_tree_in[0]), .b(adder_tree_in[1]), .rnd(3'b000), .z(eq_fp_add_out[0]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B1 ( .DG_ctrl(cg_en?(eq_valid&&bypass_adder_f[1]):1'b1),.a(adder_tree_in[2]), .b(adder_tree_in[3]), .rnd(3'b000), .z(eq_fp_add_out[1]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B2 (.DG_ctrl(cg_en?(eq_valid&&bypass_adder_f[2]):1'b1), .a(adder_tree_in[4]), .b(adder_tree_in[5]), .rnd(3'b000), .z(eq_fp_add_out[2]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B3 (.DG_ctrl(cg_en?(eq_valid&&bypass_adder_f[3]):1'b1), .a(adder_tree_in[6]), .b(adder_tree_in[7]), .rnd(3'b000), .z(eq_fp_add_out[3]), .status() );
+
+// Pipeline,adding more logics here, might leads to unknown?
+always @(posedge clk_eq[2])
+begin
+    adder_tree_pipe_d0[0] <= bypass_adder_f[0] == 1'b0 ? bypass_adder_value[0] : eq_fp_add_out[0];
+    adder_tree_pipe_d0[1] <= bypass_adder_f[1] == 1'b0 ? bypass_adder_value[1] : eq_fp_add_out[1];
+end
+
+always @(posedge clk_eq[3] )
+begin
+    adder_tree_pipe_d0[2] <= bypass_adder_f[2] == 1'b0 ? bypass_adder_value[2] : eq_fp_add_out[2];
+    adder_tree_pipe_d0[3] <= bypass_adder_f[3] == 1'b0 ? bypass_adder_value[3] : eq_fp_add_out[3];
+    adder_tree_pipe_d0[4] <= adder_tree_in[8];
+end
+
+
+
+always @(*)
+begin
+    // Initilization
+    for(i=4;i<6;i=i+1)
+    begin
+        bypass_adder_value[i] = 0;
+        bypass_adder_f[i]    = 1'b1;
+    end
+
+    //B4
+    if(adder_tree_pipe_d0[1] == 0)
+    begin
+        bypass_adder_f[4]     = 1'b0;
+        bypass_adder_value[4] = adder_tree_pipe_d0[2];
+    end
+    else if(adder_tree_pipe_d0[2] == 0)
+    begin
+        bypass_adder_f[4] = 1'b0;
+        bypass_adder_value[4] = adder_tree_pipe_d0[1];
+    end
+    else
+    begin
+        bypass_adder_f[4] = 1'b1;
+        bypass_adder_value[4] = 0;
+    end
+
+    //B5
+    if(adder_tree_pipe_d0[3] == 0)
+    begin
+        bypass_adder_f[5]     = 1'b0;
+        bypass_adder_value[5] = adder_tree_pipe_d0[4];
+    end
+    else if(adder_tree_pipe_d0[4] == 0)
+    begin
+        bypass_adder_f[5] = 1'b0;
+        bypass_adder_value[5] = adder_tree_pipe_d0[3];
+    end
+    else
+    begin
+        bypass_adder_f[5] = 1'b1;
+        bypass_adder_value[5] = 0;
     end
 end
 
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B4 (.DG_ctrl(cg_en?eq_valid_d0:1'b1), .a(adder_tree_pipe_d0[1]), .b(adder_tree_pipe_d0[2]), .rnd(3'b000), .z(eq_fp_add_out[4]), .status() );
+          fp_add_B4 (.DG_ctrl(cg_en?(eq_valid_d0&&bypass_adder_f[4]):1'b1), .a(adder_tree_pipe_d0[1]), .b(adder_tree_pipe_d0[2]), .rnd(3'b000), .z(eq_fp_add_out[4]), .status() );
 DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B5 (.DG_ctrl(cg_en?eq_valid_d0:1'b1), .a(adder_tree_pipe_d0[3]), .b(adder_tree_pipe_d0[4]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
+          fp_add_B5 (.DG_ctrl(cg_en?(eq_valid_d0&&bypass_adder_f[5]):1'b1), .a(adder_tree_pipe_d0[3]), .b(adder_tree_pipe_d0[4]), .rnd(3'b000), .z(eq_fp_add_out[5]), .status() );
 
-always @(posedge clk)
+always @(posedge clk_eq[0])
 begin
     if(cg_en)
     begin
         if(eq_valid_d0)
         begin
           adder_tree_pipe_d1[0] <= adder_tree_pipe_d0[0];
-          adder_tree_pipe_d1[1] <= eq_fp_add_out[4];
-          adder_tree_pipe_d1[2] <= eq_fp_add_out[5];
+          adder_tree_pipe_d1[1] <= bypass_adder_f[4]==1'b0 ?  bypass_adder_value[4]: eq_fp_add_out[4];
+          adder_tree_pipe_d1[2] <= bypass_adder_f[5]==1'b0 ?  bypass_adder_value[5]: eq_fp_add_out[5];
         end
     end
     else
@@ -1354,12 +1444,36 @@ end
 //-------------------------------------------
 //      EQ Datapath, 2 adds d1
 //-------------------------------------------
-DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B6 (.DG_ctrl(cg_en ? eq_valid_d1 :1'b1), .a(adder_tree_pipe_d1[0]), .b(adder_tree_pipe_d1[1]), .rnd(3'b000), .z(eq_fp_add_out[6]), .status() );
-DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-          fp_add_B7 (.DG_ctrl(cg_en ? eq_valid_d1 :1'b1), .a(adder_tree_pipe_d1[2]), .b(eq_fp_add_out[6]), .rnd(3'b000), .z(eq_fp_add_out[7]), .status() );
 
-always @(posedge clk)
+
+
+always @(*)
+begin
+    //B6
+    if(adder_tree_pipe_d1[0] == 0)
+    begin
+        bypass_adder_f[6]     = 1'b0;
+        bypass_adder_value[6] = adder_tree_pipe_d1[1];
+    end
+    else if(adder_tree_pipe_d1[1] == 0)
+    begin
+        bypass_adder_f[6] = 1'b0;
+        bypass_adder_value[6] = adder_tree_pipe_d1[0];
+    end
+    else
+    begin
+        bypass_adder_f[6] = 1'b1;
+        bypass_adder_value[6] = 0;
+    end
+end
+
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B6 (.DG_ctrl(cg_en ? (eq_valid_d1&&bypass_adder_f[6]) :1'b1), .a(adder_tree_pipe_d1[0]), .b(adder_tree_pipe_d1[1]), .rnd(3'b000), .z(eq_fp_add_out[6]), .status() );
+DW_fp_add_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
+          fp_add_B7 (.DG_ctrl(cg_en ? eq_valid_d1 :1'b1), .a(adder_tree_pipe_d1[2]),
+          .b((bypass_adder_f[6] == 1'b0)? bypass_adder_value[6]:eq_fp_add_out[6]), .rnd(3'b000), .z(eq_fp_add_out[7]), .status() );
+
+always @(posedge clk_eq[1])
 begin
     if(cg_en)
     begin
@@ -1538,11 +1652,10 @@ begin
         mm_cnt_d4 <= mm_cnt_d3;
     end
 end
-
 //---------------------------------------------------------------------
 //      Max Pooling DATAPATH
 //---------------------------------------------------------------------
-always @(posedge clk)
+always @(posedge clk_mp)
 begin
     if(mm_next_st == MM_MAX_POOLING || ST_MM_MAX_POOLING)
     begin
@@ -1689,6 +1802,18 @@ begin
     end
 end
 
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        fc_valid_d2 <= 0;
+    end
+    else
+    begin
+        fc_valid_d2 <= fc_valid_d1;
+    end
+end
+
 // Find min max during fc calculation
 always @(posedge clk_fc)
 begin
@@ -1714,13 +1839,10 @@ begin
     end
 end
 
-always @(posedge clk)
+always @(posedge clk_fc)
 begin
-    if(ST_MM_FC)
-    begin
-        fp_mult_fc_d1[0] <= fp_mult_FC_out[0];
-        fp_mult_fc_d1[1] <= fp_mult_FC_out[1];
-    end
+    fp_mult_fc_d1[0] <= fp_mult_FC_out[0];
+    fp_mult_fc_d1[1] <= fp_mult_FC_out[1];
 end
 
 always @(posedge clk)
@@ -1744,8 +1866,52 @@ end
 //---------------------------------------------------------------------
 //      NORM ACT DOMAIN
 //---------------------------------------------------------------------
+localparam  FP_E = 32'h402df854;
 wire[DATA_WIDTH-1:0] max_min_reci_out;
-always @(posedge clk)
+
+reg[1:0] norm_bypass_type_f,norm_bypass_type_f_d1,norm_bypass_type_f_d2; // 2 no bypass, since xmax 1, since xmin 0
+reg[1:0] norm_bypass_type_f_d3,norm_bypass_type_f_d4; // 2 no bypass, since xmax 1, since xmin 0
+
+localparam BYPASS = 2'd2;
+localparam XMAX   = 2'd1;
+localparam XMIN   = 2'd0;
+
+always @(*)
+begin
+    if(x_max_ff == fc_result_rf[0])
+        norm_bypass_type_f = XMAX;
+    else if(x_min_ff == fc_result_rf[0])
+        norm_bypass_type_f = XMIN;
+    else
+        norm_bypass_type_f = BYPASS;
+end
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        norm_bypass_type_f_d1 <= 2;
+        norm_bypass_type_f_d2 <= 2;
+        norm_bypass_type_f_d3 <= 2;
+        norm_bypass_type_f_d4 <= 2;
+    end
+    else if(~ST_MM_NORM_ACT)
+    begin
+        norm_bypass_type_f_d1 <= 2;
+        norm_bypass_type_f_d2 <= 2;
+        norm_bypass_type_f_d3 <= 2;
+        norm_bypass_type_f_d4 <= 2;
+    end
+    else
+    begin
+        norm_bypass_type_f_d1 <= norm_bypass_type_f;
+        norm_bypass_type_f_d2 <= norm_bypass_type_f_d1;
+        norm_bypass_type_f_d3 <= norm_bypass_type_f_d2;
+        norm_bypass_type_f_d4 <= norm_bypass_type_f_d3;
+    end
+end
+
+always @(posedge clk_norm_act[0])
 begin
     if(ST_MM_NORM_ACT && (mm_cnt == 0))
     begin
@@ -1770,12 +1936,14 @@ begin
     end
 end
 
-always @(posedge clk)
+always @(posedge clk_norm_act[0])
 begin
     if(cg_en)
     begin
-        if(norm_act_d1)
+        if(norm_act_d1&&norm_bypass_type_f_d1 == BYPASS)
+        begin
             activation_var_d2 <= negation;
+        end
     end
     else
     begin
@@ -1783,7 +1951,7 @@ begin
     end
 end
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk_norm_act[1] or negedge rst_n)
 begin
     if(~rst_n)
     begin
@@ -1800,7 +1968,7 @@ begin
         norm_act_d4 <= norm_act_d3;
     end
 end
-
+localparam ONE_HALF = 32'h3f000000;
 always @(posedge clk)
 begin
     if(~rst_n)
@@ -1820,31 +1988,46 @@ begin
         activation_result_rf[0][mm_img_cnt] <= activation_result_rf[1][mm_img_cnt];
         activation_result_rf[1][mm_img_cnt] <= activation_result_rf[2][mm_img_cnt];
         activation_result_rf[2][mm_img_cnt] <= activation_result_rf[3][mm_img_cnt];
-        activation_result_rf[3][mm_img_cnt] <= fp_div1_out;
+        activation_result_rf[3][mm_img_cnt] <= (norm_bypass_type_f_d4==XMIN) ?
+        ((opt_ff == 2 || opt_ff == 3)? 0 : ONE_HALF):fp_div1_out;
     end
 end
 
-always @(posedge clk)
+always @(posedge clk_norm_act[2])
 begin
-    if(ST_MM_NORM_ACT)
+    if(ST_MM_NORM_ACT && (norm_bypass_type_f==BYPASS))
     begin
-        fp_norm_sub0_out_d1  <= fp_addsub0_out;
+        fp_norm_sub0_out_d1 <= fp_addsub0_out;
     end
 end
 
-always @(posedge clk)
+localparam FP_E_NEG_ONE = 32'h3ebc5ab2;
+localparam FP_E_NEG_TWO = 32'h3e0a9555;
+
+always @(posedge clk_norm_act[3])
 begin
     if(norm_act_d2)
     begin
-        exp_pos_result_d3 <= exp_pos_result;
+        if(norm_bypass_type_f_d2 == XMAX)
+        begin
+            exp_pos_result_d3 <= (opt_ff==2 || opt_ff==3)? FP_E_NEG_TWO : FP_E_NEG_ONE;
+        end
+        else if(norm_bypass_type_f_d2 == XMIN)
+        begin
+            exp_pos_result_d3 <= FP_ONE;
+        end
+        else
+        begin
+            exp_pos_result_d3 <= exp_pos_result;
+        end
     end
 
-    if(ST_MM_NORM_ACT && norm_act_d3)
+    if(ST_MM_NORM_ACT && norm_act_d3 && (norm_bypass_type_f_d3 != XMIN))
     begin
         if(opt_ff == 0 || opt_ff == 1)
         begin
             //sigmoid
-            fp_add3_act_d4<= fp_addsub3_out;
+            fp_add3_act_d4 <=  fp_addsub3_out;
         end
         else
         begin
@@ -1903,10 +2086,12 @@ end
 
 always @(*)
 begin
-    abs_out_0_d1 =  (fp_addsub0_out[31] == 1) ? {1'b0,fp_addsub0_out[30:0]} : fp_addsub0_out;
-    abs_out_1_d1 =  (fp_addsub1_out[31] == 1) ? {1'b0,fp_addsub1_out[30:0]} : fp_addsub1_out;
-    abs_out_2_d1 =  (fp_addsub2_out[31] == 1) ? {1'b0,fp_addsub2_out[30:0]} : fp_addsub2_out;
-    abs_out_3_d1 =  (fp_addsub3_out[31] == 1) ? {1'b0,fp_addsub3_out[30:0]} : fp_addsub3_out;
+    begin
+        abs_out_0_d1 =  (fp_addsub0_out[31] == 1) ? {1'b0,fp_addsub0_out[30:0]} : fp_addsub0_out;
+        abs_out_1_d1 =  (fp_addsub1_out[31] == 1) ? {1'b0,fp_addsub1_out[30:0]} : fp_addsub1_out;
+        abs_out_2_d1 =  (fp_addsub2_out[31] == 1) ? {1'b0,fp_addsub2_out[30:0]} : fp_addsub2_out;
+        abs_out_3_d1 =  (fp_addsub3_out[31] == 1) ? {1'b0,fp_addsub3_out[30:0]} : fp_addsub3_out;
+    end
 end
 
 
@@ -2018,7 +2203,7 @@ DW_fp_mult_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance)
                             .inst_a   (  fp_mult_fc_in_a[0]),
                             .inst_b   (  fp_mult_fc_in_b[0]),
                             .inst_rnd ( 3'b000              ),
-                            .inst_DG_ctrl(cg_en ? ST_MM_FC || norm_act_d1:1'b1),
+                            .inst_DG_ctrl(cg_en ? ST_MM_FC || (norm_act_d1&&norm_bypass_type_f_d1==BYPASS) :1'b1),
                             .z_inst   (  fp_mult_FC_out[0]),
                             .status_inst  (   )
                         );
@@ -2026,7 +2211,7 @@ DW_fp_mult_DG_inst #(inst_sig_width,inst_exp_width,inst_ieee_compliance)
                         u_DW_fp_mult_FC1(
                             .inst_a   (   fp_mult_fc_in_a[1]),
                             .inst_b   (   fp_mult_fc_in_b[1]),
-                            .inst_DG_ctrl(cg_en ? ST_MM_FC || norm_act_d1:1'b1),
+                            .inst_DG_ctrl(cg_en ? ST_MM_FC || (norm_act_d1&&norm_bypass_type_f_d1==BYPASS) :1'b1),
                             .inst_rnd ( 3'b000              ),
                             .z_inst   (  fp_mult_FC_out[1] ),
                             .status_inst  (   )
@@ -2118,7 +2303,7 @@ DW_fp_div_DG_inst
         .inst_a      (    fp_div1_in_a[DATA_WIDTH-1:div_discarded_sig] ),
         .inst_b      (    fp_div1_in_b[DATA_WIDTH-1:div_discarded_sig] ),
         .inst_rnd    (3'b000    ),
-        .inst_DG_ctrl(norm_act_d4),
+        .inst_DG_ctrl(norm_act_d4&&(norm_bypass_type_f_d4!=XMIN)),
         .z_inst      (  div1_temp_out),
         .status_inst (  )
     );
@@ -2281,7 +2466,7 @@ end
 
 // Instance of DW_fp_addsub
 DW_fp_addsub_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-fp_addsub0_inst ( .DG_ctrl(ST_MM_FC||ST_MM_NORM_ACT||ST_MM_L1_DISTANCE),.a(fp_addsub0_in_a), .b(fp_addsub0_in_b), .rnd(3'b000),
+fp_addsub0_inst ( .DG_ctrl(ST_MM_FC||(ST_MM_NORM_ACT&&norm_bypass_type_f==BYPASS)||ST_MM_L1_DISTANCE),.a(fp_addsub0_in_a), .b(fp_addsub0_in_b), .rnd(3'b000),
 .op(fp_addsub0_mode), .z(fp_addsub0_out), .status() );
 
 // Instance of DW_fp_addsub
@@ -2291,12 +2476,12 @@ fp_addsub1_inst( .DG_ctrl((ST_MM_NORM_ACT||ST_MM_L1_DISTANCE||(ST_MM_NORM_ACT &&
 
 // Instance of DW_fp_addsub
 DW_fp_addsub_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-fp_addsub2_inst( .DG_ctrl(norm_act_d3||ST_MM_L1_DISTANCE),.a(fp_addsub2_in_a), .b(fp_addsub2_in_b), .rnd(3'b000),
+fp_addsub2_inst( .DG_ctrl((norm_act_d3&&(norm_bypass_type_f_d3 != XMIN))||ST_MM_L1_DISTANCE),.a(fp_addsub2_in_a), .b(fp_addsub2_in_b), .rnd(3'b000),
 .op(fp_addsub2_mode), .z(fp_addsub2_out), .status() );
 
 // Instance of DW_fp_addsub
 DW_fp_addsub_DG #(inst_sig_width, inst_exp_width, inst_ieee_compliance)
-fp_addsub3_inst(.DG_ctrl(norm_act_d3||ST_MM_L1_DISTANCE), .a(fp_addsub3_in_a), .b(fp_addsub3_in_b), .rnd(3'b000),
+fp_addsub3_inst(.DG_ctrl((norm_act_d3&&(norm_bypass_type_f_d3 != XMIN))||ST_MM_L1_DISTANCE), .a(fp_addsub3_in_a), .b(fp_addsub3_in_b), .rnd(3'b000),
 .op(fp_addsub3_mode), .z(fp_addsub3_out), .status() );
 
 endmodule
