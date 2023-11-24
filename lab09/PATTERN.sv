@@ -50,7 +50,15 @@ class rand_delay;
 	function new (int seed);
 		this.srandom(seed);
 	endfunction
-	constraint limit { delay inside {[1:4]}; } // Generates a delay between 1~4
+	constraint limit { delay inside {[0:3]}; } // Generates a delay between 1~4
+endclass
+
+class rand_gap;
+	rand int gap;
+	function new (int seed);
+		this.srandom(seed);
+	endfunction
+	constraint limit { gap inside {[1:3]}; } // Generates a delay between 1~4
 endclass
 
 class rand_bev_type;
@@ -121,6 +129,7 @@ rand_action   r_action   = new(SEED) ;
 rand_box_num  r_box_num  = new(SEED) ;
 rand_date     r_date     = new(SEED) ;
 rand_supply_amt r_supply_amt = new(SEED);
+rand_gap        r_gap        = new(SEED);
 
 
 //================================================================
@@ -133,9 +142,9 @@ initial begin
 	// current_box = { golden_DRAM[BASE_Addr+0], golden_DRAM[BASE_Addr+1], golden_DRAM[BASE_Addr+2], golden_DRAM[BASE_Addr+3],
     // golden_DRAM[BASE_Addr+4], golden_DRAM[BASE_Addr+5], golden_DRAM[BASE_Addr+6], golden_DRAM[BASE_Addr+7]};
     golden_no_box = 0;
-	$display("BOX 0");
-    get_box_info_task;
-    display_cur_gold_task;
+	// $display("BOX 0");
+    // get_box_info_task;
+    // display_box_info;
 
 	// reset output signals
 	inf.rst_n = 1'b1 ;
@@ -153,22 +162,27 @@ initial begin
 	//
 	@(negedge clk);
 	for( patcount=0 ; patcount<PATNUM ; patcount+=1 ) begin
-		// randomize, makes the r_give_id becomes a random number with the give constraints
+        $display("========================================================================");
+        $display("=                        PAT #No: %d                        =",patcount);
+        $display("========================================================================");
+        // randomize, makes the r_give_id becomes a random number with the give constraints
 		r_action.randomize();
+        // r_delay.randomize();
+        // r_gap.randomize();
 
 		golden_act  = r_action.action ;
 		//Start giving inputs
 		case(golden_act)
 			Make_drink: begin
-				$display("Make drink");
+				$display("                  Making drink                    ");
 				make_drink_task;
 			end
 			Supply: begin
-				$display("Supply");
+				$display("                  Supply                    ");
 				supply_task;
 			end
 			Check_Valid_Date: begin
-				$display("Checking valid date");
+				$display("                  Checking valid date                    ");
 				check_valid_date_task;
 			end
 		endcase
@@ -177,7 +191,7 @@ initial begin
 		wait_outvalid_task;
 		output_task;
 		//
-		delay_task;
+		random_gap_task;
 		//
 		case(color_stage)
             0: begin
@@ -202,7 +216,7 @@ initial begin
 	end
 	#(1000);
     YOU_PASS_task;
-    $finish;
+    // $finish;
 end
 
 //================================================================
@@ -212,7 +226,7 @@ task reset_task ; begin
 	#(2.0);	inf.rst_n = 0 ;
 	#(3.0);
 	if (inf.out_valid!==0 || inf.err_msg!==0 || inf.complete !== 0) begin
-		fail;
+		// fail;
         // Spec. 3
         // Using  asynchronous  reset  active  low  architecture. All  outputs  should  be zero after reset.
         $display ("--------------------------------------------------------------------------------------------------------------------------------------------");
@@ -220,7 +234,7 @@ task reset_task ; begin
         $display ("                                   All output signals should be reset after the reset signal is asserted.                                   ");
         $display ("--------------------------------------------------------------------------------------------------------------------------------------------");
         #(100);
-        //$finish;
+        $finish;
 	end
 	#(2.0);	inf.rst_n = 1 ;
 end endtask
@@ -230,21 +244,26 @@ task delay_task ; begin
 	for( i=0 ; i<r_delay.delay ; i++ )	@(negedge clk);
 end endtask
 
+task random_gap_task ; begin
+	r_gap.randomize();
+	for( i=0 ; i<r_gap.gap ; i++ )	@(negedge clk);
+end endtask
+
 task wait_outvalid_task; begin
 	cycles = 0 ;
 	while (inf.out_valid!==1)
     begin
 		cycles = cycles + 1 ;
 		if (cycles==1000) begin
-			fail;
+			// fail;
             // Spec. 8
             // Your latency should be less than 1200 cycle for each operation.
             $display ("--------------------------------------------------------------------------------------------------------------------------------------------");
-            $display ("                                                                SPEC 8 FAIL!                                                                ");
-            $display ("                                             The execution latency is limited in 1200 cycles.                                               ");
+            $display ("                                                                SPEC 4 FAIL!                                                                ");
+            $display ("                                             The execution latency is limited in 1000 cycles.                                               ");
             $display ("--------------------------------------------------------------------------------------------------------------------------------------------");
         	#(100);
-            //$finish;
+            $finish;
 		end
 		@(negedge clk);
 	end
@@ -267,7 +286,7 @@ task output_task; begin
 			$display ("          Outvalid is more than 1 cycles          ");
 			$display ("--------------------------------------------------");
 	        #(100);
-			//$finish;
+			$finish;
 		end
 		else if (golden_act==Make_drink)
         begin
@@ -279,9 +298,10 @@ task output_task; begin
     	    	$display("    Golden complete : %6d    your complete : %6d ", golden_complete, inf.complete);
     			$display("    Golden err_msg  : %6d    your err_msg  : %6d ", golden_err_msg, inf.err_msg);
     			$display("-----------------------------------------------------------");
-                get_box_info_task;
+                $display("Expected box info: \n");
+                display_box_info;
 		        #(100);
-    			//$finish;
+    			$finish;
     		end
     	end
 		else if (golden_act == Supply)
@@ -294,9 +314,10 @@ task output_task; begin
     	    	$display("    Golden complete : %6d    your complete : %6d ", golden_complete, inf.complete);
     			$display("    Golden err_msg  : %6d    your err_msg  : %6d ", golden_err_msg, inf.err_msg);
     			$display("-----------------------------------------------------------");
-                get_box_info_task;
+                $display("Expected box info: \n");
+                display_box_info;
 		        #(100);
-    			//$finish;
+    			$finish;
     		end
         end
         else if(golden_act == Check_Valid_Date)
@@ -308,9 +329,10 @@ task output_task; begin
     	    	$display("    Golden complete : %6d    your complete : %6d ", golden_complete, inf.complete);
     			$display("    Golden err_msg  : %6d    your err_msg  : %6d ", golden_err_msg, inf.err_msg);
     			$display("-----------------------------------------------------------");
-                get_box_info_task;
+                $display("Expected box info: \n");
+                display_box_info;
 		        #(100);
-    			//$finish;
+    			$finish;
     		end
         end
     end
@@ -322,17 +344,18 @@ endtask
 //================================================================
 //  get box info task
 //================================================================
-task display_cur_gold_task;
+task display_box_info;
 begin
-    $display("================================================================");
-    $display("                          Current Golden                        ");
-    $display("             Black tea = %h", golden_box_info.black_tea);
-    $display("             Green tea = %h", golden_box_info.green_tea);
-    $display("             Milk = %h", golden_box_info.milk);
-    $display("             Pineapple Juice = %h", golden_box_info.pineapple_juice);
-    $display("             Month = %h", golden_box_info.M);
-    $display("             Day = %h", golden_box_info.D);
-    $display("================================================================");
+    $display("=================================================================================================");
+    $display("                                       Current dram box info                                                   ");
+    $display("                          Box number:%d                                                            ",golden_no_box);
+    $display("                          Black tea: hex =  %h, dec = %d", golden_box_info.black_tea,golden_box_info.black_tea);
+    $display("                          Green tea: hex =  %h, dec = %d", golden_box_info.green_tea,golden_box_info.green_tea);
+    $display("                          Milk: hex =  %h, dec = %d", golden_box_info.milk,golden_box_info.milk);
+    $display("                          Pineapple Juice: hex =  %h, dec = %d", golden_box_info.pineapple_juice,golden_box_info.pineapple_juice);
+    $display("                          Month: hex =  %h, dec = %d", golden_box_info.M,golden_box_info.M);
+    $display("                          Day: hex =  %h, dec = %d", golden_box_info.D,golden_box_info.D);
+    $display("=================================================================================================");
 end
 endtask
 
@@ -347,6 +370,45 @@ begin
 	golden_box_info.D               =  golden_DRAM[BASE_Addr+golden_no_box*8 + 0];
 end
 endtask
+//================================================================
+//  Display current golden info
+//================================================================
+task display_current_golden_info;
+begin
+    case(golden_act)
+    Make_drink:
+    begin
+    $display("=================================================================================================");
+    $display("                                       Current golden info                                                   ");
+    $display("                          Box number:%d                                                            ",golden_no_box);
+    $display("                          Type:  %d", golden_type);
+    $display("                          Size:  %d", golden_size);
+    $display("                          Month:  %d", golden_date.M);
+    $display("                          Day:  %d", golden_date.D);
+    $display("=================================================================================================");
+    end
+    Supply:
+    begin
+    $display("=================================================================================================");
+    $display("                                       Current golden info                                                   ");
+    $display("                          Box number:%d                                                            ",golden_no_box);
+    $display("                          Month:  %d", golden_date.M);
+    $display("                          Day:  %d", golden_date.D);
+    $display("=================================================================================================");
+    end
+    Check_Valid_Date:
+    begin
+    $display("=================================================================================================");
+    $display("                                       Current golden info                                                   ");
+    $display("                          Box number:%d                                                            ",golden_no_box);
+    $display("                          Month:  %d", golden_date.M);
+    $display("                          Day:  %d", golden_date.D);
+    $display("=================================================================================================");
+    end
+    endcase
+end
+endtask
+
 
 int temp_black_tea;
 int temp_green_tea;
@@ -420,9 +482,10 @@ begin
     // Generate golden signals for output check uses
     // Pull out data from the ingredient box
     get_box_info_task;
-    display_cur_gold_task;
+    display_box_info;
     // Perform opeartion according to these ingredients.
     golden_complete = 1'b1;
+    display_current_golden_info;
     // First check expieration date
     if(golden_box_info.M >= golden_date.M && golden_box_info.D >= golden_date.D)
     begin
@@ -746,7 +809,6 @@ begin
             $display("===================================");
         end
         endcase
-
     end
     else
     begin
@@ -755,7 +817,9 @@ begin
         golden_err_msg  = No_Exp;
         golden_complete = 1'b0;
     end
+    // $display("Expected value writing back to DRAM\n");
     update_dram_info_task;
+    // display_box_info;
 end
 endtask
 //================================================================
@@ -765,7 +829,6 @@ int golden_supply_black_tea;
 int golden_supply_green_tea;
 int golden_supply_milk;
 int golden_supply_pineapple_juice;
-
 
 task supply_task;
 begin
@@ -790,6 +853,8 @@ begin
 
     // Giving box #no.
 	inf.box_no_valid = 1'b1;
+    r_box_num.randomize();
+    golden_no_box = r_box_num.box_num;
     inf.D  = golden_no_box;
     @(negedge clk);
     inf.box_no_valid = 1'b0;
@@ -802,7 +867,7 @@ begin
     golden_supply_black_tea = r_supply_amt.supply_amt;
     inf.D  = golden_supply_black_tea;
     @(negedge clk);
-    inf.box_no_valid = 1'b0;
+    inf.box_sup_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
@@ -812,7 +877,7 @@ begin
     golden_supply_green_tea = r_supply_amt.supply_amt;
     inf.D  = golden_supply_green_tea;
     @(negedge clk);
-    inf.box_no_valid = 1'b0;
+    inf.box_sup_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
@@ -822,7 +887,7 @@ begin
     golden_supply_milk = r_supply_amt.supply_amt;
     inf.D  = golden_supply_milk;
     @(negedge clk);
-    inf.box_no_valid = 1'b0;
+    inf.box_sup_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
@@ -832,7 +897,7 @@ begin
     golden_supply_pineapple_juice = r_supply_amt.supply_amt;
     inf.D  = golden_supply_pineapple_juice;
     @(negedge clk);
-    inf.box_no_valid = 1'b0;
+    inf.box_sup_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
@@ -840,10 +905,12 @@ begin
     // Generate golden signals for output check uses
     // Pull out data from the ingredient box
     get_box_info_task;
-    display_cur_gold_task;
+    display_box_info;
 
     // Perform opeartion according to these ingredients.
     golden_complete = 1'b1;
+
+    display_current_golden_info;
 
     // Generate golden result
     temp_black_tea = golden_box_info.black_tea;
@@ -872,14 +939,16 @@ begin
 
     if(temp_green_tea>4095) golden_box_info.green_tea = 4095; else golden_box_info.green_tea = temp_green_tea;
 
-    if(temp_milk>4095) golden_box_info.milk = 4095; else golden_box_info.milk = temp_milk;
+    if(temp_milk>4095)      golden_box_info.milk = 4095; else golden_box_info.milk = temp_milk;
 
     if(temp_pineapple_juice>4095) golden_box_info.pineapple_juice = 4095; else golden_box_info.pineapple_juice = temp_pineapple_juice;
 
-    // Updates the DRAM
+    // $display("Expected value writing back to DRAM\n");
     update_dram_info_task;
+    // display_box_info;
 end
 endtask
+
 //================================================================
 //  Check valid date
 //================================================================
@@ -887,7 +956,7 @@ task check_valid_date_task;
 begin
     // Generate Input actions
 	inf.sel_action_valid = 1'b1;
-    inf.D = golden_act;
+    inf.D = {10'b0,golden_act};
     @(negedge clk);
     inf.sel_action_valid = 1'b0;
     inf.D = 'bx;
@@ -918,9 +987,11 @@ begin
     // Golden signals for output check uses
     // Pull out data from the ingredient box
     get_box_info_task;
-    display_cur_gold_task;
+    // display_box_info;
     // Perform opeartion according to these ingredients.
     golden_complete = 1'b1;
+
+    display_current_golden_info;
 
     // Start checking outputs, no need for updates
     if(golden_box_info.M >= golden_date.M && golden_box_info.D >= golden_date.D)
@@ -961,7 +1032,7 @@ $display ("                                        Your execution cycles   = %5d
 $display ("                                        Your clock period       = %.1f ns                                             ", `CYCLE_TIME);
 $display ("                                        Total latency           = %.1f ns                                             ", total_cycles*`CYCLE_TIME );
 $display ("----------------------------------------------------------------------------------------------------------------------");
-$finish;
+// $finish;
 end endtask
 
 task fail; begin
