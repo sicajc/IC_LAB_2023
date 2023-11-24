@@ -99,20 +99,16 @@ class rand_date;
 		this.srandom(seed);
 	endfunction
 
-	constraint limit { month inside {[1:12]};}
-
-    if(month == 1 || month == 3 ||month == 5 || month == 7 || month == 8 || month == 10 || month == 12):
-    begin
-        constraint limit { day inside {[1:31]};}
-    end
-    else if(month == 4 || month == 6 || month == 9 || month == 11):
-    begin
-        constraint limit { day inside {[1:30]};}
-    end
-    else if(month == 2)
-    begin
-        constraint limit { day inside {[1:28]};}
-    end
+    // Constraint can only be used once.
+	constraint limit {
+        month inside {[1:12]};
+        if (month == 1 || month == 3 || month == 5 || month == 7 || month == 8 || month == 10 || month == 12)
+            day inside {[1:31]};
+        else if (month == 4 || month == 6 || month == 9 || month == 11)
+            day inside {[1:30]};
+        else if (month == 2)
+            day inside {[1:28]};
+    }
 endclass
 
 //
@@ -133,10 +129,13 @@ initial begin
 	// read in initial DRAM data
 	$readmemh(DRAM_p_r, golden_DRAM);
 	// initial deposit value
-	current_box = { golden_DRAM[BASE_Addr+0], golden_DRAM[BASE_Addr+1], golden_DRAM[BASE_Addr+2], golden_DRAM[BASE_Addr+3],
-    golden_DRAM[BASE_Addr+4], golden_DRAM[BASE_Addr+5], golden_DRAM[BASE_Addr+6], golden_DRAM[BASE_Addr+7]};
-
+	// current_box = { golden_DRAM[BASE_Addr+0], golden_DRAM[BASE_Addr+1], golden_DRAM[BASE_Addr+2], golden_DRAM[BASE_Addr+3],
+    // golden_DRAM[BASE_Addr+4], golden_DRAM[BASE_Addr+5], golden_DRAM[BASE_Addr+6], golden_DRAM[BASE_Addr+7]};
+    golden_no_box = 0;
 	$display("BOX 0 = %h", current_box);
+    get_box_info_task;
+    display_cur_gold_task;
+
 	// reset output signals
 	inf.rst_n = 1'b1 ;
 	inf.sel_action_valid = 1'b0 ;
@@ -220,7 +219,7 @@ task reset_task ; begin
         $display ("                                   All output signals should be reset after the reset signal is asserted.                                   ");
         $display ("--------------------------------------------------------------------------------------------------------------------------------------------");
         #(100);
-        $finish;
+        //$finish;
 	end
 	#(2.0);	inf.rst_n = 1 ;
 end endtask
@@ -244,7 +243,7 @@ task wait_outvalid_task; begin
             $display ("                                             The execution latency is limited in 1200 cycles.                                               ");
             $display ("--------------------------------------------------------------------------------------------------------------------------------------------");
         	#(100);
-            $finish;
+            //$finish;
 		end
 		@(negedge clk);
 	end
@@ -267,7 +266,7 @@ task output_task; begin
 			$display ("          Outvalid is more than 1 cycles          ");
 			$display ("--------------------------------------------------");
 	        #(100);
-			$finish;
+			//$finish;
 		end
 		else if (golden_act==Make_drink)
         begin
@@ -281,7 +280,7 @@ task output_task; begin
     			$display("-----------------------------------------------------------");
                 get_box_info_task;
 		        #(100);
-    			$finish;
+    			//$finish;
     		end
     	end
 		else if (golden_act == Supply)
@@ -296,7 +295,7 @@ task output_task; begin
     			$display("-----------------------------------------------------------");
                 get_box_info_task;
 		        #(100);
-    			$finish;
+    			//$finish;
     		end
         end
         else if(golden_act == Check_Valid_Date)
@@ -310,7 +309,7 @@ task output_task; begin
     			$display("-----------------------------------------------------------");
                 get_box_info_task;
 		        #(100);
-    			$finish;
+    			//$finish;
     		end
         end
     end
@@ -368,52 +367,52 @@ parameter L_size = 960;
 task make_drink_task;
 begin
 	// Generate Input actions
-	sel_action_valid = 1'b1;
+	inf.sel_action_valid = 1'b1;
     inf.D = golden_act;
     @(negedge clk);
-    sel_action_valid = 1'b0;
+    inf.sel_action_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
     // Generate Types, 8 types
-    type_valid = 1'b1;
+    inf.type_valid = 1'b1;
     r_bev_type.randomize();
     golden_type = r_bev_type.bev_type;
     inf.D  = golden_type;
     @(negedge clk);
-    type_valid = 1'b0;
+    inf.type_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
 	//Generate Size, 3 sizes
-    size_valid = 1'b1;
+    inf.size_valid = 1'b1;
     r_bev_size.randomize();
     golden_size = r_bev_size.bev_size;
     inf.D  = golden_size;
     @(negedge clk);
-    size_valid = 1'b0;
+    inf.size_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
 	// Give Today's Date
-    date_valid = 1'b1;
+    inf.date_valid = 1'b1;
     r_date.randomize();
     golden_date.D = r_date.day;
     golden_date.M = r_date.month;
 
     inf.D  = {3'b0,golden_date.M,golden_date.D};
     @(negedge clk);
-    date_valid = 1'b0;
+    inf.date_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
 	// Box #No.
-    box_no_valid= 1'b1;
+    inf.box_no_valid= 1'b1;
     r_box_num.randomize();
     golden_no_box = r_box_num.box_num;
     inf.D  = golden_no_box;
     @(negedge clk);
-    box_no_valid = 1'b0;
+    inf.box_no_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
@@ -433,16 +432,16 @@ begin
             // Determine the size
             case(golden_size)
             S:begin
-                temp_black_tea -= 480;
+                temp_black_tea -= S_size;
             end
             M:begin
-                temp_black_tea -= 720;
+                temp_black_tea -= M_size;
             end
             L:begin
-                temp_black_tea -= 960;
+                temp_black_tea -= L_size;
             end
             default:begin
-               $display("Size error!")
+               $display("Size error!");
             end
             endcase
 
@@ -484,7 +483,7 @@ begin
                 temp_milk      -= milk_need;
             end
             default:begin
-               $display("Size error!")
+               $display("Size error!");
             end
             endcase
 
@@ -527,7 +526,7 @@ begin
                 temp_milk      -= milk_need;
             end
             default:begin
-               $display("Size error!")
+               $display("Size error!");
             end
             endcase
 
@@ -557,7 +556,7 @@ begin
                 temp_green_tea -= L_size;
             end
             default:begin
-               $display("Size error!")
+               $display("Size error!");
             end
             endcase
 
@@ -599,7 +598,7 @@ begin
                 temp_milk      -= milk_need;
             end
             default:begin
-               $display("Size error!")
+               $display("Size error!");
             end
             endcase
 
@@ -629,7 +628,7 @@ begin
                 temp_pineapple_juice -= L_size;
             end
             default:begin
-               $display("Size error!")
+               $display("Size error!");
             end
             endcase
 
@@ -672,7 +671,7 @@ begin
                 temp_black_tea       -= black_tea_need;
             end
             default:begin
-               $display("Size error!")
+               $display("Size error!");
             end
             endcase
 
@@ -723,7 +722,7 @@ begin
                 temp_milk            -= milk_need;
             end
             default:begin
-               $display("Size error!")
+               $display("Size error!");
             end
             endcase
 
@@ -770,69 +769,69 @@ int golden_supply_pineapple_juice;
 task supply_task;
 begin
     // Generate Input actions
-	sel_action_valid = 1'b1;
+	inf.sel_action_valid = 1'b1;
     inf.D = golden_act;
     @(negedge clk);
-    sel_action_valid = 1'b0;
+    inf.sel_action_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
     // Giving date
-	date_valid = 1'b1;
+	inf.date_valid = 1'b1;
     r_date.randomize();
     golden_date.D = r_date.day;
     golden_date.M = r_date.month;
     inf.D  = {3'b0,golden_date.M,golden_date.D};
     @(negedge clk);
-    date_valid = 1'b0;
+    inf.date_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
     // Giving box #no.
-	box_no_valid = 1'b1;
+	inf.box_no_valid = 1'b1;
     inf.D  = golden_no_box;
     @(negedge clk);
-    box_no_valid = 1'b0;
+    inf.box_no_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
     //Black Tea
-	box_sup_valid = 1'b1;
-    r_supply_amt.randomize()
+	inf.box_sup_valid = 1'b1;
+    r_supply_amt.randomize();
     golden_supply_black_tea = r_supply_amt.supply_amt;
     inf.D  = golden_supply_black_tea;
     @(negedge clk);
-    box_no_valid = 1'b0;
+    inf.box_no_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
     //Green Tea
-	box_sup_valid = 1'b1;
-    r_supply_amt.randomize()
+	inf.box_sup_valid = 1'b1;
+    r_supply_amt.randomize();
     golden_supply_green_tea = r_supply_amt.supply_amt;
     inf.D  = golden_supply_green_tea;
     @(negedge clk);
-    box_no_valid = 1'b0;
+    inf.box_no_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
     //Milk
-	box_sup_valid = 1'b1;
-    r_supply_amt.randomize()
+	inf.box_sup_valid = 1'b1;
+    r_supply_amt.randomize();
     golden_supply_milk = r_supply_amt.supply_amt;
     inf.D  = golden_supply_milk;
     @(negedge clk);
-    box_no_valid = 1'b0;
+    inf.box_no_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
     //Pineapple juice
-	box_sup_valid = 1'b1;
-    r_supply_amt.randomize()
+	inf.box_sup_valid = 1'b1;
+    r_supply_amt.randomize();
     golden_supply_pineapple_juice = r_supply_amt.supply_amt;
     inf.D  = golden_supply_pineapple_juice;
     @(negedge clk);
-    box_no_valid = 1'b0;
+    inf.box_no_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
@@ -868,13 +867,13 @@ begin
         golden_complete = 1'b1;
     end
 
-    if(temp_black_tea>4095) golden_box_info.black_tea = 4095 else golden_box_info.black_tea = temp_black_tea;
+    if(temp_black_tea>4095) golden_box_info.black_tea = 4095; else golden_box_info.black_tea = temp_black_tea;
 
-    if(temp_green_tea>4095) golden_box_info.green_tea = 4095 else golden_box_info.green_tea = temp_green_tea;
+    if(temp_green_tea>4095) golden_box_info.green_tea = 4095; else golden_box_info.green_tea = temp_green_tea;
 
-    if(temp_milk>4095) golden_box_info.milk = 4095 else golden_box_info.milk = temp_milk;
+    if(temp_milk>4095) golden_box_info.milk = 4095; else golden_box_info.milk = temp_milk;
 
-    if(temp_pineapple_juice>4095) golden_box_info.pineapple_juice = 4095 else golden_box_info.pineapple_juice = temp_pineapple_juice;
+    if(temp_pineapple_juice>4095) golden_box_info.pineapple_juice = 4095; else golden_box_info.pineapple_juice = temp_pineapple_juice;
 
     // Updates the DRAM
     update_dram_info_task;
@@ -883,35 +882,35 @@ endtask
 //================================================================
 //  Check valid date
 //================================================================
-task check_valid_date_task
+task check_valid_date_task;
 begin
     // Generate Input actions
-	sel_action_valid = 1'b1;
+	inf.sel_action_valid = 1'b1;
     inf.D = golden_act;
     @(negedge clk);
-    sel_action_valid = 1'b0;
+    inf.sel_action_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
     // Give Today's Date
-    date_valid = 1'b1;
+    inf.date_valid = 1'b1;
     r_date.randomize();
     golden_date.D = r_date.day;
     golden_date.M = r_date.month;
 
     inf.D  = {3'b0,golden_date.M,golden_date.D};
     @(negedge clk);
-    date_valid = 1'b0;
+    inf.date_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
     // Box #No.
-    box_no_valid= 1'b1;
+    inf.box_no_valid= 1'b1;
     r_box_num.randomize();
     golden_no_box = r_box_num.box_num;
     inf.D  = golden_no_box;
     @(negedge clk);
-    box_no_valid = 1'b0;
+    inf.box_no_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
