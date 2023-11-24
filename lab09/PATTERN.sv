@@ -1,7 +1,8 @@
 `include "Usertype_BEV.sv"
 `include "../00_TESTBED/pseudo_DRAM.sv"
+`define CYCLE_TIME 10.0
 
-program automatic PATTERN_BEV(input clk, INF.PATTERN_BEV inf);
+program automatic PATTERN(input clk, INF.PATTERN inf);
 import usertype::*;
 
 //================================================================
@@ -132,7 +133,7 @@ initial begin
 	// current_box = { golden_DRAM[BASE_Addr+0], golden_DRAM[BASE_Addr+1], golden_DRAM[BASE_Addr+2], golden_DRAM[BASE_Addr+3],
     // golden_DRAM[BASE_Addr+4], golden_DRAM[BASE_Addr+5], golden_DRAM[BASE_Addr+6], golden_DRAM[BASE_Addr+7]};
     golden_no_box = 0;
-	$display("BOX 0 = %h", current_box);
+	$display("BOX 0");
     get_box_info_task;
     display_cur_gold_task;
 
@@ -329,8 +330,8 @@ begin
     $display("             Green tea = %h", golden_box_info.green_tea);
     $display("             Milk = %h", golden_box_info.milk);
     $display("             Pineapple Juice = %h", golden_box_info.pineapple_juice);
-    $display("             Month = %h", golden_box_info.month);
-    $display("             Day = %h", golden_box_info.day);
+    $display("             Month = %h", golden_box_info.M);
+    $display("             Day = %h", golden_box_info.D);
     $display("================================================================");
 end
 endtask
@@ -423,7 +424,7 @@ begin
     // Perform opeartion according to these ingredients.
     golden_complete = 1'b1;
     // First check expieration date
-    if(golden_box_info.month >= golden_date.M && golden_box_info.day >= golden_date.D)
+    if(golden_box_info.M >= golden_date.M && golden_box_info.D >= golden_date.D)
     begin
         // Then determine the drink I want to make
         case(golden_type)
@@ -922,7 +923,7 @@ begin
     golden_complete = 1'b1;
 
     // Start checking outputs, no need for updates
-    if(golden_box_info.month >= golden_date.M && golden_box_info.day >= golden_date.D)
+    if(golden_box_info.M >= golden_date.M && golden_box_info.D >= golden_date.D)
     begin
         golden_complete = 1'b1;
         golden_err_msg  = No_Err;
@@ -951,9 +952,6 @@ begin
 end
 endtask
 
-//================================================================
-//  pass/fail task
-//================================================================
 task YOU_PASS_task;begin
 $display ("----------------------------------------------------------------------------------------------------------------------");
 $display ("                                                  Congratulations!                                                    ");
