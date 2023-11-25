@@ -1,5 +1,5 @@
 `include "Usertype_BEV.sv"
-`include "../00_TESTBED/pseudo_DRAM.sv"
+// `include "../00_TESTBED/pseudo_DRAM.sv"
 `define CYCLE_TIME 10.0
 
 program automatic PATTERN(input clk, INF.PATTERN inf);
@@ -45,12 +45,12 @@ logic [31:0] golden_out_info;
 //  class
 //================================================================
 // First instantiate classes of RNG generator and add constraints for each needed element.
-class rand_delay;
+class rand_delay; // Delays for input valid signals
 	rand int delay;
 	function new (int seed);
 		this.srandom(seed);
 	endfunction
-	constraint limit { delay inside {[0:3]}; } // Generates a delay between 1~4
+	constraint limit { delay inside {[0:3]}; } // Generates a delay between 0~3
 endclass
 
 class rand_gap;
@@ -306,7 +306,7 @@ task output_task; begin
     	end
 		else if (golden_act == Supply)
         begin
-            $display("Checking make drink out data \n");
+            $display("Checking Supply out data \n");
     		if ( (inf.complete!==golden_complete) || (inf.err_msg!==golden_err_msg))
             begin
 				$display("-----------------------------------------------------------");
@@ -322,6 +322,7 @@ task output_task; begin
         end
         else if(golden_act == Check_Valid_Date)
         begin
+            $display("Checking Check valid date out data \n");
             if ( (inf.complete!==golden_complete) || (inf.err_msg!==golden_err_msg))
             begin
 				$display("-----------------------------------------------------------");
@@ -487,7 +488,7 @@ begin
     golden_complete = 1'b1;
     display_current_golden_info;
     // First check expieration date
-    if(golden_box_info.M >= golden_date.M && golden_box_info.D >= golden_date.D)
+    if((golden_box_info.M > golden_date.M) || ((golden_box_info.M == golden_date.M) && (golden_box_info.D >= golden_date.D)))
     begin
         // Then determine the drink I want to make
         case(golden_type)
@@ -943,6 +944,10 @@ begin
 
     if(temp_pineapple_juice>4095) golden_box_info.pineapple_juice = 4095; else golden_box_info.pineapple_juice = temp_pineapple_juice;
 
+    // The date must also gets updated when supplying
+    golden_box_info.M = golden_date.M;
+    golden_box_info.D = golden_date.D;
+
     // $display("Expected value writing back to DRAM\n");
     update_dram_info_task;
     // display_box_info;
@@ -993,8 +998,13 @@ begin
 
     display_current_golden_info;
 
-    // Start checking outputs, no need for updates
-    if(golden_box_info.M >= golden_date.M && golden_box_info.D >= golden_date.D)
+    // Start checking dates
+    if(golden_box_info.M > golden_date.M)
+    begin
+        golden_complete = 1'b1;
+        golden_err_msg  = No_Err;
+    end
+    else if(golden_box_info.M == golden_date.M && golden_box_info.D >= golden_date.D)
     begin
         golden_complete = 1'b1;
         golden_err_msg  = No_Err;
