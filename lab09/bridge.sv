@@ -3,8 +3,6 @@ module bridge(input clk, INF.bridge_inf inf);
 //  integer / genvar / parameter
 //================================================================
 //  MODE
-/*parameter MODE_READ  = 1'b1 ;
-parameter MODE_WRITE = 1'b0 ;*/
 //  FSM
 parameter ST_IDLE        = 3'd0 ;
 parameter ST_AXI_RD_ADDR = 3'd1 ;
@@ -31,9 +29,9 @@ wire axi_wr_data_resp_f = inf.B_VALID && inf.B_READY;
 //================================================================
 // main fsm
 //================================================================
-always_ff @( posedge clk or negedge rst_n)
+always_ff @( posedge clk or negedge inf.rst_n)
 begin
-    if(~rst_n)
+    if(~inf.rst_n)
     begin
         cur_st <= ST_IDLE;
     end
@@ -53,9 +51,9 @@ end
 //================================================================
 // Datapath
 //================================================================
-always_ff @( posedge clk or negedge rst_n )
+always_ff @( posedge clk or negedge inf.rst_n )
 begin
-    if(~rst_n)
+    if(~inf.rst_n)
     begin
         in_data_ff <= 0;
         inf.C_out_valid <= 0;
@@ -109,14 +107,14 @@ begin
                 inf.AR_VALID <= 0;
                 inf.AR_ADDR  <= 0;
 
-                inf.R_VALID  <= 1;
+                inf.R_READY  <= 1;
             end
         end
         ST_AXI_RD_DATA:
         begin
             if(axi_rd_data_tx_f)
             begin
-                inf.R_VALID     <= 0;
+                inf.R_READY     <= 0;
                 inf.C_data_r    <= inf.R_DATA;
                 inf.C_out_valid <= 1;
             end
