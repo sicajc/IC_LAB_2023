@@ -20,6 +20,7 @@ typedef enum logic [3:0]{
     WB_DRAM,
     OUT_MSG
 } state_t;
+parameter BASE_Addr = 65536 ;
 
 // REGISTERS
 state_t state, nstate;
@@ -38,7 +39,7 @@ logic[8:0] black_tea_amt_ff,green_tea_amt_ff,milk_amt_ff,pineapple_juice_amt_ff;
 
 
 
-logic complete_ff;
+logic complete_ff,complete_wr;
 logic[2:0] cnt;
 
 logic make_drink_f  = cur_act == Make_drink;
@@ -61,12 +62,15 @@ begin
     case(state)
         IDLE:
         begin
-            if(make_drink_f)
-                nstate = MAKE_DRINK_TYPE;
-            else if(supply_f || check_valid_f)
-                nstate = RD_DATES;
-            else
-                nstate = IDLE;
+            if(inf.sel_action_valid)
+            begin
+                if(inf.D.d_act == Make_drink)
+                    nstate = MAKE_DRINK_TYPE;
+                else if(inf.D.d_act == Supply || inf.D.d_act == Check_Valid_Date)
+                    nstate = RD_DATES;
+                else
+                    nstate = IDLE;
+            end
         end
         MAKE_DRINK_TYPE:
         begin
@@ -123,7 +127,7 @@ begin
         end
         WB_DRAM:
         begin
-            nstate = C_out_valid ? OUT_MSG : WB_DRAM;
+            nstate = inf.C_out_valid ? OUT_MSG : WB_DRAM;
         end
         OUT_MSG:
         begin
@@ -139,11 +143,11 @@ begin
     begin
         cnt <= 0;
     end
-    else if(cur_act == GET_SUPPLIES)
+    else if(state == GET_SUPPLIES)
     begin
         if(supply_received_f)
             cnt <= 0;
-        else if(box_sup_valid)
+        else if(inf.box_sup_valid)
             cnt <= cnt + 1;
     end
 end
@@ -153,9 +157,9 @@ always_ff @( posedge clk or negedge inf.rst_n )
 begin: Inputs
     if(~inf.rst_n)
     begin
-        cur_act     <= 0;
-        bev_type_ff <= 0;
-        bev_size_ff <= 0;
+        cur_act     <= Make_drink;
+        bev_type_ff <= Black_Tea;
+        bev_size_ff <= S;
         date_ff     <= 0;
         box_no_ff   <= 0;
         black_tea_amt_ff<=0;
@@ -165,7 +169,7 @@ begin: Inputs
     end
     else
     begin
-        case(cur_st)
+        case(state)
         IDLE:
         begin
             if(inf.sel_action_valid) cur_act <= inf.D.d_act;
@@ -208,16 +212,16 @@ begin
     if(~inf.rst_n)
     begin
         inf.out_valid <= 0;
-        inf.err_msg   <= 0;
+        inf.err_msg   <= No_Err;
         inf.complete  <= 0;
     end
-    else if(cur_st == IDLE)
+    else if(state == IDLE)
     begin
         inf.out_valid <= 0;
-        inf.err_msg   <= 0;
+        inf.err_msg   <= No_Err;
         inf.complete  <= 0;
     end
-    else if(cur_st == OUT_MSG)
+    else if(state == OUT_MSG)
     begin
         inf.out_valid <= 1;
         inf.err_msg   <= error_result_ff;
@@ -225,7 +229,7 @@ begin
     end
 end
 
-logic[7:0] rd_addr,wb_addr;
+logic[7:0] box_addr;
 logic valid_hold_f;
 
 // AXI bridge and data
@@ -236,10 +240,9 @@ begin
         inf.C_addr <= 0;
         inf.C_r_wb <= 0;
         inf.C_in_valid <= 0;
-        inf.C_data_w <= 0;
         valid_hold_f <= 0;
     end
-    else if(cur_act == RD_DRAM)
+    else if(state == RD_DRAM)
     begin
         if(inf.C_out_valid)
         begin
@@ -249,14 +252,14 @@ begin
         end
         else
         begin
-            inf.C_addr <= rd_addr;
+            inf.C_addr <= box_addr;
             inf.C_r_wb <= 1;
             // Restrict C invalid for only 1 cycle
             valid_hold_f   <= (inf.C_in_valid == 1) ? 1 : 0;
             inf.C_in_valid <= valid_hold_f ? 0 : 1;
         end
     end
-    else if(cur_st == WB_DRAM)
+    else if(state == WB_DRAM)
     begin
         if(inf.C_out_valid)
         begin
@@ -266,7 +269,7 @@ begin
         end
         else
         begin
-            inf.C_addr <= wb_addr;
+            inf.C_addr <= box_no_ff;
             inf.C_r_wb <= 0;
             // Restrict C invalid for only 1 cycle
             valid_hold_f   <= (inf.C_in_valid == 1) ? 1 : 0;
@@ -275,19 +278,64 @@ begin
     end
 end
 
+// Write back register
 always_ff @( posedge clk or negedge inf.rst_n )
 begin
     if(~inf.rst_n)
         inf.C_data_w <= 0;
-    else if(cur_st == IDLE)
+    else if(state == IDLE)
         inf.C_data_w <= 0;
-    else if(cur_st == WB_DRAM)
+    else if(state == WB_DRAM)
         inf.C_data_w <= bev_barrel_ff;
     else
         inf.C_data_w <= 0;
 end
 
+// Make drink, supply, check date logics.
+always_comb
+begin
+    // Initilization
+    complete_wr     = 1'b1;
+    error_result = No_Err;
 
+    case({make_drink_f,supply_f,check_valid_f})
+    3'b100:
+    begin
 
+    end
+    3'b010:
+    begin
+
+    end
+    3'b001:
+    begin
+
+    end
+    default:
+    begin
+        complete_wr     = 1'b1;
+        error_result = No_Err;
+    end
+    endcase
+end
+
+always_ff @( posedge clk or negedge inf.rst_n )
+begin
+    if(~inf.rst_n)
+    begin
+        complete_ff <= 1'b1;
+        error_result_ff <= No_Err;
+    end
+    else if(state==IDLE)
+    begin
+        complete_ff <= 1'b1;
+        error_result_ff <= No_Err;
+    end
+    else if(state == MAKE_DRINK || state == CHECK_DATE || state == SUPPLY)
+    begin
+        complete_ff <= complete_wr;
+        error_result_ff <= error_result;
+    end
+end
 
 endmodule
