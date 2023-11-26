@@ -2,20 +2,22 @@ module bridge(input clk, INF.bridge_inf inf);
 //================================================================
 //  integer / genvar / parameter
 //================================================================
+typedef enum logic [3:0]{
+    ST_IDLE,
+    ST_AXI_RD_ADDR,
+    ST_AXI_RD_DATA,
+    ST_AXI_WR_ADDR,
+    ST_AXI_WR_DATA,
+    ST_AXI_WR_RESP,
+    ST_DONE
+} state_t;
 //  MODE
 //  FSM
-parameter ST_IDLE        = 3'd0 ;
-parameter ST_AXI_RD_ADDR = 3'd1 ;
-parameter ST_AXI_RD_DATA = 3'd2 ;
-parameter ST_AXI_WR_ADDR = 3'd3 ;
-parameter ST_AXI_WR_DATA = 3'd4 ;
-parameter ST_AXI_WR_RESP = 3'd5 ;
-parameter ST_DONE        = 3'd6 ;
 //================================================================
 // logic
 //================================================================
-logic[2:0] cur_st;
-logic[63:0] in_data_ff;
+state_t cur_st;
+Bev_dram_in in_data_ff;
 logic[7:0] in_addr_ff;
 
 wire read_dram_f  = inf.C_r_wb == 1'b1;
@@ -39,7 +41,7 @@ begin
     begin
         case(cur_st)
         ST_IDLE:            cur_st <= inf.C_in_valid ? (read_dram_f ? ST_AXI_RD_ADDR:ST_AXI_WR_ADDR):ST_IDLE;
-        ST_AXI_RD_ADDR:     cur_st <= axi_rd_addr_tx_f ? ST_AXI_RD_DATA : ST_AXI_RD_DATA;
+        ST_AXI_RD_ADDR:     cur_st <= axi_rd_addr_tx_f ? ST_AXI_RD_DATA : ST_AXI_RD_ADDR;
         ST_AXI_RD_DATA:     cur_st <= axi_rd_data_tx_f ? ST_IDLE : ST_AXI_RD_DATA;
         ST_AXI_WR_ADDR:     cur_st <= axi_wr_addr_tx_f ? ST_AXI_WR_DATA : ST_AXI_WR_ADDR;
         ST_AXI_WR_DATA:     cur_st <= axi_wr_data_tx_f ? ST_AXI_WR_RESP : ST_AXI_WR_DATA;
@@ -48,6 +50,7 @@ begin
         endcase
     end
 end
+
 //================================================================
 // Datapath
 //================================================================
@@ -78,16 +81,15 @@ begin
             if(inf.C_in_valid)
             begin
                 in_data_ff <= inf.C_data_w;
-
                 if(read_dram_f)
                 begin
-                    inf.AW_VALID <= 1;
-                    inf.AW_ADDR  <= inf.C_addr;
+                    inf.AR_VALID <= 1;
+                    inf.AR_ADDR  <= {{6'b10_0000},inf.C_addr,3'b000};
                 end
                 else
                 begin
-                    inf.AR_VALID <= 1;
-                    inf.AR_ADDR  <= inf.C_addr;
+                    inf.AW_VALID <= 1;
+                    inf.AW_ADDR  <= {{6'b10_0000},inf.C_addr,3'b000};
                 end
             end
             else
@@ -110,6 +112,7 @@ begin
                 inf.R_READY  <= 1;
             end
         end
+
         ST_AXI_RD_DATA:
         begin
             if(axi_rd_data_tx_f)
@@ -125,6 +128,7 @@ begin
             begin
                 inf.W_DATA   <= in_data_ff;
                 inf.W_VALID  <= 1;
+                inf.AW_ADDR  <= 0;
                 inf.AW_VALID <= 0;
             end
         end
