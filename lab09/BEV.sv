@@ -26,8 +26,8 @@ parameter BASE_Addr = 65536 ;
 state_t state, nstate;
 
 Action      cur_act;
-Error_Msg   error_result;
-Error_Msg   error_result_ff;
+Error_Msg   err_result;
+Error_Msg   err_result_ff;
 Bev_Type    bev_type_ff;
 Bev_Size    bev_size_ff;
 Date        date_ff;
@@ -52,12 +52,12 @@ assign check_valid_f = cur_act == Check_Valid_Date;
 logic supply_received_f ;
 assign supply_received_f = cnt == 3 && inf.box_sup_valid;
 logic make_drink_err_f  ;
-assign make_drink_err_f = error_result == No_Exp || error_result == No_Ing;
+assign make_drink_err_f = err_result == No_Exp || err_result == No_Ing;
 logic supply_err_f     ;
-assign supply_err_f  = error_result == Ing_OF;
+assign supply_err_f  = err_result == Ing_OF;
 
 logic check_date_err_f ;
-assign check_date_err_f  = error_result == No_Exp;
+assign check_date_err_f  = err_result == No_Exp;
 
 // STATE MACHINE
 always_ff @( posedge clk or negedge inf.rst_n) begin : TOP_FSM_SEQ
@@ -238,7 +238,7 @@ begin
     else if(state == OUT_MSG)
     begin
         inf.out_valid <= 1;
-        inf.err_msg   <= error_result_ff;
+        inf.err_msg   <= err_result_ff;
         inf.complete  <= complete_ff;
     end
 end
@@ -309,7 +309,7 @@ end
 logic expired_f;
 assign expired_f = ~((dram_data_ff.M > date_ff.M) || (dram_data_ff.M == date_ff.M && dram_data_ff.D >= date_ff.D));
 
-logic signed[14:0] temp_black_tea_amt,temp_green_tea_amt,temp_milk_amt,temp_pineapple_juice_amt;
+logic signed[13:0] temp_black_tea_amt,temp_green_tea_amt,temp_milk_amt,temp_pineapple_juice_amt;
 
 logic black_tea_of_f;
 logic green_tea_of_f;
@@ -321,10 +321,10 @@ logic green_tea_run_out_f;
 logic milk_run_out_f;
 logic pineapple_juice_run_out_f;
 
-assign black_tea_of_f            =             temp_black_tea_amt > 4095;
-assign green_tea_of_f            =             temp_green_tea_amt > 4095;
-assign milk_of_f                 =             temp_milk_amt      > 4095;
-assign pineapple_juice_of_f      =             temp_pineapple_juice_amt > 4095;
+assign black_tea_of_f            =                  temp_black_tea_amt > 4095;
+assign green_tea_of_f            =                  temp_green_tea_amt > 4095;
+assign milk_of_f                 =                  temp_milk_amt      > 4095;
+assign pineapple_juice_of_f      =                  temp_pineapple_juice_amt > 4095;
 
 assign black_tea_run_out_f            =             temp_black_tea_amt < 0;
 assign green_tea_run_out_f            =             temp_green_tea_amt < 0;
@@ -341,7 +341,7 @@ always_comb
 begin
     // Initilization
     complete_wr     = 1'b1;
-    error_result = No_Err;
+    err_result = No_Err;
 
     temp_black_tea_amt       = dram_data_ff.black_tea;
     temp_green_tea_amt       = dram_data_ff.green_tea;
@@ -355,7 +355,7 @@ begin
         begin
            // Initilization
            complete_wr     = 1'b0;
-           error_result    = No_Exp;
+           err_result    = No_Exp;
         end
         else
         begin
@@ -382,7 +382,7 @@ begin
                 if(black_tea_run_out_f)
                 begin
                     complete_wr = 1'b0;
-                    error_result = No_Ing;
+                    err_result = No_Ing;
                 end
             end
             Milk_Tea:
@@ -412,7 +412,7 @@ begin
                 if(black_tea_run_out_f || milk_run_out_f)
                 begin
                     complete_wr = 1'b0;
-                    error_result = No_Ing;
+                    err_result = No_Ing;
                 end
             end
             Extra_Milk_Tea:
@@ -441,7 +441,7 @@ begin
                 if(black_tea_run_out_f || milk_run_out_f)
                 begin
                     complete_wr = 1'b0;
-                    error_result = No_Ing;
+                    err_result = No_Ing;
                 end
             end
             Green_Tea:
@@ -465,7 +465,7 @@ begin
                 if(green_tea_run_out_f)
                 begin
                     complete_wr = 1'b0;
-                    error_result = No_Ing;
+                    err_result = No_Ing;
                 end
             end
             Green_Milk_Tea:
@@ -494,7 +494,7 @@ begin
                 if(green_tea_run_out_f || milk_run_out_f)
                 begin
                     complete_wr = 1'b0;
-                    error_result = No_Ing;
+                    err_result = No_Ing;
                 end
             end
             Pineapple_Juice:
@@ -518,7 +518,7 @@ begin
                 if(pineapple_juice_run_out_f)
                 begin
                     complete_wr = 1'b0;
-                    error_result = No_Ing;
+                    err_result = No_Ing;
                 end
             end
             Super_Pineapple_Tea:
@@ -546,7 +546,7 @@ begin
                 if(pineapple_juice_run_out_f || black_tea_run_out_f)
                 begin
                     complete_wr = 1'b0;
-                    error_result = No_Ing;
+                    err_result = No_Ing;
                 end
             end
             Super_Pineapple_Milk_Tea:
@@ -579,7 +579,7 @@ begin
                 if(pineapple_juice_run_out_f || black_tea_run_out_f || milk_run_out_f)
                 begin
                     complete_wr = 1'b0;
-                    error_result = No_Ing;
+                    err_result = No_Ing;
                 end
             end
             endcase
@@ -595,7 +595,7 @@ begin
         if(milk_of_f||black_tea_of_f||green_tea_of_f||pineapple_juice_of_f)
         begin
             complete_wr  = 1'b0;
-            error_result = Ing_OF;
+            err_result = Ing_OF;
         end
     end
     3'b001:
@@ -604,13 +604,13 @@ begin
        begin
           // Initilization
           complete_wr     = 1'b0;
-          error_result    = No_Exp;
+          err_result    = No_Exp;
        end
     end
     default:
     begin
         complete_wr     = 1'b1;
-        error_result = No_Err;
+        err_result = No_Err;
     end
     endcase
 end
@@ -620,17 +620,17 @@ begin
     if(~inf.rst_n)
     begin
         complete_ff <= 1'b1;
-        error_result_ff <= No_Err;
+        err_result_ff <= No_Err;
     end
     else if(state==IDLE)
     begin
         complete_ff <= 1'b1;
-        error_result_ff <= No_Err;
+        err_result_ff <= No_Err;
     end
     else if(state == MAKE_DRINK || state == CHECK_DATE || state == SUPPLY)
     begin
         complete_ff <= complete_wr;
-        error_result_ff <= error_result;
+        err_result_ff <= err_result;
     end
 end
 
