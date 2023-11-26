@@ -82,6 +82,16 @@ typedef union packed{
 // Type your user define type here
 //#################################
 
+typedef struct packed {
+    ING black_tea;
+    ING green_tea;
+    Month M;
+    ING milk;
+    ING pineapple_juice;
+    Day D;
+} Bev_dram_in; // Ingredient Barrel
+
+
 //################################################## Don't revise the code below
 endpackage
 import usertype::*; //import usertype into $unit

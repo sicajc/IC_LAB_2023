@@ -32,23 +32,32 @@ Bev_Type    bev_type_ff;
 Bev_Size    bev_size_ff;
 Date        date_ff;
 Bev_Bal     bev_barrel_ff;
-
+Bev_dram_in dram_data_ff;
+Bev_dram_in dram_result_wr;
 
 logic[8:0] box_no_ff;
-logic[8:0] black_tea_amt_ff,green_tea_amt_ff,milk_amt_ff,pineapple_juice_amt_ff;
-
+logic[11:0] black_tea_amt_ff,green_tea_amt_ff,milk_amt_ff,pineapple_juice_amt_ff;
 
 
 logic complete_ff,complete_wr;
 logic[2:0] cnt;
 
-logic make_drink_f  = cur_act == Make_drink;
-logic supply_f      = cur_act == Supply;
-logic check_valid_f = cur_act == Check_Valid_Date;
-logic supply_received_f = cnt == 3 && inf.box_sup_valid;
-logic make_drink_err_f  = error_result == No_Exp || error_result == No_Ing;
-logic supply_err_f      = error_result == Ing_OF;
-logic check_date_err_f  = error_result == No_Exp;
+logic make_drink_f  ;
+assign make_drink_f = cur_act == Make_drink;
+logic supply_f      ;
+assign supply_f     = cur_act == Supply;
+logic check_valid_f ;
+assign check_valid_f = cur_act == Check_Valid_Date;
+
+logic supply_received_f ;
+assign supply_received_f = cnt == 3 && inf.box_sup_valid;
+logic make_drink_err_f  ;
+assign make_drink_err_f = error_result == No_Exp || error_result == No_Ing;
+logic supply_err_f     ;
+assign supply_err_f  = error_result == Ing_OF;
+
+logic check_date_err_f ;
+assign check_date_err_f  = error_result == No_Exp;
 
 // STATE MACHINE
 always_ff @( posedge clk or negedge inf.rst_n) begin : TOP_FSM_SEQ
@@ -86,12 +95,13 @@ begin
         end
         RD_BOX_NO:
         begin
-            if(make_drink_f || check_valid_f)
-                nstate = RD_DRAM;
-            else if(supply_f)
-                nstate = GET_SUPPLIES;
-            else
-                nstate = RD_BOX_NO;
+            if(inf.box_no_valid)
+            begin
+                if(make_drink_f || check_valid_f)
+                    nstate = RD_DRAM;
+                else if(supply_f)
+                    nstate = GET_SUPPLIES;
+            end
         end
         GET_SUPPLIES:
         begin
@@ -146,9 +156,13 @@ begin
     else if(state == GET_SUPPLIES)
     begin
         if(supply_received_f)
-            cnt <= 0;
+            cnt <= cnt;
         else if(inf.box_sup_valid)
             cnt <= cnt + 1;
+    end
+    else if(state == IDLE)
+    begin
+        cnt <= 0;
     end
 end
 
@@ -188,7 +202,7 @@ begin: Inputs
         end
         RD_BOX_NO:
         begin
-            if(inf.box_sup_valid) box_no_ff <= inf.D.d_box_no;
+            if(inf.box_no_valid) box_no_ff <= inf.D.d_box_no;
         end
         GET_SUPPLIES:
         begin
@@ -229,7 +243,7 @@ begin
     end
 end
 
-logic[7:0] box_addr;
+// logic[7:0] box_addr;
 logic valid_hold_f;
 
 // AXI bridge and data
@@ -252,10 +266,11 @@ begin
         end
         else
         begin
-            inf.C_addr <= box_addr;
+            inf.C_addr <= box_no_ff;
             inf.C_r_wb <= 1;
             // Restrict C invalid for only 1 cycle
-            valid_hold_f   <= (inf.C_in_valid == 1) ? 1 : 0;
+            valid_hold_f   <= 1;
+
             inf.C_in_valid <= valid_hold_f ? 0 : 1;
         end
     end
@@ -272,7 +287,7 @@ begin
             inf.C_addr <= box_no_ff;
             inf.C_r_wb <= 0;
             // Restrict C invalid for only 1 cycle
-            valid_hold_f   <= (inf.C_in_valid == 1) ? 1 : 0;
+            valid_hold_f   <= 1;
             inf.C_in_valid <= valid_hold_f ? 0 : 1;
         end
     end
@@ -286,10 +301,25 @@ begin
     else if(state == IDLE)
         inf.C_data_w <= 0;
     else if(state == WB_DRAM)
-        inf.C_data_w <= bev_barrel_ff;
+        inf.C_data_w <= dram_data_ff;
     else
         inf.C_data_w <= 0;
 end
+
+logic expired_f;
+
+assign expired_f = ~((dram_data_ff.M > date_ff.M) || (dram_data_ff.M == date_ff.M && dram_data_ff.D >= date_ff.D));
+logic[12:0] temp_black_tea_amt,temp_green_tea_amt,temp_milk_amt,temp_pineapple_juice_amt;
+
+logic black_tea_of_f;
+logic green_tea_of_f;
+logic milk_of_f;
+logic pineapple_juice_of_f;
+
+assign black_tea_of_f            =             temp_black_tea_amt > 4095;
+assign green_tea_of_f            =             temp_green_tea_amt > 4095;
+assign milk_of_f                 =             temp_milk_amt      > 4095;
+assign pineapple_juice_of_f      =             temp_pineapple_juice_amt > 4095;
 
 // Make drink, supply, check date logics.
 always_comb
@@ -297,6 +327,10 @@ begin
     // Initilization
     complete_wr     = 1'b1;
     error_result = No_Err;
+    temp_black_tea_amt = 0;
+    temp_green_tea_amt = 0;
+    temp_milk_amt = 0;
+    temp_pineapple_juice_amt = 0;
 
     case({make_drink_f,supply_f,check_valid_f})
     3'b100:
@@ -305,11 +339,24 @@ begin
     end
     3'b010:
     begin
-
+        temp_black_tea_amt       = black_tea_amt_ff + dram_data_ff.black_tea;
+        temp_green_tea_amt       = green_tea_amt_ff + dram_data_ff.green_tea;
+        temp_milk_amt            = milk_amt_ff      + dram_data_ff.milk;
+        temp_pineapple_juice_amt = pineapple_juice_amt_ff + dram_data_ff.pineapple_juice;
+        if(milk_of_f||black_tea_of_f||green_tea_of_f||pineapple_juice_of_f)
+        begin
+            complete_wr  = 1'b0;
+            error_result = Ing_OF;
+        end
     end
     3'b001:
     begin
-
+       if(expired_f)
+       begin
+          // Initilization
+          complete_wr     = 1'b0;
+          error_result    = No_Exp;
+       end
     end
     default:
     begin
@@ -335,6 +382,24 @@ begin
     begin
         complete_ff <= complete_wr;
         error_result_ff <= error_result;
+    end
+end
+
+//Dram data in
+always_ff @( posedge clk or negedge inf.rst_n )
+begin
+    if(~inf.rst_n)
+        dram_data_ff <= 0;
+    else if(inf.C_out_valid && state==RD_DRAM)
+        dram_data_ff <= inf.C_data_r;
+    else if(state == SUPPLY)
+    begin
+        dram_data_ff.black_tea       <= black_tea_of_f ? 4095 : temp_black_tea_amt;
+        dram_data_ff.green_tea       <= green_tea_of_f ? 4095 : temp_black_tea_amt;
+        dram_data_ff.milk            <= milk_of_f      ? 4095 : temp_milk_amt;
+        dram_data_ff.pineapple_juice <= pineapple_juice_of_f ? 4095 : temp_pineapple_juice_amt;
+        dram_data_ff.M               <= date_ff.M;
+        dram_data_ff.D               <= date_ff.D;
     end
 end
 
