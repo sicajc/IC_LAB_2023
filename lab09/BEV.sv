@@ -18,8 +18,7 @@ typedef enum logic [3:0]{
     MAKE_DRINK,
     SUPPLY,
     CHECK_DATE,
-    WB_DRAM,
-    OUT_MSG
+    WB_DRAM
 } state_t;
 parameter BASE_Addr = 65536 ;
 
@@ -331,17 +330,6 @@ parameter S_size = 480;
 parameter M_size = 720;
 parameter L_size = 960;
 
-always_comb
-begin
-    if(expired_f)
-    begin
-        complete_wr     = 1'b0;
-        err_result    = No_Exp;
-
-    end
-
-end
-
 // Make drink, supply, check date logics.
 always_comb
 begin
@@ -409,11 +397,6 @@ begin
                     temp_milk_amt      -= (L_size/4)*1;
                 end
                 endcase
-                // if(black_tea_run_out_f || milk_run_out_f)
-                // begin
-                //     complete_wr = 1'b0;
-                //     err_result = No_Ing;
-                // end
             end
             Extra_Milk_Tea:
             begin
@@ -436,11 +419,6 @@ begin
                     temp_milk_amt      -= (L_size/2)*1;
                 end
                 endcase
-                // if(black_tea_run_out_f || milk_run_out_f)
-                // begin
-                //     complete_wr = 1'b0;
-                //     err_result = No_Ing;
-                // end
             end
             Green_Tea:
             begin
@@ -459,11 +437,6 @@ begin
                     temp_green_tea_amt -= L_size;
                 end
                 endcase
-                // if(green_tea_run_out_f)
-                // begin
-                //     complete_wr = 1'b0;
-                //     err_result = No_Ing;
-                // end
             end
             Green_Milk_Tea:
             begin
@@ -486,11 +459,6 @@ begin
                     temp_milk_amt      -= (L_size/2);
                 end
                 endcase
-                // if(green_tea_run_out_f || milk_run_out_f)
-                // begin
-                //     complete_wr = 1'b0;
-                //     err_result = No_Ing;
-                // end
             end
             Pineapple_Juice:
             begin
@@ -509,11 +477,6 @@ begin
                     temp_pineapple_juice_amt -= L_size;
                 end
                 endcase
-                // if(pineapple_juice_run_out_f)
-                // begin
-                //     complete_wr = 1'b0;
-                //     err_result = No_Ing;
-                // end
             end
             Super_Pineapple_Tea:
             begin
@@ -536,11 +499,6 @@ begin
                     temp_pineapple_juice_amt    -= (L_size/2)*1;
                 end
                 endcase
-                // if(pineapple_juice_run_out_f || black_tea_run_out_f)
-                // begin
-                //     complete_wr = 1'b0;
-                //     err_result = No_Ing;
-                // end
             end
             Super_Pineapple_Milk_Tea:
             begin
@@ -567,11 +525,6 @@ begin
                     temp_milk_amt               -= (L_size/4)*1;
                 end
                 endcase
-                // if(pineapple_juice_run_out_f || black_tea_run_out_f || milk_run_out_f)
-                // begin
-                //     complete_wr = 1'b0;
-                //     err_result = No_Ing;
-                // end
             end
             endcase
 
@@ -600,7 +553,7 @@ begin
        if(expired_f)
        begin
           complete_wr     = 1'b0;
-          err_result    = No_Exp;
+          err_result      = No_Exp;
        end
     end
 end

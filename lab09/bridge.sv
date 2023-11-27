@@ -17,7 +17,7 @@ typedef enum logic [3:0]{
 // logic
 //================================================================
 state_t cur_st;
-Bev_dram_in in_data_ff;
+logic[63:0] in_data_ff;
 logic[7:0] in_addr_ff;
 
 wire read_dram_f  = inf.C_r_wb == 1'b1;
@@ -60,14 +60,14 @@ begin
     begin
         in_data_ff <= 0;
         inf.C_out_valid <= 0;
-        inf.C_data_r <= 0;
+        // inf.C_data_r <= 0;
         inf.AR_VALID <= 0;
         inf.AR_ADDR <= 0;
         inf.R_READY <= 0;
         inf.AW_VALID <= 0;
         inf.AW_ADDR <= 0;
         inf.W_VALID <= 0;
-        inf.W_DATA <= 0;
+        // inf.W_DATA <= 0;
         inf.B_READY <= 0;
     end
     else
@@ -76,7 +76,7 @@ begin
         ST_IDLE:
         begin
             inf.C_out_valid <= 0;
-            inf.C_data_r <= 0;
+            // inf.C_data_r <= 0;
 
             if(inf.C_in_valid)
             begin
@@ -99,7 +99,7 @@ begin
 
             inf.R_READY <= 0;
             inf.W_VALID <= 0;
-            inf.W_DATA  <= 0;
+            // inf.W_DATA  <= 0;
             inf.B_READY <= 0;
         end
         ST_AXI_RD_ADDR:
@@ -112,13 +112,12 @@ begin
                 inf.R_READY  <= 1;
             end
         end
-
         ST_AXI_RD_DATA:
         begin
             if(axi_rd_data_tx_f)
             begin
                 inf.R_READY     <= 0;
-                inf.C_data_r    <= inf.R_DATA;
+                in_data_ff      <= inf.R_DATA;
                 inf.C_out_valid <= 1;
             end
         end
@@ -126,7 +125,7 @@ begin
         begin
             if(axi_wr_addr_tx_f)
             begin
-                inf.W_DATA   <= in_data_ff;
+                // inf.W_DATA   <= in_data_ff;
                 inf.W_VALID  <= 1;
                 inf.AW_ADDR  <= 0;
                 inf.AW_VALID <= 0;
@@ -136,7 +135,7 @@ begin
         begin
             if(axi_wr_data_tx_f)
             begin
-                inf.W_DATA  <= 0;
+                // inf.W_DATA  <= 0;
                 inf.W_VALID <= 0;
                 inf.B_READY <= 1;
             end
@@ -152,5 +151,8 @@ begin
         endcase
     end
 end
+// Add one state to prevent C_data_r getting incorrect value
+assign inf.W_DATA   = cur_st == ST_AXI_WR_DATA ? in_data_ff : 0;
+assign inf.C_data_r = cur_st == ST_IDLE        ? in_data_ff : 0;
 
 endmodule
