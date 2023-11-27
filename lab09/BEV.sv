@@ -36,12 +36,12 @@ Bev_Bal     bev_barrel_ff;
 Bev_dram_in dram_data_ff;
 Bev_dram_in dram_result_wr;
 
-logic[8:0] box_no_ff;
+logic[7:0] box_no_ff;
 logic[11:0] black_tea_amt_ff,green_tea_amt_ff,milk_amt_ff,pineapple_juice_amt_ff;
 
 
 logic complete_ff,complete_wr;
-logic[2:0] cnt;
+logic[1:0] cnt;
 
 logic make_drink_f  ;
 assign make_drink_f = cur_act == Make_drink;
@@ -132,21 +132,17 @@ begin
         end
         MAKE_DRINK:
         begin
-            nstate = make_drink_err_f ? OUT_MSG : WB_DRAM;
+            nstate = make_drink_err_f ? IDLE : WB_DRAM;
         end
         CHECK_DATE:
         begin
-            nstate = OUT_MSG;
+            nstate = IDLE;
         end
         SUPPLY:
         begin
             nstate = WB_DRAM;
         end
         WB_DRAM:
-        begin
-            nstate = OUT_MSG;
-        end
-        OUT_MSG:
         begin
             nstate = IDLE;
         end
@@ -173,22 +169,9 @@ begin
     end
 end
 
-// Datapath
-always_ff @( posedge clk or negedge inf.rst_n )
+// Datapath, rewrite this seperately and remove rst_n
+always_ff @( posedge clk )
 begin: Inputs
-    if(~inf.rst_n)
-    begin
-        cur_act     <= Make_drink;
-        bev_type_ff <= Black_Tea;
-        bev_size_ff <= S;
-        date_ff     <= 0;
-        box_no_ff   <= 0;
-        black_tea_amt_ff<=0;
-        green_tea_amt_ff<=0;
-        milk_amt_ff<=0;
-        pineapple_juice_amt_ff<=0;
-    end
-    else
     begin
         case(state)
         IDLE:
@@ -227,7 +210,7 @@ begin: Inputs
     end
 end
 
-//Outputs, complete, err_msg,out valid
+//Outputs, complete, err_msg,out valid.
 always_ff @( posedge clk or negedge inf.rst_n )
 begin
     if(~inf.rst_n)
@@ -236,17 +219,17 @@ begin
         inf.err_msg   <= No_Err;
         inf.complete  <= 0;
     end
-    else if(state == IDLE)
+    else if(state == IDLE || state==WB_DRAM)
     begin
         inf.out_valid <= 0;
         inf.err_msg   <= No_Err;
         inf.complete  <= 0;
     end
-    else if(state == OUT_MSG)
+    else if(state == MAKE_DRINK || state==CHECK_DATE || state == SUPPLY)
     begin
         inf.out_valid <= 1;
-        inf.err_msg   <= err_result_ff;
-        inf.complete  <= complete_ff;
+        inf.err_msg   <= err_result;
+        inf.complete  <= complete_wr;
     end
 end
 
@@ -292,7 +275,7 @@ begin
             inf.C_in_valid <= valid_hold_f ? 0 : 1;
         end
     end
-    else if(wb_busy_flag_ff)
+    else if(wb_busy_flag_ff || nstate == WB_DRAM)
     begin
         if(inf.C_out_valid)
         begin
@@ -311,17 +294,13 @@ begin
     end
 end
 
-// Write back register
-always_ff @( posedge clk or negedge inf.rst_n )
+// Write back register, removes this make it combinational to save area
+always_comb
 begin
-    if(~inf.rst_n)
-        inf.C_data_w <= 0;
-    else if(state == IDLE)
-        inf.C_data_w <= 0;
-    else if(wb_busy_flag_ff)
-        inf.C_data_w <= dram_data_ff;
+    if(state == WB_DRAM)
+        inf.C_data_w = dram_data_ff;
     else
-        inf.C_data_w <= 0;
+        inf.C_data_w = 0;
 end
 
 logic expired_f;
@@ -339,10 +318,10 @@ logic green_tea_run_out_f;
 logic milk_run_out_f;
 logic pineapple_juice_run_out_f;
 
-assign black_tea_of_f            =                  temp_black_tea_amt > 4095;
-assign green_tea_of_f            =                  temp_green_tea_amt > 4095;
-assign milk_of_f                 =                  temp_milk_amt      > 4095;
-assign pineapple_juice_of_f      =                  temp_pineapple_juice_amt > 4095;
+assign black_tea_of_f                 =                  temp_black_tea_amt > 4095;
+assign green_tea_of_f                 =                  temp_green_tea_amt > 4095;
+assign milk_of_f                      =                  temp_milk_amt      > 4095;
+assign pineapple_juice_of_f           =                  temp_pineapple_juice_amt > 4095;
 
 assign black_tea_run_out_f            =             temp_black_tea_amt < 0;
 assign green_tea_run_out_f            =             temp_green_tea_amt < 0;
@@ -366,8 +345,7 @@ begin
     temp_milk_amt            = dram_data_ff.milk;
     temp_pineapple_juice_amt = dram_data_ff.pineapple_juice;
 
-    case({make_drink_f,supply_f,check_valid_f})
-    3'b100:
+    if(make_drink_f)
     begin
         if(expired_f)
         begin
@@ -381,7 +359,6 @@ begin
             Black_Tea:
             begin
                 temp_black_tea_amt = dram_data_ff.black_tea;
-
                 case(bev_size_ff)
                 S:
                 begin
@@ -396,7 +373,6 @@ begin
                     temp_black_tea_amt -= L_size;
                 end
                 endcase
-
                 if(black_tea_run_out_f)
                 begin
                     complete_wr = 1'b0;
@@ -407,7 +383,6 @@ begin
             begin
                 temp_black_tea_amt = dram_data_ff.black_tea;
                 temp_milk_amt      = dram_data_ff.milk;
-
                 case(bev_size_ff)
                 S:
                 begin
@@ -418,7 +393,6 @@ begin
                 begin
                     temp_black_tea_amt -= (M_size/4)*3;
                     temp_milk_amt      -= (M_size/4)*1;
-
                 end
                 L:
                 begin
@@ -426,7 +400,6 @@ begin
                     temp_milk_amt      -= (L_size/4)*1;
                 end
                 endcase
-
                 if(black_tea_run_out_f || milk_run_out_f)
                 begin
                     complete_wr = 1'b0;
@@ -437,7 +410,6 @@ begin
             begin
                 temp_black_tea_amt = dram_data_ff.black_tea;
                 temp_milk_amt      = dram_data_ff.milk;
-
                 case(bev_size_ff)
                 S:
                 begin
@@ -455,7 +427,6 @@ begin
                     temp_milk_amt      -= (L_size/2)*1;
                 end
                 endcase
-
                 if(black_tea_run_out_f || milk_run_out_f)
                 begin
                     complete_wr = 1'b0;
@@ -479,7 +450,6 @@ begin
                     temp_green_tea_amt -= L_size;
                 end
                 endcase
-
                 if(green_tea_run_out_f)
                 begin
                     complete_wr = 1'b0;
@@ -490,7 +460,6 @@ begin
             begin
                 temp_green_tea_amt = dram_data_ff.green_tea;
                 temp_milk_amt      = dram_data_ff.milk;
-
                 case(bev_size_ff)
                 S:
                 begin
@@ -508,7 +477,6 @@ begin
                     temp_milk_amt      -= (L_size/2);
                 end
                 endcase
-
                 if(green_tea_run_out_f || milk_run_out_f)
                 begin
                     complete_wr = 1'b0;
@@ -532,7 +500,6 @@ begin
                     temp_pineapple_juice_amt -= L_size;
                 end
                 endcase
-
                 if(pineapple_juice_run_out_f)
                 begin
                     complete_wr = 1'b0;
@@ -560,7 +527,6 @@ begin
                     temp_pineapple_juice_amt    -= (L_size/2)*1;
                 end
                 endcase
-
                 if(pineapple_juice_run_out_f || black_tea_run_out_f)
                 begin
                     complete_wr = 1'b0;
@@ -572,7 +538,6 @@ begin
                 temp_black_tea_amt = dram_data_ff.black_tea;
                 temp_pineapple_juice_amt = dram_data_ff.pineapple_juice;
                 temp_milk_amt  = dram_data_ff.milk;
-
                 case(bev_size_ff)
                 S:
                 begin
@@ -593,7 +558,6 @@ begin
                     temp_milk_amt               -= (L_size/4)*1;
                 end
                 endcase
-
                 if(pineapple_juice_run_out_f || black_tea_run_out_f || milk_run_out_f)
                 begin
                     complete_wr = 1'b0;
@@ -603,7 +567,7 @@ begin
             endcase
         end
     end
-    3'b010:
+    else if(supply_f)
     begin
         temp_black_tea_amt       = black_tea_amt_ff + dram_data_ff.black_tea;
         temp_green_tea_amt       = green_tea_amt_ff + dram_data_ff.green_tea;
@@ -616,48 +580,20 @@ begin
             err_result = Ing_OF;
         end
     end
-    3'b001:
+    else
     begin
        if(expired_f)
        begin
-          // Initilization
           complete_wr     = 1'b0;
           err_result    = No_Exp;
        end
     end
-    default:
-    begin
-        complete_wr     = 1'b1;
-        err_result = No_Err;
-    end
-    endcase
-end
-
-always_ff @( posedge clk or negedge inf.rst_n )
-begin
-    if(~inf.rst_n)
-    begin
-        complete_ff <= 1'b1;
-        err_result_ff <= No_Err;
-    end
-    else if(state==IDLE)
-    begin
-        complete_ff <= 1'b1;
-        err_result_ff <= No_Err;
-    end
-    else if(state == MAKE_DRINK || state == CHECK_DATE || state == SUPPLY)
-    begin
-        complete_ff <= complete_wr;
-        err_result_ff <= err_result;
-    end
 end
 
 //Dram data in
-always_ff @( posedge clk or negedge inf.rst_n )
+always_ff @( posedge clk )
 begin
-    if(~inf.rst_n)
-        dram_data_ff <= 0;
-    else if(inf.C_out_valid && state==RD_DRAM)
+    if(inf.C_out_valid && state==RD_DRAM)
         dram_data_ff <= inf.C_data_r;
     else if(state == SUPPLY)
     begin
