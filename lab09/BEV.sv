@@ -12,7 +12,9 @@ typedef enum logic [3:0]{
     MAKE_DRINK_SIZE,
     RD_DATES,
     RD_BOX_NO,
+    EARLY_CHECK_DATE,
     GET_SUPPLIES,
+    WAIT_WB_BRIDGE,
     RD_DRAM,
     MAKE_DRINK,
     SUPPLY,
@@ -59,6 +61,14 @@ assign supply_err_f  = err_result == Ing_OF;
 logic check_date_err_f ;
 assign check_date_err_f  = err_result == No_Exp;
 
+logic wb_busy_flag_ff;
+
+logic[1:0] date_cache_rf[0:255];
+logic early_check_data_f;
+
+assign early_check_data_f    = (date_ff.M > 7) || (date_ff.M == 7 && date_ff.D>23);
+assign early_check_differs_f = (early_check_data_f == 1'b1 && date_cache_rf[box_no_ff][0]==1'b0) && (date_cache_rf[box_no_ff][1]==1'b1);
+
 // STATE MACHINE
 always_ff @( posedge clk or negedge inf.rst_n) begin : TOP_FSM_SEQ
     if (!inf.rst_n) state <= IDLE;
@@ -98,14 +108,22 @@ begin
             if(inf.box_no_valid)
             begin
                 if(make_drink_f || check_valid_f)
-                    nstate = RD_DRAM;
+                    nstate = EARLY_CHECK_DATE;
                 else if(supply_f)
                     nstate = GET_SUPPLIES;
             end
         end
+        EARLY_CHECK_DATE:
+        begin
+            nstate =  early_check_differs_f ? OUT_MSG: WAIT_WB_BRIDGE;
+        end
         GET_SUPPLIES:
         begin
-            nstate = supply_received_f ? RD_DRAM : GET_SUPPLIES;
+            nstate = supply_received_f ? WAIT_WB_BRIDGE : GET_SUPPLIES;
+        end
+        WAIT_WB_BRIDGE:
+        begin
+            nstate = wb_busy_flag_ff ? WAIT_WB_BRIDGE : RD_DRAM;
         end
         RD_DRAM:
         begin
@@ -137,7 +155,7 @@ begin
         end
         WB_DRAM:
         begin
-            nstate = inf.C_out_valid ? OUT_MSG : WB_DRAM;
+            nstate = OUT_MSG;
         end
         OUT_MSG:
         begin
@@ -220,6 +238,24 @@ begin: Inputs
     end
 end
 
+logic gt_threshold_date;
+assign gt_threshold_date = (dram_data_ff.M > 7) || (dram_data_ff.M == 7 && dram_data_ff.D>23);
+
+integer i;
+// Date cache
+always_ff @( posedge clk or negedge inf.rst_n )
+begin
+    if(~inf.rst_n)
+    begin
+        for(i=0;i<255;i=i+1)
+            date_cache_rf[i] <= 0;
+    end
+    else if(state==CHECK_DATE || state==WB_DRAM)
+    begin
+        date_cache_rf[box_no_ff] <= {1'b1,gt_threshold_date};
+    end
+end
+
 //Outputs, complete, err_msg,out valid
 always_ff @( posedge clk or negedge inf.rst_n )
 begin
@@ -241,6 +277,17 @@ begin
         inf.err_msg   <= err_result_ff;
         inf.complete  <= complete_ff;
     end
+end
+
+// WB FLAG
+always_ff @(  posedge clk or negedge inf.rst_n)
+begin
+    if(~inf.rst_n)
+        wb_busy_flag_ff <= 0;
+    else if(inf.C_out_valid)
+        wb_busy_flag_ff <= 0;
+    else if(nstate==WB_DRAM)
+        wb_busy_flag_ff <= 1;
 end
 
 // logic[7:0] box_addr;
@@ -274,7 +321,7 @@ begin
             inf.C_in_valid <= valid_hold_f ? 0 : 1;
         end
     end
-    else if(state == WB_DRAM)
+    else if(wb_busy_flag_ff)
     begin
         if(inf.C_out_valid)
         begin
@@ -300,7 +347,7 @@ begin
         inf.C_data_w <= 0;
     else if(state == IDLE)
         inf.C_data_w <= 0;
-    else if(state == WB_DRAM)
+    else if(wb_busy_flag_ff)
         inf.C_data_w <= dram_data_ff;
     else
         inf.C_data_w <= 0;
@@ -626,6 +673,14 @@ begin
     begin
         complete_ff <= 1'b1;
         err_result_ff <= No_Err;
+    end
+    else if(state==EARLY_CHECK_DATE)
+    begin
+        if(early_check_differs_f)
+        begin
+            complete_ff <= 1'b0;
+            err_result_ff <= No_Exp;
+        end
     end
     else if(state == MAKE_DRINK || state == CHECK_DATE || state == SUPPLY)
     begin
