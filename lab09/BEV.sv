@@ -169,43 +169,41 @@ begin
     end
 end
 
+
 // Datapath, rewrite this seperately and remove rst_n
-always_ff @( posedge clk )
-begin: Inputs
+always_ff @( posedge clk)
+begin
+    if(inf.sel_action_valid && state==IDLE)
     begin
-        case(state)
-        IDLE:
-        begin
-            if(inf.sel_action_valid) cur_act <= inf.D.d_act;
-        end
-        MAKE_DRINK_TYPE:
-        begin
-            if(inf.type_valid) bev_type_ff <= inf.D.d_type;
-        end
-        MAKE_DRINK_SIZE:
-        begin
-            if(inf.size_valid) bev_size_ff <= inf.D.d_size;
-        end
-        RD_DATES:
-        begin
-            if(inf.date_valid) date_ff <= inf.D.d_date;
-        end
-        RD_BOX_NO:
-        begin
-            if(inf.box_no_valid) box_no_ff <= inf.D.d_box_no;
-        end
-        GET_SUPPLIES:
-        begin
-            if(inf.box_sup_valid)
-            begin
-                case(cnt)
-                0: black_tea_amt_ff <= inf.D.d_ing;
-                1: green_tea_amt_ff <= inf.D.d_ing;
-                2: milk_amt_ff <= inf.D.d_ing;
-                3: pineapple_juice_amt_ff <= inf.D.d_ing;
-                endcase
-            end
-        end
+        cur_act <= inf.D.d_act;
+    end
+end
+always_ff @( posedge clk )
+begin
+    if(inf.type_valid && state==MAKE_DRINK_TYPE) bev_type_ff <= inf.D.d_type;
+end
+always_ff @( posedge clk )
+begin
+   if(inf.size_valid && state == MAKE_DRINK_SIZE) bev_size_ff <= inf.D.d_size;
+end
+always_ff @( posedge clk )
+begin
+   if(inf.date_valid && state == RD_DATES) date_ff <= inf.D.d_date;
+end
+always_ff @( posedge clk )
+begin
+    if(inf.box_no_valid && state==RD_BOX_NO) box_no_ff <= inf.D.d_box_no;
+end
+
+always_ff @( posedge clk )
+begin
+    if(inf.box_sup_valid && state==GET_SUPPLIES)
+    begin
+        case(cnt)
+        0: black_tea_amt_ff <= inf.D.d_ing;
+        1: green_tea_amt_ff <= inf.D.d_ing;
+        2: milk_amt_ff <= inf.D.d_ing;
+        3: pineapple_juice_amt_ff <= inf.D.d_ing;
         endcase
     end
 end
@@ -333,6 +331,17 @@ parameter S_size = 480;
 parameter M_size = 720;
 parameter L_size = 960;
 
+always_comb
+begin
+    if(expired_f)
+    begin
+        complete_wr     = 1'b0;
+        err_result    = No_Exp;
+
+    end
+
+end
+
 // Make drink, supply, check date logics.
 always_comb
 begin
@@ -373,11 +382,11 @@ begin
                     temp_black_tea_amt -= L_size;
                 end
                 endcase
-                if(black_tea_run_out_f)
-                begin
-                    complete_wr = 1'b0;
-                    err_result = No_Ing;
-                end
+                // if(black_tea_run_out_f)
+                // begin
+                //     complete_wr = 1'b0;
+                //     err_result = No_Ing;
+                // end
             end
             Milk_Tea:
             begin
@@ -400,11 +409,11 @@ begin
                     temp_milk_amt      -= (L_size/4)*1;
                 end
                 endcase
-                if(black_tea_run_out_f || milk_run_out_f)
-                begin
-                    complete_wr = 1'b0;
-                    err_result = No_Ing;
-                end
+                // if(black_tea_run_out_f || milk_run_out_f)
+                // begin
+                //     complete_wr = 1'b0;
+                //     err_result = No_Ing;
+                // end
             end
             Extra_Milk_Tea:
             begin
@@ -427,11 +436,11 @@ begin
                     temp_milk_amt      -= (L_size/2)*1;
                 end
                 endcase
-                if(black_tea_run_out_f || milk_run_out_f)
-                begin
-                    complete_wr = 1'b0;
-                    err_result = No_Ing;
-                end
+                // if(black_tea_run_out_f || milk_run_out_f)
+                // begin
+                //     complete_wr = 1'b0;
+                //     err_result = No_Ing;
+                // end
             end
             Green_Tea:
             begin
@@ -450,11 +459,11 @@ begin
                     temp_green_tea_amt -= L_size;
                 end
                 endcase
-                if(green_tea_run_out_f)
-                begin
-                    complete_wr = 1'b0;
-                    err_result = No_Ing;
-                end
+                // if(green_tea_run_out_f)
+                // begin
+                //     complete_wr = 1'b0;
+                //     err_result = No_Ing;
+                // end
             end
             Green_Milk_Tea:
             begin
@@ -477,11 +486,11 @@ begin
                     temp_milk_amt      -= (L_size/2);
                 end
                 endcase
-                if(green_tea_run_out_f || milk_run_out_f)
-                begin
-                    complete_wr = 1'b0;
-                    err_result = No_Ing;
-                end
+                // if(green_tea_run_out_f || milk_run_out_f)
+                // begin
+                //     complete_wr = 1'b0;
+                //     err_result = No_Ing;
+                // end
             end
             Pineapple_Juice:
             begin
@@ -500,11 +509,11 @@ begin
                     temp_pineapple_juice_amt -= L_size;
                 end
                 endcase
-                if(pineapple_juice_run_out_f)
-                begin
-                    complete_wr = 1'b0;
-                    err_result = No_Ing;
-                end
+                // if(pineapple_juice_run_out_f)
+                // begin
+                //     complete_wr = 1'b0;
+                //     err_result = No_Ing;
+                // end
             end
             Super_Pineapple_Tea:
             begin
@@ -527,11 +536,11 @@ begin
                     temp_pineapple_juice_amt    -= (L_size/2)*1;
                 end
                 endcase
-                if(pineapple_juice_run_out_f || black_tea_run_out_f)
-                begin
-                    complete_wr = 1'b0;
-                    err_result = No_Ing;
-                end
+                // if(pineapple_juice_run_out_f || black_tea_run_out_f)
+                // begin
+                //     complete_wr = 1'b0;
+                //     err_result = No_Ing;
+                // end
             end
             Super_Pineapple_Milk_Tea:
             begin
@@ -558,13 +567,19 @@ begin
                     temp_milk_amt               -= (L_size/4)*1;
                 end
                 endcase
-                if(pineapple_juice_run_out_f || black_tea_run_out_f || milk_run_out_f)
-                begin
-                    complete_wr = 1'b0;
-                    err_result = No_Ing;
-                end
+                // if(pineapple_juice_run_out_f || black_tea_run_out_f || milk_run_out_f)
+                // begin
+                //     complete_wr = 1'b0;
+                //     err_result = No_Ing;
+                // end
             end
             endcase
+
+            if(pineapple_juice_run_out_f || black_tea_run_out_f || milk_run_out_f || green_tea_run_out_f)
+            begin
+                complete_wr = 1'b0;
+                err_result = No_Ing;
+            end
         end
     end
     else if(supply_f)
