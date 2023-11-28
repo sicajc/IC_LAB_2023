@@ -1,0 +1,86 @@
+#!/bin/bash
+# Brief: This is a script to get the clock period and area trade-off
+# Author: Jyun-Wei, Su
+# Update: 2023.11.27
+
+# ==================== Start of Setting ====================
+# setting the cycle time
+MIN_PERIOD=3
+MAX_PERIOD=8
+STEP=0.2
+# setting the folder and file
+FOLDER="Lab09/Exercise"
+SYN_FILE_BEV=$HOME/$FOLDER/02_SYN/syn_BEV.tcl
+SYN_FILE_BRIDGE=$HOME/$FOLDER/02_SYN/syn_bridge.tcl
+RESULT_FILE=$HOME/$FOLDER/02_SYN/perf_trade_off.txt
+# ===================== End of Setting =====================
+
+# Define colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+BG_GREEN='\033[42m'
+BG_BLUE='\033[44m'
+BG_RED='\033[41m'
+NC='\033[0m' # No Color
+
+# Function to check for "VIOLATED" in logs
+check_violation() {
+  log_file=$1
+  VIOLATION_CHECK=$(grep "VIOLATED" "$log_file")
+  if [[ -n "$VIOLATION_CHECK" ]]; then
+    echo -e "${RED}Violation detected in $log_file.${NC}"
+  fi
+}
+
+# MAIN
+echo "" > $RESULT_FILE # clean the file
+CYCLE_TIME=$MIN_PERIOD # initialize the cycle time
+
+while (( $(echo "$CYCLE_TIME <= $MAX_PERIOD" | bc -l) )); do
+  # clean
+  make clean > /dev/null
+  # echo current cycle time
+  echo -e "${BG_GREEN}=== Current cycle time: $CYCLE_TIME ===${NC}"
+  # write to $RESULT_FILE
+  echo "Cycle time: $CYCLE_TIME" >> $RESULT_FILE
+
+  # syn file
+  echo -e "${BLUE}File: $SYN_FILE_BEV${NC}"
+  GREP_COLOR='01;31' grep --color "set CYCLE [0-9]\+\.\?[0-9]\?" --line-number "$SYN_FILE_BEV"
+  sed -i "s/set CYCLE [0-9]\+\.\?[0-9]\?/set CYCLE $CYCLE_TIME/" "$SYN_FILE_BEV"
+  GREP_COLOR='01;32' grep --color "set CYCLE [0-9]\+\.\?[0-9]\?" --line-number "$SYN_FILE_BEV"
+  echo -e "${BLUE}File: $SYN_FILE_BRIDGE${NC}"
+  GREP_COLOR='01;31' grep --color "set CYCLE [0-9]\+\.\?[0-9]\?" --line-number "$SYN_FILE_BRIDGE"
+  sed -i "s/set CYCLE [0-9]\+\.\?[0-9]\?/set CYCLE $CYCLE_TIME/" "$SYN_FILE_BRIDGE"
+  GREP_COLOR='01;32' grep --color "set CYCLE [0-9]\+\.\?[0-9]\?" --line-number "$SYN_FILE_BRIDGE"
+
+  # Execute make commands
+  echo -e "${GREEN}Executing make syn_BEV...${NC}"
+  make syn_BEV > /dev/null
+  check_violation "syn_BEV.log"
+
+  echo -e "${GREEN}Executing make syn_BRIDGE...${NC}"
+  make syn_BRIDGE > /dev/null
+  check_violation "syn_bridge.log"
+
+  # BEV
+  echo "----BEV----" >> $RESULT_FILE
+  grep "MET" syn_BEV.log >> $RESULT_FILE
+  grep "VIOLATED" syn_BEV.log >> $RESULT_FILE
+  grep "Total cell area" syn_BEV.log >> $RESULT_FILE
+  GREP_COLOR='01;33' grep --color "Total cell area" syn_BEV.log
+
+  # BRIDGE
+  echo "---BRIDGE---" >> $RESULT_FILE
+  grep "MET" syn_bridge.log >> $RESULT_FILE
+  grep "VIOLATED" syn_bridge.log >> $RESULT_FILE
+  grep "Total cell area" syn_bridge.log >> $RESULT_FILE
+  GREP_COLOR='01;33' grep --color "Total cell area" syn_bridge.log
+
+  # Increment the cycle time
+  CYCLE_TIME=$(echo "$CYCLE_TIME + $STEP" | bc -l)
+  echo "" >> $RESULT_FILE
+done
+
+echo -e "${GREEN}Clock period variation completed.${NC}"
