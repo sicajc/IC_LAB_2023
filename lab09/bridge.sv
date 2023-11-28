@@ -114,9 +114,9 @@ assign inf.W_VALID  = cur_st == ST_AXI_WR_DATA;
 assign inf.AW_ADDR  = cur_st == ST_AXI_WR_ADDR ? {{6'b10_0000},in_addr_ff,3'b000}:0;
 assign inf.AW_VALID = cur_st == ST_AXI_WR_ADDR;
 
-assign inf.AR_VALID = state == ST_AXI_RD_ADDR ? 1:0;
-assign inf.AR_ADDR  = state == ST_AXI_RD_ADDR ? {{6'b10_0000},in_addr_ff,3'b000}:0;
-assign inf.R_READY  = state == ST_AXI_RD_DATA;
+assign inf.AR_VALID = cur_st == ST_AXI_RD_ADDR ? 1:0;
+assign inf.AR_ADDR  = cur_st == ST_AXI_RD_ADDR ? {{6'b10_0000},in_addr_ff,3'b000}:0;
+assign inf.R_READY  = cur_st == ST_AXI_RD_DATA;
 
 assign inf.C_data_r = cur_st == ST_IDLE        ? in_data_ff : 0;
 

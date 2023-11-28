@@ -4,7 +4,7 @@ import usertype::*;
 // The state machines are defined using SystemVerilog enumerated types.
 // The state machines are:
 // - state_t: used to represent the overall state of the BEV system
-//
+
 // Each enumerated type defines a set of named states that the corresponding process can be in.
 typedef enum logic [3:0]{
     IDLE,
@@ -352,7 +352,7 @@ begin
     temp_MD_milk_amt            = dram_data_ff.milk;
     temp_MD_pineapple_juice_amt = dram_data_ff.pineapple_juice;
 
-    case(bev_type_ff,bev_size_ff)
+    case({bev_type_ff,bev_size_ff})
     {Black_Tea,S}: temp_MD_black_tea_amt -= S_size;
     {Black_Tea,M}: temp_MD_black_tea_amt -= M_size;
     {Black_Tea,L}: temp_MD_black_tea_amt -= L_size;
