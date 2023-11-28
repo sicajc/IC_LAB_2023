@@ -352,97 +352,174 @@ begin
     temp_MD_milk_amt            = dram_data_ff.milk;
     temp_MD_pineapple_juice_amt = dram_data_ff.pineapple_juice;
 
-    case(bev_type_ff,bev_size_ff)
-    {Black_Tea,S}: temp_MD_black_tea_amt -= S_size;
-    {Black_Tea,M}: temp_MD_black_tea_amt -= M_size;
-    {Black_Tea,L}: temp_MD_black_tea_amt -= L_size;
-
-    {Milk_Tea,S}:begin
-        temp_MD_black_tea_amt -= (S_size/4)*3;
-        temp_MD_milk_amt      -= (S_size/4)*1;
+    case(bev_type_ff)
+    Black_Tea:
+    begin
+        temp_MD_black_tea_amt = dram_data_ff.black_tea;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_black_tea_amt -= S_size;
+        end
+        M:
+        begin
+            temp_MD_black_tea_amt -= M_size;
+        end
+        L:
+        begin
+            temp_MD_black_tea_amt -= L_size;
+        end
+        endcase
     end
-    {Milk_Tea,M}:begin
-        temp_MD_black_tea_amt -= (M_size/4)*3;
-        temp_MD_milk_amt      -= (M_size/4)*1;
+    Milk_Tea:
+    begin
+        temp_MD_black_tea_amt = dram_data_ff.black_tea;
+        temp_MD_milk_amt      = dram_data_ff.milk;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_black_tea_amt -= (S_size/4)*3;
+            temp_MD_milk_amt      -= (S_size/4)*1;
+        end
+        M:
+        begin
+            temp_MD_black_tea_amt -= (M_size/4)*3;
+            temp_MD_milk_amt      -= (M_size/4)*1;
+        end
+        L:
+        begin
+            temp_MD_black_tea_amt -= (L_size/4)*3;
+            temp_MD_milk_amt      -= (L_size/4)*1;
+        end
+        endcase
     end
-    {Milk_Tea,L}:begin
-        temp_MD_black_tea_amt -= (L_size/4)*3;
-        temp_MD_milk_amt      -= (L_size/4)*1;
+    Extra_Milk_Tea:
+    begin
+        temp_MD_black_tea_amt = dram_data_ff.black_tea;
+        temp_MD_milk_amt      = dram_data_ff.milk;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_black_tea_amt -= (S_size/2)*1;
+            temp_MD_milk_amt      -= (S_size/2)*1;
+        end
+        M:
+        begin
+            temp_MD_black_tea_amt -= (M_size/2)*1;
+            temp_MD_milk_amt      -= (M_size/2)*1;
+        end
+        L:
+        begin
+            temp_MD_black_tea_amt -= (L_size/2)*1;
+            temp_MD_milk_amt      -= (L_size/2)*1;
+        end
+        endcase
     end
-
-    {Extra_Milk_Tea,S}:begin
-        temp_MD_black_tea_amt -= (S_size/2)*1;
-        temp_MD_milk_amt      -= (S_size/2)*1;
+    Green_Tea:
+    begin
+        temp_MD_green_tea_amt = dram_data_ff.green_tea;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_green_tea_amt -= S_size;
+        end
+        M:
+        begin
+            temp_MD_green_tea_amt -= M_size;
+        end
+        L:
+        begin
+            temp_MD_green_tea_amt -= L_size;
+        end
+        endcase
     end
-    {Extra_Milk_Tea,M}:begin
-        temp_MD_black_tea_amt -= (M_size/2)*1;
-        temp_MD_milk_amt      -= (M_size/2)*1;
+    Green_Milk_Tea:
+    begin
+        temp_MD_green_tea_amt = dram_data_ff.green_tea;
+        temp_MD_milk_amt      = dram_data_ff.milk;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_green_tea_amt -= (S_size/2);
+            temp_MD_milk_amt      -= (S_size/2);
+        end
+        M:
+        begin
+            temp_MD_green_tea_amt -= (M_size/2);
+            temp_MD_milk_amt      -= (M_size/2);
+        end
+        L:
+        begin
+            temp_MD_green_tea_amt -= (L_size/2);
+            temp_MD_milk_amt      -= (L_size/2);
+        end
+        endcase
     end
-    {Extra_Milk_Tea,L}:begin
-        temp_MD_black_tea_amt -= (L_size/2)*1;
-        temp_MD_milk_amt      -= (L_size/2)*1;
+    Pineapple_Juice:
+    begin
+        temp_MD_pineapple_juice_amt = dram_data_ff.pineapple_juice;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_pineapple_juice_amt -= S_size;
+        end
+        M:
+        begin
+            temp_MD_pineapple_juice_amt -= M_size;
+        end
+        L:
+        begin
+            temp_MD_pineapple_juice_amt -= L_size;
+        end
+        endcase
     end
-
-    {Green_Tea,S}:begin
-        temp_MD_green_tea_amt -= S_size;
+    Super_Pineapple_Tea:
+    begin
+        temp_MD_black_tea_amt       = dram_data_ff.black_tea;
+        temp_MD_pineapple_juice_amt = dram_data_ff.pineapple_juice;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_black_tea_amt          -= (S_size/2)*1 ;
+            temp_MD_pineapple_juice_amt    -= (S_size/2)*1 ;
+        end
+        M:
+        begin
+            temp_MD_black_tea_amt          -= (M_size/2)*1 ;
+            temp_MD_pineapple_juice_amt    -= (M_size/2)*1 ;
+        end
+        L:
+        begin
+            temp_MD_black_tea_amt          -= (L_size/2)*1;
+            temp_MD_pineapple_juice_amt    -= (L_size/2)*1;
+        end
+        endcase
     end
-    {Green_Tea,M}:begin
-        temp_MD_green_tea_amt -= M_size;
-    end
-    {Green_Tea,L}:begin
-        temp_MD_green_tea_amt -= L_size;
-    end
-
-    {Green_Milk_Tea,S}:begin
-        temp_MD_green_tea_amt -= (S_size/2);
-        temp_MD_milk_amt      -= (S_size/2);
-    end
-    {Green_Milk_Tea,M}:begin
-        temp_MD_green_tea_amt -= (M_size/2);
-        temp_MD_milk_amt      -= (M_size/2);
-    end
-    {Green_Milk_Tea,L}:begin
-        temp_MD_green_tea_amt -= (L_size/2);
-        temp_MD_milk_amt      -= (L_size/2);
-    end
-
-    {Pineapple_Juice,S}:begin
-        temp_MD_pineapple_juice_amt -= S_size;
-    end
-    {Pineapple_Juice,M}:begin
-        temp_MD_pineapple_juice_amt -= M_size;
-    end
-    {Pineapple_Juice,L}:begin
-        temp_MD_pineapple_juice_amt -= L_size;
-    end
-
-    {Super_Pineapple_Tea,S}:begin
-        temp_MD_black_tea_amt          -= (S_size/2)*1 ;
-        temp_MD_pineapple_juice_amt    -= (S_size/2)*1 ;
-    end
-    {Super_Pineapple_Tea,M}:begin
-        temp_MD_black_tea_amt          -= (M_size/2)*1 ;
-        temp_MD_pineapple_juice_amt    -= (M_size/2)*1 ;
-    end
-    {Super_Pineapple_Tea,L}:begin
-        temp_MD_black_tea_amt          -= (L_size/2)*1 ;
-        temp_MD_pineapple_juice_amt    -= (L_size/2)*1 ;
-    end
-
-    {Super_Pineapple_Milk_Tea,S}:begin
-        temp_MD_black_tea_amt          -= (S_size/4)*2;
-        temp_MD_pineapple_juice_amt    -= (S_size/4)*1;
-        temp_MD_milk_amt               -= (S_size/4)*1;
-    end
-    {Super_Pineapple_Milk_Tea,M}:begin
-        temp_MD_black_tea_amt          -= (M_size/4)*2;
-        temp_MD_pineapple_juice_amt    -= (M_size/4)*1;
-        temp_MD_milk_amt               -= (M_size/4)*1;
-    end
-    {Super_Pineapple_Milk_Tea,L}:begin
-        temp_MD_black_tea_amt          -= (L_size/4)*2;
-        temp_MD_pineapple_juice_amt    -= (L_size/4)*1;
-        temp_MD_milk_amt               -= (L_size/4)*1;
+    Super_Pineapple_Milk_Tea:
+    begin
+        temp_MD_black_tea_amt = dram_data_ff.black_tea;
+        temp_MD_pineapple_juice_amt = dram_data_ff.pineapple_juice;
+        temp_MD_milk_amt  = dram_data_ff.milk;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_black_tea_amt          -= (S_size/4)*2;
+            temp_MD_pineapple_juice_amt    -= (S_size/4)*1;
+            temp_MD_milk_amt               -= (S_size/4)*1;
+        end
+        M:
+        begin
+            temp_MD_black_tea_amt          -= (M_size/4)*2;
+            temp_MD_pineapple_juice_amt    -= (M_size/4)*1;
+            temp_MD_milk_amt               -= (M_size/4)*1;
+        end
+        L:
+        begin
+            temp_MD_black_tea_amt          -= (L_size/4)*2;
+            temp_MD_pineapple_juice_amt    -= (L_size/4)*1;
+            temp_MD_milk_amt               -= (L_size/4)*1;
+        end
+        endcase
     end
     endcase
 end

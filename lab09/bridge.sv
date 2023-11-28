@@ -2,14 +2,13 @@ module bridge(input clk, INF.bridge_inf inf);
 //================================================================
 //  integer / genvar / parameter
 //================================================================
-typedef enum logic [3:0]{
+typedef enum logic [2:0]{
     ST_IDLE,
     ST_AXI_RD_ADDR,
     ST_AXI_RD_DATA,
     ST_AXI_WR_ADDR,
     ST_AXI_WR_DATA,
-    ST_AXI_WR_RESP,
-    ST_DONE
+    ST_AXI_WR_RESP
 } state_t;
 //  MODE
 //  FSM
@@ -58,17 +57,10 @@ always_ff @( posedge clk or negedge inf.rst_n )
 begin
     if(~inf.rst_n)
     begin
-        in_data_ff <= 0;
+        in_data_ff      <= 0;
         inf.C_out_valid <= 0;
-        // inf.C_data_r <= 0;
-        inf.AR_VALID <= 0;
-        inf.AR_ADDR <= 0;
-        inf.R_READY <= 0;
-        inf.AW_VALID <= 0;
-        inf.AW_ADDR <= 0;
-        inf.W_VALID <= 0;
-        // inf.W_DATA <= 0;
-        inf.B_READY <= 0;
+        in_addr_ff      <= 0;
+        inf.B_READY     <= 0;
     end
     else
     begin
@@ -76,67 +68,31 @@ begin
         ST_IDLE:
         begin
             inf.C_out_valid <= 0;
-            // inf.C_data_r <= 0;
 
             if(inf.C_in_valid)
             begin
-                in_data_ff <= inf.C_data_w;
-                if(read_dram_f)
-                begin
-                    inf.AR_VALID <= 1;
-                    inf.AR_ADDR  <= {{6'b10_0000},inf.C_addr,3'b000};
-                end
-                else
-                begin
-                    inf.AW_VALID <= 1;
-                    inf.AW_ADDR  <= {{6'b10_0000},inf.C_addr,3'b000};
-                end
+                in_data_ff  <= inf.C_data_w;
+                in_addr_ff  <= inf.C_addr;
             end
             else
             begin
                 in_data_ff <= 0;
             end
 
-            inf.R_READY <= 0;
-            inf.W_VALID <= 0;
-            // inf.W_DATA  <= 0;
             inf.B_READY <= 0;
-        end
-        ST_AXI_RD_ADDR:
-        begin
-            if(axi_rd_addr_tx_f)
-            begin
-                inf.AR_VALID <= 0;
-                inf.AR_ADDR  <= 0;
-
-                inf.R_READY  <= 1;
-            end
         end
         ST_AXI_RD_DATA:
         begin
             if(axi_rd_data_tx_f)
             begin
-                inf.R_READY     <= 0;
                 in_data_ff      <= inf.R_DATA;
                 inf.C_out_valid <= 1;
-            end
-        end
-        ST_AXI_WR_ADDR:
-        begin
-            if(axi_wr_addr_tx_f)
-            begin
-                // inf.W_DATA   <= in_data_ff;
-                inf.W_VALID  <= 1;
-                inf.AW_ADDR  <= 0;
-                inf.AW_VALID <= 0;
             end
         end
         ST_AXI_WR_DATA:
         begin
             if(axi_wr_data_tx_f)
             begin
-                // inf.W_DATA  <= 0;
-                inf.W_VALID <= 0;
                 inf.B_READY <= 1;
             end
         end
@@ -153,6 +109,15 @@ begin
 end
 // Add one state to prevent C_data_r getting incorrect value
 assign inf.W_DATA   = cur_st == ST_AXI_WR_DATA ? in_data_ff : 0;
+assign inf.W_VALID  = cur_st == ST_AXI_WR_DATA;
+
+assign inf.AW_ADDR  = cur_st == ST_AXI_WR_ADDR ? {{6'b10_0000},in_addr_ff,3'b000}:0;
+assign inf.AW_VALID = cur_st == ST_AXI_WR_ADDR;
+
+assign inf.AR_VALID = state == ST_AXI_RD_ADDR ? 1:0;
+assign inf.AR_ADDR  = state == ST_AXI_RD_ADDR ? {{6'b10_0000},in_addr_ff,3'b000}:0;
+assign inf.R_READY  = state == ST_AXI_RD_DATA;
+
 assign inf.C_data_r = cur_st == ST_IDLE        ? in_data_ff : 0;
 
 endmodule
