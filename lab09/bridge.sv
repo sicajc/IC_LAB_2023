@@ -2,20 +2,28 @@ module bridge(input clk, INF.bridge_inf inf);
 //================================================================
 //  integer / genvar / parameter
 //================================================================
-typedef enum logic [2:0]{
-    ST_IDLE,
-    ST_AXI_RD_ADDR,
-    ST_AXI_RD_DATA,
-    ST_AXI_WR_ADDR,
-    ST_AXI_WR_DATA,
-    ST_AXI_WR_RESP
+typedef enum logic [5:0]{
+    ST_IDLE=6'b000_001,
+    ST_AXI_RD_ADDR=6'b000_010,
+    ST_AXI_RD_DATA=6'b000_100,
+    ST_AXI_WR_ADDR=6'b001_000,
+    ST_AXI_WR_DATA=6'b010_000,
+    ST_AXI_WR_RESP=6'b100_000
 } state_t;
+
+state_t cur_st;
+
+wire st_IDLE = cur_st[0];
+wire st_AXI_RD_ADDR = cur_st[1];
+wire st_AXI_RD_DATA = cur_st[2];
+wire st_AXI_WR_ADDR = cur_st[3];
+wire st_AXI_WR_DATA = cur_st[4];
+wire st_AXI_WR_RESP = cur_st[5];
 //  MODE
 //  FSM
 //================================================================
 // logic
 //================================================================
-state_t cur_st;
 logic[63:0] in_data_ff;
 logic[7:0] in_addr_ff;
 
@@ -108,16 +116,16 @@ begin
     end
 end
 // Add one state to prevent C_data_r getting incorrect value
-assign inf.W_DATA   = cur_st == ST_AXI_WR_DATA ? in_data_ff : 0;
-assign inf.W_VALID  = cur_st == ST_AXI_WR_DATA;
+assign inf.W_DATA   = st_AXI_WR_DATA ? in_data_ff : 0;
+assign inf.W_VALID  = st_AXI_WR_DATA;
 
-assign inf.AW_ADDR  = cur_st == ST_AXI_WR_ADDR ? {{6'b10_0000},in_addr_ff,3'b000}:0;
-assign inf.AW_VALID = cur_st == ST_AXI_WR_ADDR;
+assign inf.AW_ADDR  = st_AXI_WR_ADDR ? {{6'b10_0000},in_addr_ff,3'b000}:0;
+assign inf.AW_VALID = st_AXI_WR_ADDR;
 
-assign inf.AR_VALID = cur_st == ST_AXI_RD_ADDR ? 1:0;
-assign inf.AR_ADDR  = cur_st == ST_AXI_RD_ADDR ? {{6'b10_0000},in_addr_ff,3'b000}:0;
-assign inf.R_READY  = cur_st == ST_AXI_RD_DATA;
+assign inf.AR_VALID = st_AXI_RD_ADDR ? 1:0;
+assign inf.AR_ADDR  = st_AXI_RD_ADDR ? {{6'b10_0000},in_addr_ff,3'b000}:0;
+assign inf.R_READY  = st_AXI_RD_DATA;
 
-assign inf.C_data_r = cur_st == ST_IDLE        ? in_data_ff : 0;
+assign inf.C_data_r = st_IDLE        ? in_data_ff : 0;
 
 endmodule

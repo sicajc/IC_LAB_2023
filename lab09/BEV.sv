@@ -6,24 +6,43 @@ import usertype::*;
 // - state_t: used to represent the overall state of the BEV system
 
 // Each enumerated type defines a set of named states that the corresponding process can be in.
-typedef enum logic [3:0]{
-    IDLE,
-    MAKE_DRINK_TYPE,
-    MAKE_DRINK_SIZE,
-    RD_DATES,
-    RD_BOX_NO,
-    GET_SUPPLIES,
-    WAIT_WB_BRIDGE,
-    RD_DRAM,
-    MAKE_DRINK,
-    SUPPLY,
-    CHECK_DATE,
-    WB_DRAM
+typedef enum logic [11:0]{
+    IDLE = 12'b0000_0000_0001,
+    MAKE_DRINK_TYPE = 12'b0000_0000_0010,
+    MAKE_DRINK_SIZE = 12'b0000_0000_0100,
+    RD_DATES = 12'b0000_0000_1000,
+    RD_BOX_NO = 12'b0000_0001_0000,
+    GET_SUPPLIES = 12'b0000_0010_0000,
+    WAIT_WB_BRIDGE = 12'b0000_0100_0000,
+    RD_DRAM = 12'b0000_1000_0000,
+    MAKE_DRINK = 12'b0001_0000_0000,
+    SUPPLY = 12'b0010_0000_0000,
+    CHECK_DATE = 12'b0100_0000_0000,
+    WB_DRAM = 12'b1000_0000_0000
 } state_t;
 parameter BASE_Addr = 65536 ;
 
 // REGISTERS
 state_t state, nstate;
+
+
+
+
+
+
+
+wire st_IDLE = state[0];
+wire st_MAKE_DRINK_TYPE = state[1];
+wire st_MAKE_DRINK_SIZE = state[2];
+wire st_RD_DATES = state[3];
+wire st_RD_BOX_NO = state[4];
+wire st_GET_SUPPLIES = state[5];
+wire st_WAIT_WB_BRIDGE = state[6];
+wire st_RD_DRAM = state[7];
+wire st_MAKE_DRINK = state[8];
+wire st_SUPPLY = state[9];
+wire st_CHECK_DATE = state[10];
+wire st_WB_DRAM = state[11];
 
 Action      cur_act;
 Error_Msg   err_result;
@@ -37,7 +56,6 @@ Bev_dram_in dram_result_wr;
 
 logic[7:0] box_no_ff;
 logic[11:0] black_tea_amt_ff,green_tea_amt_ff,milk_amt_ff,pineapple_juice_amt_ff;
-
 
 logic complete_ff,complete_wr;
 logic[1:0] cnt;
@@ -156,50 +174,50 @@ begin
     begin
         cnt <= 0;
     end
-    else if(state == GET_SUPPLIES)
+    else if(st_GET_SUPPLIES)
     begin
         if(supply_received_f)
             cnt <= cnt;
         else if(inf.box_sup_valid)
             cnt <= cnt + 1;
     end
-    else if(state == IDLE)
+    else if(st_IDLE)
     begin
         cnt <= 0;
     end
 end
 
 logic rd_enable_f;
-assign rd_enable_f = (state == WAIT_WB_BRIDGE || state==GET_SUPPLIES) && ~wb_busy_flag_ff;
+assign rd_enable_f = (st_WAIT_WB_BRIDGE || st_GET_SUPPLIES) && ~wb_busy_flag_ff;
 
 // Datapath, rewrite this seperately and remove rst_n
 always_ff @( posedge clk)
 begin
-    if(inf.sel_action_valid && state==IDLE)
+    if(inf.sel_action_valid && st_IDLE)
     begin
         cur_act <= inf.D.d_act;
     end
 end
 always_ff @( posedge clk )
 begin
-    if(inf.type_valid && state==MAKE_DRINK_TYPE) bev_type_ff <= inf.D.d_type;
+    if(inf.type_valid && st_MAKE_DRINK_TYPE) bev_type_ff <= inf.D.d_type;
 end
 always_ff @( posedge clk )
 begin
-   if(inf.size_valid && state == MAKE_DRINK_SIZE) bev_size_ff <= inf.D.d_size;
+   if(inf.size_valid && st_MAKE_DRINK_SIZE) bev_size_ff <= inf.D.d_size;
 end
 always_ff @( posedge clk )
 begin
-   if(inf.date_valid && state == RD_DATES) date_ff <= inf.D.d_date;
+   if(inf.date_valid && st_RD_DATES) date_ff <= inf.D.d_date;
 end
 always_ff @( posedge clk )
 begin
-    if(inf.box_no_valid && state==RD_BOX_NO) box_no_ff <= inf.D.d_box_no;
+    if(inf.box_no_valid && st_RD_BOX_NO) box_no_ff <= inf.D.d_box_no;
 end
 
 always_ff @( posedge clk )
 begin
-    if(inf.box_sup_valid && state==GET_SUPPLIES)
+    if(inf.box_sup_valid && st_GET_SUPPLIES)
     begin
         case(cnt)
         0: black_tea_amt_ff <= inf.D.d_ing;
@@ -219,13 +237,13 @@ begin
         inf.err_msg   <= No_Err;
         inf.complete  <= 0;
     end
-    else if(state == IDLE || state==WB_DRAM)
+    else if(st_IDLE || st_WB_DRAM)
     begin
         inf.out_valid <= 0;
         inf.err_msg   <= No_Err;
         inf.complete  <= 0;
     end
-    else if(state == MAKE_DRINK || state==CHECK_DATE || state == SUPPLY)
+    else if(st_MAKE_DRINK || st_CHECK_DATE || st_SUPPLY)
     begin
         inf.out_valid <= 1;
         inf.err_msg   <= err_result;
@@ -240,7 +258,7 @@ begin
         wb_busy_flag_ff <= 0;
     else if(inf.C_out_valid)
         wb_busy_flag_ff <= 0;
-    else if(nstate==WB_DRAM)
+    else if(nstate[11])
         wb_busy_flag_ff <= 1;
 end
 
@@ -286,7 +304,7 @@ begin
             inf.C_in_valid <= valid_hold_f ? 0 : 1;
         end
     end
-    else if(wb_busy_flag_ff || nstate == WB_DRAM)
+    else if(wb_busy_flag_ff || nstate[11])
     begin
         if(inf.C_out_valid)
         begin
@@ -308,7 +326,7 @@ end
 // Write back register, removes this make it combinational to save area
 always_comb
 begin
-    if(state == WB_DRAM)
+    if(st_WB_DRAM)
         inf.C_data_w = dram_data_ff;
     else
         inf.C_data_w = 0;
@@ -352,97 +370,174 @@ begin
     temp_MD_milk_amt            = dram_data_ff.milk;
     temp_MD_pineapple_juice_amt = dram_data_ff.pineapple_juice;
 
-    case({bev_type_ff,bev_size_ff})
-    {Black_Tea,S}: temp_MD_black_tea_amt -= S_size;
-    {Black_Tea,M}: temp_MD_black_tea_amt -= M_size;
-    {Black_Tea,L}: temp_MD_black_tea_amt -= L_size;
-
-    {Milk_Tea,S}:begin
-        temp_MD_black_tea_amt -= (S_size/4)*3;
-        temp_MD_milk_amt      -= (S_size/4)*1;
+    case(bev_type_ff)
+    Black_Tea:
+    begin
+        temp_MD_black_tea_amt = dram_data_ff.black_tea;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_black_tea_amt -= S_size;
+        end
+        M:
+        begin
+            temp_MD_black_tea_amt -= M_size;
+        end
+        L:
+        begin
+            temp_MD_black_tea_amt -= L_size;
+        end
+        endcase
     end
-    {Milk_Tea,M}:begin
-        temp_MD_black_tea_amt -= (M_size/4)*3;
-        temp_MD_milk_amt      -= (M_size/4)*1;
+    Milk_Tea:
+    begin
+        temp_MD_black_tea_amt = dram_data_ff.black_tea;
+        temp_MD_milk_amt      = dram_data_ff.milk;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_black_tea_amt -= (S_size/4)*3;
+            temp_MD_milk_amt      -= (S_size/4)*1;
+        end
+        M:
+        begin
+            temp_MD_black_tea_amt -= (M_size/4)*3;
+            temp_MD_milk_amt      -= (M_size/4)*1;
+        end
+        L:
+        begin
+            temp_MD_black_tea_amt -= (L_size/4)*3;
+            temp_MD_milk_amt      -= (L_size/4)*1;
+        end
+        endcase
     end
-    {Milk_Tea,L}:begin
-        temp_MD_black_tea_amt -= (L_size/4)*3;
-        temp_MD_milk_amt      -= (L_size/4)*1;
+    Extra_Milk_Tea:
+    begin
+        temp_MD_black_tea_amt = dram_data_ff.black_tea;
+        temp_MD_milk_amt      = dram_data_ff.milk;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_black_tea_amt -= (S_size/2)*1;
+            temp_MD_milk_amt      -= (S_size/2)*1;
+        end
+        M:
+        begin
+            temp_MD_black_tea_amt -= (M_size/2)*1;
+            temp_MD_milk_amt      -= (M_size/2)*1;
+        end
+        L:
+        begin
+            temp_MD_black_tea_amt -= (L_size/2)*1;
+            temp_MD_milk_amt      -= (L_size/2)*1;
+        end
+        endcase
     end
-
-    {Extra_Milk_Tea,S}:begin
-        temp_MD_black_tea_amt -= (S_size/2)*1;
-        temp_MD_milk_amt      -= (S_size/2)*1;
+    Green_Tea:
+    begin
+        temp_MD_green_tea_amt = dram_data_ff.green_tea;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_green_tea_amt -= S_size;
+        end
+        M:
+        begin
+            temp_MD_green_tea_amt -= M_size;
+        end
+        L:
+        begin
+            temp_MD_green_tea_amt -= L_size;
+        end
+        endcase
     end
-    {Extra_Milk_Tea,M}:begin
-        temp_MD_black_tea_amt -= (M_size/2)*1;
-        temp_MD_milk_amt      -= (M_size/2)*1;
+    Green_Milk_Tea:
+    begin
+        temp_MD_green_tea_amt = dram_data_ff.green_tea;
+        temp_MD_milk_amt      = dram_data_ff.milk;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_green_tea_amt -= (S_size/2);
+            temp_MD_milk_amt      -= (S_size/2);
+        end
+        M:
+        begin
+            temp_MD_green_tea_amt -= (M_size/2);
+            temp_MD_milk_amt      -= (M_size/2);
+        end
+        L:
+        begin
+            temp_MD_green_tea_amt -= (L_size/2);
+            temp_MD_milk_amt      -= (L_size/2);
+        end
+        endcase
     end
-    {Extra_Milk_Tea,L}:begin
-        temp_MD_black_tea_amt -= (L_size/2)*1;
-        temp_MD_milk_amt      -= (L_size/2)*1;
+    Pineapple_Juice:
+    begin
+        temp_MD_pineapple_juice_amt = dram_data_ff.pineapple_juice;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_pineapple_juice_amt -= S_size;
+        end
+        M:
+        begin
+            temp_MD_pineapple_juice_amt -= M_size;
+        end
+        L:
+        begin
+            temp_MD_pineapple_juice_amt -= L_size;
+        end
+        endcase
     end
-
-    {Green_Tea,S}:begin
-        temp_MD_green_tea_amt -= S_size;
+    Super_Pineapple_Tea:
+    begin
+        temp_MD_black_tea_amt       = dram_data_ff.black_tea;
+        temp_MD_pineapple_juice_amt = dram_data_ff.pineapple_juice;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_black_tea_amt          -= (S_size/2)*1 ;
+            temp_MD_pineapple_juice_amt    -= (S_size/2)*1 ;
+        end
+        M:
+        begin
+            temp_MD_black_tea_amt          -= (M_size/2)*1 ;
+            temp_MD_pineapple_juice_amt    -= (M_size/2)*1 ;
+        end
+        L:
+        begin
+            temp_MD_black_tea_amt          -= (L_size/2)*1;
+            temp_MD_pineapple_juice_amt    -= (L_size/2)*1;
+        end
+        endcase
     end
-    {Green_Tea,M}:begin
-        temp_MD_green_tea_amt -= M_size;
-    end
-    {Green_Tea,L}:begin
-        temp_MD_green_tea_amt -= L_size;
-    end
-
-    {Green_Milk_Tea,S}:begin
-        temp_MD_green_tea_amt -= (S_size/2);
-        temp_MD_milk_amt      -= (S_size/2);
-    end
-    {Green_Milk_Tea,M}:begin
-        temp_MD_green_tea_amt -= (M_size/2);
-        temp_MD_milk_amt      -= (M_size/2);
-    end
-    {Green_Milk_Tea,L}:begin
-        temp_MD_green_tea_amt -= (L_size/2);
-        temp_MD_milk_amt      -= (L_size/2);
-    end
-
-    {Pineapple_Juice,S}:begin
-        temp_MD_pineapple_juice_amt -= S_size;
-    end
-    {Pineapple_Juice,M}:begin
-        temp_MD_pineapple_juice_amt -= M_size;
-    end
-    {Pineapple_Juice,L}:begin
-        temp_MD_pineapple_juice_amt -= L_size;
-    end
-
-    {Super_Pineapple_Tea,S}:begin
-        temp_MD_black_tea_amt          -= (S_size/2)*1 ;
-        temp_MD_pineapple_juice_amt    -= (S_size/2)*1 ;
-    end
-    {Super_Pineapple_Tea,M}:begin
-        temp_MD_black_tea_amt          -= (M_size/2)*1 ;
-        temp_MD_pineapple_juice_amt    -= (M_size/2)*1 ;
-    end
-    {Super_Pineapple_Tea,L}:begin
-        temp_MD_black_tea_amt          -= (L_size/2)*1 ;
-        temp_MD_pineapple_juice_amt    -= (L_size/2)*1 ;
-    end
-
-    {Super_Pineapple_Milk_Tea,S}:begin
-        temp_MD_black_tea_amt          -= (S_size/4)*2;
-        temp_MD_pineapple_juice_amt    -= (S_size/4)*1;
-        temp_MD_milk_amt               -= (S_size/4)*1;
-    end
-    {Super_Pineapple_Milk_Tea,M}:begin
-        temp_MD_black_tea_amt          -= (M_size/4)*2;
-        temp_MD_pineapple_juice_amt    -= (M_size/4)*1;
-        temp_MD_milk_amt               -= (M_size/4)*1;
-    end
-    {Super_Pineapple_Milk_Tea,L}:begin
-        temp_MD_black_tea_amt          -= (L_size/4)*2;
-        temp_MD_pineapple_juice_amt    -= (L_size/4)*1;
-        temp_MD_milk_amt               -= (L_size/4)*1;
+    Super_Pineapple_Milk_Tea:
+    begin
+        temp_MD_black_tea_amt = dram_data_ff.black_tea;
+        temp_MD_pineapple_juice_amt = dram_data_ff.pineapple_juice;
+        temp_MD_milk_amt  = dram_data_ff.milk;
+        case(bev_size_ff)
+        S:
+        begin
+            temp_MD_black_tea_amt          -= (S_size/4)*2;
+            temp_MD_pineapple_juice_amt    -= (S_size/4)*1;
+            temp_MD_milk_amt               -= (S_size/4)*1;
+        end
+        M:
+        begin
+            temp_MD_black_tea_amt          -= (M_size/4)*2;
+            temp_MD_pineapple_juice_amt    -= (M_size/4)*1;
+            temp_MD_milk_amt               -= (M_size/4)*1;
+        end
+        L:
+        begin
+            temp_MD_black_tea_amt          -= (L_size/4)*2;
+            temp_MD_pineapple_juice_amt    -= (L_size/4)*1;
+            temp_MD_milk_amt               -= (L_size/4)*1;
+        end
+        endcase
     end
     endcase
 end
@@ -513,9 +608,9 @@ end
 //Dram data in
 always_ff @( posedge clk )
 begin
-    if(inf.C_out_valid && rd_busy_flag_ff)
+    if(inf.C_out_valid)
         dram_data_ff <= inf.C_data_r;
-    else if(state == SUPPLY)
+    else if(st_SUPPLY)
     begin
         dram_data_ff.black_tea       <= black_tea_of_f ? 4095 : temp_S_black_tea_amt;
         dram_data_ff.green_tea       <= green_tea_of_f ? 4095 : temp_S_green_tea_amt;
@@ -524,7 +619,7 @@ begin
         dram_data_ff.M               <= date_ff.M;
         dram_data_ff.D               <= date_ff.D;
     end
-    else if(state == MAKE_DRINK)
+    else if(st_MAKE_DRINK)
     begin
         dram_data_ff.black_tea       <= temp_MD_black_tea_amt;
         dram_data_ff.green_tea       <= temp_MD_green_tea_amt;
