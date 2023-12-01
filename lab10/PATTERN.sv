@@ -13,7 +13,7 @@ integer patcount;
 integer color_stage = 0, color, r = 5, g = 0, b = 0 ;
 //
 parameter SEED = 67 ;
-parameter PATNUM = 200 ;
+parameter PATNUM = 7000 ;
 parameter DRAM_p_r = "../00_TESTBED/DRAM/dram.dat";
 parameter BASE_Addr = 65536 ;
 // parameter BASE_End = 65536 + 255*8 ;
@@ -161,6 +161,7 @@ initial begin
 	//
 	@(negedge clk);
 	for( patcount=0 ; patcount<PATNUM ; patcount+=1 ) begin
+		random_gap_task;
 		r_action.randomize();
 
 		golden_act  = r_action.action ;
@@ -181,23 +182,10 @@ initial begin
 				check_valid_date_task;
 			end
 		endcase
-		wait_outvalid_task;
-		output_task;
-
         update_dram_info_task;
-        // For checking
-        // $display("DRAM after\n");
-        // get_box_info_task;
-        // display_box_info;
+		wait_outvalid_task;
+        output_task;
 
-        // if(golden_no_box == 58)
-        // begin
-        //     $display("DEBUG");
-        //     $finish;
-        // end
-
-		//
-		random_gap_task;
 		//
 		case(color_stage)
             0: begin
@@ -220,7 +208,7 @@ initial begin
         if(color < 100) $display("\033[38;5;%2dmPASS PATTERN NO.%4d\033[00m", color, patcount+1);
         else $display("\033[38;5;%3dmPASS PATTERN NO.%4d\033[00m", color, patcount+1);
 	end
-	#(1000);
+	#(10);
     YOU_PASS_task;
     // $finish;
 end
@@ -307,7 +295,8 @@ task output_task; begin
                 $display("Expected box info: \n");
                 display_box_info;
                 display_current_golden_info;
-		        #(100);
+                fail;
+		        // #(100);
     			$finish;
     		end
     	end
@@ -324,7 +313,8 @@ task output_task; begin
                 $display("Expected box info: \n");
                 display_box_info;
                 display_current_golden_info;
-		        #(100);
+                fail;
+		        // #(100);
     			$finish;
     		end
         end
@@ -341,7 +331,8 @@ task output_task; begin
                 $display("Expected box info: \n");
                 display_box_info;
                 display_current_golden_info;
-		        #(100);
+                fail;
+		        // #(100);
     			$finish;
     		end
         end
@@ -1063,11 +1054,13 @@ $display ("                                        Your execution cycles   = %5d
 $display ("                                        Your clock period       = %.1f ns                                             ", `CYCLE_TIME);
 $display ("                                        Total latency           = %.1f ns                                             ", total_cycles*`CYCLE_TIME );
 $display ("----------------------------------------------------------------------------------------------------------------------");
-// $finish;
+$finish;
 end endtask
 
 task fail; begin
-$display(":( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( FAIL :( ");
+$display("====================================================================================");
+$display("                                      Wrong Answer                                  ");
+$display("====================================================================================");
 end endtask
 
 endprogram

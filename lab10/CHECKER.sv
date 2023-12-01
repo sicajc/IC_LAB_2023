@@ -35,17 +35,18 @@ always_ff @(posedge clk) begin
         bev_info.bev_type = inf.D.d_type[0];
     end
 end
+
 always_ff @(posedge clk) begin
     if (inf.size_valid) begin
         bev_info.bev_size = inf.D.d_size[0];
     end
 end
 
-covergroup Spec1 @(posedge clk && inf.type_valid);
+covergroup Spec1 @(posedge clk iff(inf.type_valid));
     option.per_instance = 1;
-    bin_bev_type: coverpoint bev_info.bev_type{
     option.at_least = 100;
 
+    bin_bev_type: coverpoint bev_info.bev_type{
     bins b_bev_type[] ={[Black_Tea:Super_Pineapple_Milk_Tea]};
     }
 endgroup:Spec1
@@ -53,11 +54,10 @@ endgroup:Spec1
 /*
 2.	Each case of Bererage_Size should be select at least 100 times.
 */
-covergroup Spec2 @(posedge clk && inf.size_valid);
+covergroup Spec2 @(posedge clk iff(inf.size_valid));
     option.per_instance = 1;
-
+	option.at_least = 100;
 	bin_bev_size: coverpoint bev_info.bev_size{
-		option.at_least = 100;
         bins b_size[] = {[L:S]};
     }
 endgroup:Spec2
@@ -66,28 +66,17 @@ endgroup:Spec2
 3.	Create a cross bin for the SPEC1 and SPEC2. Each combination should be selected at least 100 times.
 (Black Tea, Milk Tea, Extra Milk Tea, Green Tea, Green Milk Tea, Pineapple Juice, Super Pineapple Tea, Super Pineapple Tea) x (L, M, S)
 */
-covergroup Spec3 @(posedge clk);
+covergroup Spec3 @(posedge clk iff(inf.date_valid));
     option.per_instance = 1;
    	option.at_least = 100 ; // At least 100 times for this variable
 
-	// bin_bev_type: coverpoint bev_info.bev_type{
-    // option.at_least = 100;
-
-    // bins b_bev_type[] ={[Black_Tea:Super_Pineapple_Milk_Tea]};
-    // }
-
-	// bin_bev_size: coverpoint bev_info.bev_size{
-	// 	option.at_least = 100;
-    //     bins b_size[] = {[L:S]};
-    // }
-
-    cross bin_bev_type,bin_bev_size;
+    cross bev_info.bev_type,bev_info.bev_size;
 endgroup : Spec3
 
 /*
 4.	Output signal inf.err_msg should be No_Err, No_Exp, No_Ing and Ing_OF, each at least 20 times. (Sample the value when inf.out_valid is high)
 */
-covergroup Spec4 @(negedge clk && inf.out_valid);
+covergroup Spec4 @(negedge clk iff(inf.out_valid));
     option.per_instance = 1;
    	coverpoint inf.err_msg {
    		option.at_least = 20 ; // At least 10 times for this variable
@@ -105,23 +94,26 @@ covergroup Spec5 @(posedge clk iff(inf.sel_action_valid));
     option.per_instance = 1;
    	coverpoint inf.D.d_act[0] {
    		option.at_least = 200 ; // At least 10 times for this variable
+		// A,A,B,B,C,C,A,C,B,CIRCULATES
    		bins b_bev_act_trans[] = (Make_drink,Supply,Check_Valid_Date=>Make_drink,Supply,Check_Valid_Date);// Each cross couple terms
    	}
-endgroup : Spec5
+endgroup: Spec5
 
 /*
 6.	Create a covergroup for material of supply action with auto_bin_max = 32, and each bin have to hit at least one time.
 */
-covergroup Spec6 @(posedge clk && inf.box_sup_valid);
+covergroup Spec6 @(posedge clk iff(inf.box_sup_valid));
     option.per_instance = 1;
 	option.auto_bin_max = 32;
    	coverpoint inf.D.d_ing[0] {
    		option.at_least = 1 ; // At least 10 times for this variable
    	}
-endgroup : Spec6
+endgroup: Spec6
 /*
     Create instances of Spec1, Spec2, Spec3, Spec4, Spec5, and Spec6
 */
+Spec1 cg_1 = new();
+Spec2 cg_2 = new();
 Spec3 cg_3 = new();
 Spec4 cg_4 = new();
 Spec5 cg_5 = new();
