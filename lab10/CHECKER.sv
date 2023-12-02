@@ -42,6 +42,14 @@ always_ff @(posedge clk) begin
     end
 end
 
+Action cur_act;
+always_ff @(posedge clk or negedge inf.rst_n)  begin
+	if (!inf.rst_n)				        cur_act <= Make_drink;
+	else begin
+		if (inf.sel_action_valid==1) 	cur_act <= inf.D.d_act[0] ;
+	end
+end
+
 covergroup Spec1 @(posedge clk iff(inf.type_valid));
     option.per_instance = 1;
     option.at_least = 100;
@@ -66,7 +74,7 @@ endgroup:Spec2
 3.	Create a cross bin for the SPEC1 and SPEC2. Each combination should be selected at least 100 times.
 (Black Tea, Milk Tea, Extra Milk Tea, Green Tea, Green Milk Tea, Pineapple Juice, Super Pineapple Tea, Super Pineapple Tea) x (L, M, S)
 */
-covergroup Spec3 @(posedge clk iff(inf.date_valid));
+covergroup Spec3 @(posedge clk iff(inf.date_valid && cur_act==Make_drink));
     option.per_instance = 1;
    	option.at_least = 100 ; // At least 100 times for this variable
 
@@ -144,13 +152,6 @@ always @(negedge inf.rst_n) begin
 	end
 end
 
-Action cur_act;
-always_ff @(posedge clk or negedge inf.rst_n)  begin
-	if (!inf.rst_n)				        cur_act <= Make_drink;
-	else begin
-		if (inf.sel_action_valid==1) 	cur_act <= inf.D.d_act[0] ;
-	end
-end
 
 wire[4:0] month = inf.D.d_date[0].M;
 wire[5:0] day   = inf.D.d_date[0].D;

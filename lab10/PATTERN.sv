@@ -13,7 +13,7 @@ integer patcount;
 integer color_stage = 0, color, r = 5, g = 0, b = 0 ;
 //
 parameter SEED = 67 ;
-parameter PATNUM = 7000 ;
+parameter PATNUM = 3600 ;
 parameter DRAM_p_r = "../00_TESTBED/DRAM/dram.dat";
 parameter BASE_Addr = 65536 ;
 // parameter BASE_End = 65536 + 255*8 ;
@@ -30,8 +30,8 @@ Bev_Size   golden_size;
 int        golden_no_box;
 Date       golden_date;
 Bev_Bal    golden_bev_bal;
-Order_Info golden_order_info;
 Data       golden_data;
+Order_Info golden_order_info;
 
 // Dram info
 Bev_Bal   golden_box_info;
@@ -130,6 +130,7 @@ rand_date     r_date     = new(SEED) ;
 rand_supply_amt r_supply_amt = new(SEED);
 rand_gap        r_gap        = new(SEED);
 
+int make_drink_cnt;
 
 //================================================================
 //  initial
@@ -140,7 +141,8 @@ initial begin
 	// initial deposit value
 	// current_box = { golden_DRAM[BASE_Addr+0], golden_DRAM[BASE_Addr+1], golden_DRAM[BASE_Addr+2], golden_DRAM[BASE_Addr+3],
     // golden_DRAM[BASE_Addr+4], golden_DRAM[BASE_Addr+5], golden_DRAM[BASE_Addr+6], golden_DRAM[BASE_Addr+7]};
-    golden_no_box = 0;
+    golden_no_box  = 0;
+    make_drink_cnt = 0;
 	// $display("BOX 0");
     // get_box_info_task;
     // display_box_info;
@@ -160,11 +162,13 @@ initial begin
 	reset_task;
 	//
 	@(negedge clk);
+
 	for( patcount=0 ; patcount<PATNUM ; patcount+=1 ) begin
 		random_gap_task;
-		r_action.randomize();
+		// r_action.randomize();
 
-		golden_act  = r_action.action ;
+		// golden_act  = r_action.action ;
+        seq_generate;
         golden_err_msg  = No_Err;
         golden_complete = 1'b1;
 		//Start giving inputs
@@ -186,7 +190,6 @@ initial begin
 		wait_outvalid_task;
         output_task;
 
-		//
 		case(color_stage)
             0: begin
                 r = r - 1;
@@ -208,10 +211,43 @@ initial begin
         if(color < 100) $display("\033[38;5;%2dmPASS PATTERN NO.%4d\033[00m", color, patcount+1);
         else $display("\033[38;5;%3dmPASS PATTERN NO.%4d\033[00m", color, patcount+1);
 	end
+    $display("======================================");
+    $display("Make drink counter: %d",make_drink_cnt);
+    $display("======================================");
 	#(10);
     YOU_PASS_task;
     // $finish;
 end
+
+//================================================================
+//  Sequence generator
+//================================================================
+task seq_generate;
+begin
+    // 3600
+    // 2400 make drinks, with 8 types and 3 sizes picking randomly
+    // 600,600,600 sequence AABBCCACB for make drink, supply and check dates
+    // From pat count, generate the pattern
+    if(patcount < 1800)
+    begin
+        case(patcount%9)
+        0: golden_act = Make_drink;
+        1: golden_act = Make_drink;
+        2: golden_act = Supply;
+        3: golden_act = Supply;
+        4: golden_act = Check_Valid_Date;
+        5: golden_act = Check_Valid_Date;
+        6: golden_act = Make_drink;
+        7: golden_act = Check_Valid_Date;
+        8: golden_act = Supply;
+        endcase
+    end
+    else
+    begin
+        golden_act = Make_drink;
+    end
+end
+endtask
 
 //================================================================
 //  env task
@@ -219,7 +255,8 @@ end
 task reset_task ; begin
 	#(2.0);	inf.rst_n = 0 ;
 	#(3.0);
-	if (inf.out_valid!==0 || inf.err_msg!==0 || inf.complete !== 0) begin
+	if (inf.out_valid!==0 || inf.err_msg!==0 || inf.complete !== 0)
+    begin
 		// fail;
         // Spec. 3
         // Using  asynchronous  reset  active  low  architecture. All  outputs  should  be zero after reset.
@@ -447,17 +484,40 @@ begin
     // Generate Types, 8 types
     inf.type_valid = 1'b1;
     r_bev_type.randomize();
-    golden_type = r_bev_type.bev_type;
+
+    // Golden type selection 8 types
+    // golden_type = r_bev_type.bev_type;
+
+    case(make_drink_cnt%8)
+    0:  golden_type = Black_Tea;
+    1:  golden_type = Milk_Tea ;
+    2:  golden_type = Extra_Milk_Tea;
+    3:  golden_type = Green_Tea;
+    4:  golden_type = Green_Milk_Tea;
+    5:  golden_type = Pineapple_Juice;
+    6:  golden_type = Super_Pineapple_Tea;
+    7:  golden_type = Super_Pineapple_Milk_Tea ;
+    endcase
+
     inf.D  = golden_type;
     @(negedge clk);
     inf.type_valid = 1'b0;
     inf.D = 'bx;
     delay_task;
 
-	//Generate Size, 3 sizes
+	// Generate Size, 3 sizes
     inf.size_valid = 1'b1;
     r_bev_size.randomize();
-    golden_size = r_bev_size.bev_size;
+    // golden_size = r_bev_size.bev_size;
+
+    case(make_drink_cnt%3)
+    0: golden_size = L;
+    1: golden_size = M;
+    2: golden_size = S;
+    endcase
+    make_drink_cnt++;
+
+    // Golden size selection, 3 sizes
     inf.D  = golden_size;
     @(negedge clk);
     inf.size_valid = 1'b0;
