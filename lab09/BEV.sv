@@ -25,12 +25,6 @@ parameter BASE_Addr = 65536 ;
 // REGISTERS
 state_t state, nstate;
 
-
-
-
-
-
-
 wire st_IDLE = state[0];
 wire st_MAKE_DRINK_TYPE = state[1];
 wire st_MAKE_DRINK_SIZE = state[2];
@@ -134,7 +128,7 @@ begin
         end
         RD_DRAM:
         begin
-            if(inf.C_out_valid)
+            if(inf.C_out_valid||~rd_busy_flag_ff)
             begin
                 if(make_drink_f)
                     nstate = MAKE_DRINK;
