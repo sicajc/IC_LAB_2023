@@ -3,7 +3,7 @@ module bridge(input clk, INF.bridge_inf inf);
 //  integer / genvar / parameter
 //================================================================
 typedef enum logic [5:0]{
-    ST_IDLE=6'b000_001,
+    ST_IDLE       =6'b000_001,
     ST_AXI_RD_ADDR=6'b000_010,
     ST_AXI_RD_DATA=6'b000_100,
     ST_AXI_WR_ADDR=6'b001_000,

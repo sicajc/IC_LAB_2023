@@ -88,9 +88,9 @@ begin
         begin
             if(inf.sel_action_valid)
             begin
-                if(inf.D.d_act == Make_drink)
+                if(inf.D.d_act[0] == Make_drink)
                     nstate = MAKE_DRINK_TYPE;
-                else if(inf.D.d_act == Supply || inf.D.d_act == Check_Valid_Date)
+                else if(inf.D.d_act[0] == Supply || inf.D.d_act[0] == Check_Valid_Date)
                     nstate = RD_DATES;
                 else
                     nstate = IDLE;
@@ -189,24 +189,24 @@ always_ff @( posedge clk)
 begin
     if(inf.sel_action_valid && st_IDLE)
     begin
-        cur_act <= inf.D.d_act;
+        cur_act <= inf.D.d_act[0];
     end
 end
 always_ff @( posedge clk )
 begin
-    if(inf.type_valid && st_MAKE_DRINK_TYPE) bev_type_ff <= inf.D.d_type;
+    if(inf.type_valid && st_MAKE_DRINK_TYPE) bev_type_ff <= inf.D.d_type[0];
 end
 always_ff @( posedge clk )
 begin
-   if(inf.size_valid && st_MAKE_DRINK_SIZE) bev_size_ff <= inf.D.d_size;
+   if(inf.size_valid && st_MAKE_DRINK_SIZE) bev_size_ff <= inf.D.d_size[0];
 end
 always_ff @( posedge clk )
 begin
-   if(inf.date_valid && st_RD_DATES) date_ff <= inf.D.d_date;
+   if(inf.date_valid && st_RD_DATES) date_ff <= inf.D.d_date[0];
 end
 always_ff @( posedge clk )
 begin
-    if(inf.box_no_valid && st_RD_BOX_NO) box_no_ff <= inf.D.d_box_no;
+    if(inf.box_no_valid && st_RD_BOX_NO) box_no_ff <= inf.D.d_box_no[0];
 end
 
 always_ff @( posedge clk )
@@ -214,10 +214,10 @@ begin
     if(inf.box_sup_valid && st_GET_SUPPLIES)
     begin
         case(cnt)
-        0: black_tea_amt_ff <= inf.D.d_ing;
-        1: green_tea_amt_ff <= inf.D.d_ing;
-        2: milk_amt_ff <= inf.D.d_ing;
-        3: pineapple_juice_amt_ff <= inf.D.d_ing;
+        0: black_tea_amt_ff <= inf.D.d_ing[0];
+        1: green_tea_amt_ff <= inf.D.d_ing[0];
+        2: milk_amt_ff <= inf.D.d_ing[0];
+        3: pineapple_juice_amt_ff <= inf.D.d_ing[0];
         endcase
     end
 end
@@ -553,6 +553,9 @@ assign ing_of_f      = milk_of_f||black_tea_of_f||green_tea_of_f||pineapple_juic
 // Error msg and complete
 always_comb
 begin
+    complete_wr     = 1'b1;
+    err_result = No_Err;
+
     if(make_drink_f)
     begin
         if(expired_f)

@@ -1,8 +1,8 @@
 /*
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 NYCU Institute of Electronic
-2023 Autumn IC Design Laboratory 
-Lab09: SystemVerilog Design and Verification 
+2023 Autumn IC Design Laboratory
+Lab09: SystemVerilog Design and Verification
 File Name   : PATTERN.sv
 Module Name : PATTERN
 Release version : v1.0 (Release Date: Nov-2023)
@@ -12,199 +12,106 @@ Author : Jui-Huang Tsai (erictsai.10@nycu.edu.tw)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 */
 
+//vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+//`include "../00_TESTBED/bem_flowMgr.sv"
+//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 `include "Usertype_BEV.sv"
 
 program automatic PATTERN(input clk, INF.PATTERN inf);
 import usertype::*;
 
 //================================================================
-// parameters & integer
+//      PARAMETERS & VARIABLES
 //================================================================
-parameter DRAM_p_r = "../00_TESTBED/DRAM/dram.dat";
-integer total_latency, latency;
-integer i_pat;
-parameter SEED = 67 ;
-// integer a;
+// ---------------------------------
+// User modification
+parameter PATNUM               = 1000000;
+parameter IS_GEN_DRAM          = 1; // Regenerate the dram.dat
+parameter IS_DUMP_DRAM_TO_FILE = 1; // dump dram.dat to readable dram_check.txt
+integer   SEED                 = 587;
+// ---------------------------------
+// PATTERN operation
+parameter DELAY   = 10000;
+parameter OUT_NUM = 1;
+// ---------------------------------
+// Probability
+parameter ZERO_INGREDIEN_N = 4;
+parameter ZERO_INGREDIEN_D = 10;
+// ---------------------------------
+// PATTERN CONTROL
+integer       i;
+integer       j;
+integer       k;
+integer       m;
+integer    stop;
+integer     pat;
+integer exe_lat;
+integer out_lat;
+integer out_check_idx;
+integer tot_lat;
+integer input_delay;
+integer each_delay;
 
-//================================================================
-// wire & registers 
-//================================================================
-// logic [7:0] golden_DRAM [((65536+8*256)-1):(65536+0)];  // 256 box
-logic [7:0] golden_DRAM [(65536+0):((65536+8*256)-1)];  // 256 box
-Action     golden_act;
-Bev_Type   golden_type;
-Bev_Size   golden_size;
-Date       golden_date;
-int        golden_no_box;
-Bev_Bal    golden_box_info;
+// FILE CONTROL
+integer file;
+integer file_out;
 
-Order_Info golden_order_info;
-Data       golden_data;
+// String control
+// Should use %0s
+string reset_color       = "\033[1;0m";
+string txt_black_prefix  = "\033[1;30m";
+string txt_red_prefix    = "\033[1;31m";
+string txt_green_prefix  = "\033[1;32m";
+string txt_yellow_prefix = "\033[1;33m";
+string txt_blue_prefix   = "\033[1;34m";
 
+string bkg_black_prefix  = "\033[40;1m";
+string bkg_red_prefix    = "\033[41;1m";
+string bkg_green_prefix  = "\033[42;1m";
+string bkg_yellow_prefix = "\033[43;1m";
+string bkg_blue_prefix   = "\033[44;1m";
+string bkg_white_prefix  = "\033[47;1m";
 
-logic golden_complete;
-Error_Msg golden_err_msg;
-logic [31:0] golden_out_info;
+//======================================
+//      FLOW MANAGER INITIALIZATION
+//======================================
+bemFlowMgr bfm = new(SEED, ZERO_INGREDIEN_N, ZERO_INGREDIEN_D);
 
+//======================================
+//      MAIN
+//======================================
+initial exe_task;
 
-ING black, green, milk, pine;
-ING golden_supply_black_tea, golden_supply_green_tea, golden_supply_milk, golden_supply_pineapple_juice;
-logic [12:0]sum_out_black,sum_out_green, sum_out_milk, sum_out_pine;
-wire overflow;
-assign overflow = (sum_out_black[12] ||sum_out_green[12] ||sum_out_milk[12]  ||sum_out_pine[12] );
-//================================================================
-// class random
-//================================================================
-class rand_action;
-	rand Action action;
-	function new (int seed);
-		this.srandom(seed);
-	endfunction
-	constraint limit { action inside {Make_drink, Supply, Check_Valid_Date}; }
-endclass
-class rand_date;
-	rand Date date;
-	function new (int seed);
-		this.srandom(seed);
-	endfunction
-
-    // Constraint can only be used once.
-	constraint limit {
-        date.M inside {[1:12]};
-        if (date.M == 1 || date.M == 3 || date.M == 5 || date.M == 7 || date.M == 8 || date.M == 10 || date.M == 12)
-            date.D inside {[1:31]};
-        else if (date.M == 4 || date.M == 6 || date.M == 9 || date.M == 11)
-            date.D inside {[1:30]};
-        else if (date.M == 2)
-            date.D inside {[1:28]};
-    }
-endclass
-class rand_bev_type;
-	rand Bev_Type bev_type;
-	function new (int seed);
-		this.srandom(seed);
-	endfunction
-	constraint limit {bev_type inside {Black_Tea,Milk_Tea,Extra_Milk_Tea,Green_Tea,Green_Milk_Tea,Pineapple_Juice,Super_Pineapple_Tea,Super_Pineapple_Milk_Tea};}
-endclass
-
-class rand_bev_size;
-	rand Bev_Size bev_size;
-	function new (int seed);
-		this.srandom(seed);
-	endfunction
-	constraint limit { bev_size inside {L,M,S}; }
-endclass
-
-class rand_box_no;
-    rand int box_no;
-	function new (int seed);
-		this.srandom(seed);
-	endfunction
-	constraint limit { box_no inside {[0:255]}; }
-endclass
-
-class rand_supply_amount;
-    rand int supply_amount;
-	function new (int seed);
-		this.srandom(seed);
-	endfunction
-	constraint limit { supply_amount inside {[0:4095]}; }
-endclass
-
-class rand_delay; // Delays for input valid signals
-	rand int delay;
-	function new (int seed);
-		this.srandom(seed);
-	endfunction
-	constraint limit { delay inside {[0:3]}; } // Generates a delay between 0~3
-endclass
-
-class rand_gap;
-	rand int gap;
-	function new (int seed);
-		this.srandom(seed);
-	endfunction
-	constraint limit { gap inside {[1:3]}; } // Generates a delay between 1~4
-endclass
-
-rand_delay r_delay = new(SEED) ;
-rand_bev_type r_bev_type = new(SEED) ;
-rand_bev_size r_bev_size = new(SEED) ;
-rand_action   r_action   = new(SEED) ;
-rand_box_no   r_box_no  = new(SEED) ;
-rand_date     r_date     = new(SEED) ;
-rand_supply_amount r_supply_amount = new(SEED);
-rand_gap        r_gap        = new(SEED);
-
-//================================================================
-// initial
-//================================================================
-initial begin
-    reset_task;
-
-    $readmemh(DRAM_p_r,golden_DRAM);
-    golden_no_box = 0;
-    for (i_pat = 1; i_pat <= 1800; i_pat = i_pat + 1) begin
-        if (i_pat%9== 0)	golden_act = Make_drink ;
-		else if (i_pat%9== 1)	golden_act = Check_Valid_Date ;
-		else if (i_pat%9== 2)	golden_act = Supply ;
-		else if (i_pat%9== 3)	golden_act = Supply ;
-		else if (i_pat%9== 4)	golden_act = Make_drink ;
-		else if (i_pat%9== 5)	golden_act = Supply ;
-		else if (i_pat%9== 6)	golden_act = Check_Valid_Date ;
-		else if (i_pat%9== 7)	golden_act = Check_Valid_Date ;
-		else if (i_pat%9== 8)	golden_act = Make_drink ;
-        case(golden_act)
-			Make_drink: 
-				make_drink_task;
-			Supply:
-				supply_task;
-			Check_Valid_Date:
-				check_valid_date_task;
-		endcase
-        // input_task;
-
-        wait_out_valid_task;
-        check_ans_task;
-        gap_task;
-        $display("\033[1;32mPASS PATTERN NO.%4d\033[00m", i_pat);
-
-    end
-    for (i_pat = 1801; i_pat <= 3600; i_pat = i_pat + 1) begin
-        golden_act = Make_drink ;
-        case(golden_act)
-			Make_drink: 
-				make_drink_task;
-			Supply:
-				supply_task;
-			Check_Valid_Date:
-				check_valid_date_task;
-		endcase
-        // input_task;
-
-        wait_out_valid_task;
-        check_ans_task;
-        gap_task;
-        $display("\033[1;32mPASS PATTERN NO.%4d\033[00m", i_pat);
-
-    end
-    YOU_PASS_task;
-end 
 //======================================
 //              TASKS
 //======================================
+task exe_task; begin
+    reset_task;
+    dram_task;
+    for (pat=0 ; pat<PATNUM ; pat=pat+1) begin
+        input_task;
+        cal_task;
+        wait_task;
+        check_task;
+        // TODO : show pat pass
+    end
+    // pass_task;
+    $finish;
+end endtask
 
+//**************************************
+//      Reset Task
+//**************************************
 task reset_task; begin
-    inf.rst_n            = 'b1;
-    inf.sel_action_valid = 'b0;
-    inf.type_valid       = 'b0;
-    inf.size_valid       = 'b0;
-    inf.date_valid       = 'b0;
-    inf.box_no_valid     = 'b0;
-    inf.box_sup_valid    = 'b0;
+    inf.rst_n            = 1;
+    inf.sel_action_valid = 0;
+    inf.type_valid       = 0;
+    inf.size_valid       = 0;
+    inf.date_valid       = 0;
+    inf.box_no_valid     = 0;
+    inf.box_sup_valid    = 0;
     inf.D                = 'dx;
-
-    total_latency        = 0;
+    tot_lat              = 0;
 
     #(10) inf.rst_n = 0;
     #(10) inf.rst_n = 1;
@@ -216,423 +123,254 @@ task reset_task; begin
         $finish;
     end
 end endtask
-// task input_task; begin
-//     @(negedge clk);
-//     // r_action.randomize();
-//     in_valid = 1;
-//     a = $fscanf(pat_read, "%d ", direction);
-// 	a = $fscanf(pat_read, "%d ", addr_dram);
-// 	a = $fscanf(pat_read, "%d ", addr_sd);
-//     addr_dram_save = addr_dram;
-//     addr_sd_save = addr_sd;
-//     @(negedge clk);
-//     in_valid = 0;
-//     direction = 'bx;
-//     addr_dram = 'bx; // CORRECT HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//     addr_sd = 'bx;
-// 	//  $display("direction = %d", direction);
-// 	//  $display("addr_dram = %d", addr_dram);
-//     //  $display("addr_sd = %d", addr_sd);
-// end endtask
-integer i;
-task wait_out_valid_task; begin
-    latency = 0;
-    while(inf.out_valid !== 1'b1) begin
-        // $display("latency = %d", latency) ;
-	    latency = latency + 1;
-      if( latency == 1000) begin
-          $display("\033[1;31mThe execution latency is over 1000 cycles.\033[00m");
-	    repeat(2)@(negedge clk);
-	    $finish;
-      end
-     @(negedge clk);
-   end
-   total_latency = total_latency + latency;
+
+//**************************************
+//      Dram Task
+//**************************************
+task dram_task; begin
+    bfm.initializeDram(IS_GEN_DRAM, IS_DUMP_DRAM_TO_FILE);
 end endtask
 
-task delay_task ; begin
-	r_delay.randomize();
-	for( i=0 ; i<r_delay.delay ; i++ )	begin
+//**************************************
+//      Input Task
+//**************************************
+task give_action_task; begin
+    inf.sel_action_valid = 'b1;
+    inf.D = bfm.getInputMgr().getInputRandMgr().action;
+    @(negedge clk);
+    inf.sel_action_valid = 'b0;
+    inf.D = 'dx;
+end endtask
+
+task give_type_task; begin
+    inf.type_valid = 'b1;
+    inf.D = bfm.getInputMgr().getInputRandMgr().bevType;
+    @(negedge clk);
+    inf.type_valid = 'b0;
+    inf.D = 'dx;
+end endtask
+
+task give_size_task; begin
+    inf.size_valid = 'b1;
+    inf.D = bfm.getInputMgr().getInputRandMgr().bevSize;
+    @(negedge clk);
+    inf.size_valid = 'b0;
+    inf.D = 'dx;
+end endtask
+
+task give_date_task; begin
+    inf.date_valid = 'b1;
+    inf.D = bfm.getInputMgr().getInputRandMgr().date;
+    @(negedge clk);
+    inf.date_valid = 'b0;
+    inf.D = 'dx;
+end endtask
+
+task give_box_no_task; begin
+    inf.box_no_valid = 'b1;
+    inf.D = bfm.getInputMgr().getInputRandMgr().boxId;
+    @(negedge clk);
+    inf.box_no_valid = 'b0;
+    inf.D = 'dx;
+end endtask
+
+task give_box_sup_task; begin
+    inf.box_sup_valid = 'b1;
+    inf.D = bfm.getInputMgr().getInputRandMgr().ingBT;
+    @(negedge clk);
+    inf.box_sup_valid = 'b0;
+    inf.D = 'dx;
+    random_gap_cycles();
+
+    inf.box_sup_valid = 'b1;
+    inf.D = bfm.getInputMgr().getInputRandMgr().ingGT;
+    @(negedge clk);
+    inf.box_sup_valid = 'b0;
+    inf.D = 'dx;
+    random_gap_cycles();
+
+    inf.box_sup_valid = 'b1;
+    inf.D = bfm.getInputMgr().getInputRandMgr().ingM;
+    @(negedge clk);
+    inf.box_sup_valid = 'b0;
+    inf.D = 'dx;
+    random_gap_cycles();
+
+    inf.box_sup_valid = 'b1;
+    inf.D = bfm.getInputMgr().getInputRandMgr().ingPJ;
+    @(negedge clk);
+    inf.box_sup_valid = 'b0;
+    inf.D = 'dx;
+end endtask
+
+task random_gap_cycles; begin
+    repeat( ({$random(SEED)} % 4 + 0) ) @(negedge clk);
+end endtask
+
+task input_task; begin
+    repeat( ({$random(SEED)} % 4 + 1) ) @(negedge clk);
+    bfm.randomizeInput();
+    // bfm.displayInput();
+
+    give_action_task();
+    random_gap_cycles();
+    case(bfm.getInputMgr().getInputRandMgr().action)
+        Make_drink : begin
+            // Beverage type
+            give_type_task();
+            random_gap_cycles();
+            // Volume
+            give_size_task();
+            random_gap_cycles();
+            // Today's Date
+            give_date_task();
+            random_gap_cycles();
+            // Ingredient box
+            give_box_no_task();
+        end
+        Supply : begin
+            // Expired Date
+            give_date_task();
+            random_gap_cycles();
+            // Ingredient box
+            give_box_no_task();
+            random_gap_cycles();
+            // Supply
+            give_box_sup_task();
+        end
+        Check_Valid_Date : begin
+            // Today's Date
+            give_date_task();
+            random_gap_cycles();
+            // Ingredient box
+            give_box_no_task();
+        end
+    endcase
+end endtask
+
+//**************************************
+//      Calculation Task
+//**************************************
+task cal_task; begin
+    bfm.run();
+end endtask
+
+//**************************************
+//      Wait Task
+//**************************************
+task wait_task; begin
+    exe_lat = -1;
+    while(inf.out_valid !== 1) begin
+        if (inf.complete !== 0 || inf.err_msg !== 0) begin
+            $display("==========================================================================");
+            $display("    Output signal should be 0 at %-12d ps  ", $time*1000);
+            $display("==========================================================================");
+            repeat(5) @(negedge clk);
+            $finish;
+        end
+        if (exe_lat == DELAY) begin
+            $display("==========================================================================");
+            $display("    The execution latency at %-12d ps is over %5d cycles  ", $time*1000, DELAY);
+            $display("==========================================================================");
+            repeat(5) @(negedge clk);
+            $finish;
+        end
+        exe_lat = exe_lat + 1;
         @(negedge clk);
     end
 end endtask
-task gap_task ; begin
-	r_gap.randomize();
-	for( i=0 ; i<r_gap.gap ; i++ )		begin
+
+//**************************************
+//      Check Task
+//**************************************task check_task; begin
+task check_task; begin
+    out_lat = 0;
+    while(inf.out_valid === 1) begin
+        if(out_lat == OUT_NUM) begin
+            $display("==========================================================================");
+            $display("    Out cycles is more than %3d at %-12d ps", OUT_NUM, $time*1000);
+            $display("==========================================================================");
+            repeat(5) @(negedge clk);
+            $finish;
+        end
+        //====================
+        // Check
+        //====================
+        if ( out_lat<OUT_NUM ) begin
+            if(!bfm.isCorrect(inf.err_msg, inf.complete)) begin
+                repeat(5) @(negedge clk);
+                $finish;
+            end
+        end
+
+        out_lat = out_lat + 1;
         @(negedge clk);
     end
+    tot_lat = tot_lat + exe_lat;
+
+    $display("%0sPASS Action  : %16s, Error : %0s, PATTERN NO.%4d, %0sCycles: %3d%0s",txt_blue_prefix, bfm.getInputMgr().getInputRandMgr().action.name(), bfm.getOutputMgr().isComplete() ? "X" : "V" , pat, txt_green_prefix, exe_lat, reset_color);
 end endtask
-integer y;
-task check_ans_task; begin
-	// $display("output_task");
-	y = 0;
-	while (inf.out_valid===1)
-    begin
-		if (y >= 1)
-        begin
-			$display("\033[1;31mOutvalid is more than 1 cycles.\033[00m");
-	        #(100);
-			$finish;
-		end
-		else if (golden_act==Make_drink)
-        begin
-            // $display("Checking make drink out data \n");
-    		if ( (inf.complete!==golden_complete) || (inf.err_msg!==golden_err_msg))
-            begin
-				$display("\033[1;31m                       Make drink\033[00m");
-    	    	$display("    Golden complete : %6d    your complete : %6d ", golden_complete, inf.complete);
-    			$display("    Golden err_msg  : %6d    your err_msg  : %6d ", golden_err_msg, inf.err_msg);
-    			$display("\033[1;31m                       Wrong Answer\033[00m");
-		        #(100);
-    			$finish;
-    		end
-    	end
-		else if (golden_act == Supply)
-        begin
-            // $display("Checking Supply out data \n");
-    		if ( (inf.complete!==golden_complete) || (inf.err_msg!==golden_err_msg))
-            begin
-				$display("\033[1;31m                       Supply\033[00m");
-    	    	$display("    Golden complete : %6d    your complete : %6d ", golden_complete, inf.complete);
-    			$display("    Golden err_msg  : %6d    your err_msg  : %6d ", golden_err_msg, inf.err_msg);
-    			$display("\033[1;31m                       Wrong Answer\033[00m");
-		        #(100);
-    			$finish;
-    		end
-        end
-        else if(golden_act == Check_Valid_Date)
-        begin
-            // $display("Checking Check valid date out data \n");
-            if ( (inf.complete!==golden_complete) || (inf.err_msg!==golden_err_msg))
-            begin
-				$display("\033[1;31m                       Check valid date\033[00m");
-    	    	$display("    Golden complete : %6d    your complete : %6d ", golden_complete, inf.complete);
-    			$display("    Golden err_msg  : %6d    your err_msg  : %6d ", golden_err_msg, inf.err_msg);
-    			$display("\033[1;31m                       Wrong Answer\033[00m");
-		        #(100);
-    			$finish;
-    		end
-        end
-	    @(negedge clk);
-	    y = y + 1;
-    end
-end
-endtask
-task get_box_info_task;
-begin
-    golden_box_info.black_tea       = {golden_DRAM[65536+golden_no_box*8 + 7],golden_DRAM[65536+golden_no_box*8 + 6][7:4]};
-	golden_box_info.green_tea       = {golden_DRAM[65536+golden_no_box*8 + 6][3:0],golden_DRAM[65536+golden_no_box*8 + 5]};
-	golden_box_info.M               = golden_DRAM[65536+golden_no_box*8 + 4];
-	golden_box_info.milk            =  {golden_DRAM[65536+golden_no_box*8 + 3],golden_DRAM[65536+golden_no_box*8 + 2][7:4]};
-	golden_box_info.pineapple_juice =  {golden_DRAM[65536+golden_no_box*8 + 2][3:0],golden_DRAM[65536+golden_no_box*8 + 1]};
-	golden_box_info.D               =  golden_DRAM[65536+golden_no_box*8 + 0];
-end
-endtask
-task sel_action_valid_task;
-begin
-	inf.sel_action_valid = 1'b1;
-    inf.D = golden_act;
-    @(negedge clk);
-    inf.sel_action_valid = 1'b0;
-    inf.D = 'bx;
-    delay_task;
-end
-endtask
-task date_valid_task;
-begin
-    inf.date_valid = 1'b1;
-    r_date.randomize();
-    golden_date = r_date.date;
 
-    inf.D  = {3'b0,golden_date};
-    @(negedge clk);
-    inf.date_valid = 1'b0;
-    inf.D = 'bx;
-    delay_task;
-end
-endtask
-task box_no_valid_task;
-begin
-    inf.box_no_valid= 1'b1;
-    r_box_num.randomize();
-    golden_no_box = r_box_num.box_num;
-    inf.D  = golden_no_box;
-    @(negedge clk);
-    inf.box_no_valid = 1'b0;
-    inf.D = 'bx;
-    delay_task;
-end
-endtask
-task make_drink_task;
-begin
-    sel_action_valid_task;
-
-    inf.type_valid = 1'b1;
-    r_bev_type.randomize();
-    golden_type = r_bev_type.bev_type;
-    inf.D  = golden_type;
-    @(negedge clk);
-    inf.type_valid = 1'b0;
-    inf.D = 'bx;
-    delay_task;
-    
-    inf.size_valid = 1'b1;
-    r_bev_size.randomize();
-    golden_size = r_bev_size.bev_size;
-    inf.D  = golden_size;
-    @(negedge clk);
-    inf.size_valid = 1'b0;
-    inf.D = 'bx;
-    delay_task;
-
-    date_valid_task;
-	box_no_valid_task;
-
-
-
-    get_box_info_task;
-    golden_complete = 1'b1;
-    golden_err_msg  = No_Err;
-
-    if((golden_box_info.M > golden_date.M) || ((golden_box_info.M == golden_date.M) && (golden_box_info.D >= golden_date.D)))
-    begin
-        begin
-        case(golden_type)
-            Black_Tea      	         :begin
-                case(golden_size)
-                L: black  = 12'd960;
-                M: black  = 12'd720;
-                S: black  = 12'd480;
-                endcase
-            end
-            Milk_Tea	             :begin
-                case(golden_size)
-                L: black  = 12'd720;
-                M: black  = 12'd540;
-                S: black  = 12'd360;
-                endcase
-            end
-            Extra_Milk_Tea           :begin
-                case(golden_size)
-                L: black  = 12'd480;
-                M: black  = 12'd360;
-                S: black  = 12'd240;
-                endcase
-            end
-            Super_Pineapple_Tea      :begin
-                case(golden_size)
-                L: black  = 12'd480;
-                M: black  = 12'd360;
-                S: black  = 12'd240;
-                endcase
-            end
-            Super_Pineapple_Milk_Tea :begin
-                case(golden_size)
-                L: black  = 12'd480;
-                M: black  = 12'd360;
-                S: black  = 12'd240;
-                endcase
-            end
-            default black = 12'd0;
-        endcase
-        case(golden_type)
-            Green_Tea 	             :begin
-                case(golden_size)
-                L: green  = 12'd960;
-                M: green  = 12'd720;
-                S: green  = 12'd480;
-                endcase
-            end
-            Green_Milk_Tea           :begin
-                case(golden_size)
-                L: green  = 12'd480;
-                M: green  = 12'd360;
-                S: green  = 12'd240;
-                endcase
-            end
-            default green = 12'd0;
-        endcase
-        case(golden_type)
-            Milk_Tea	             :begin
-                case(golden_size)
-                L: milk  = 12'd240;
-                M: milk  = 12'd180;
-                S: milk  = 12'd120;
-                endcase
-            end
-            Extra_Milk_Tea           :begin
-                case(golden_size)
-                L: milk  = 12'd480;
-                M: milk  = 12'd360;
-                S: milk  = 12'd240;
-                endcase
-            end
-            Green_Milk_Tea           :begin
-                case(golden_size)
-                L: milk  = 12'd480;
-                M: milk  = 12'd360;
-                S: milk  = 12'd240;
-                endcase
-            end
-            Super_Pineapple_Milk_Tea :begin
-                case(golden_size)
-                L: milk  = 12'd240;
-                M: milk  = 12'd180;
-                S: milk  = 12'd120;
-                endcase
-            end
-            default milk = 12'd0;
-        endcase
-        case(golden_type)
-            Pineapple_Juice          :begin
-                case(golden_size)
-                L: pine  = 12'd960;
-                M: pine  = 12'd720;
-                S: pine  = 12'd480;
-                endcase
-            end
-            Super_Pineapple_Tea      :begin
-                case(golden_size)
-                L: pine  = 12'd480;
-                M: pine  = 12'd360;
-                S: pine  = 12'd240;
-                endcase
-            end
-            Super_Pineapple_Milk_Tea :begin
-                case(golden_size)
-                L: pine  = 12'd240;
-                M: pine  = 12'd180;
-                S: pine  = 12'd120;
-                endcase
-            end
-            default pine = 12'd0;
-        endcase
-        if(((black > golden_box_info.black_tea)||(green > golden_box_info.green_tea)||(milk > golden_box_info.milk)||
-            (pine > golden_box_info.pineapple_juice)))begin
-                golden_err_msg = No_Ing;
-                golden_complete = 1'b0;
-            end
-        end
-        else 
-        begin
-            golden_box_info.black_tea -= black;
-            golden_box_info.green_tea -= green;
-            golden_box_info.milk -= milk;
-            golden_box_info.pineapple_juice -= pine;
-        end
-    else
-    begin
-        golden_err_msg  = No_Exp;
-        golden_complete = 1'b0;
-    end
-end
-endtask
-
-task supply_task;
-begin
-    sel_action_valid_task;
-    date_valid_task;
-	box_no_valid_task;
-
-    get_box_info_task;
-    golden_complete = 1'b1;
-    golden_err_msg  = No_Err;
-
-    
-	inf.box_sup_valid = 1'b1; //black
-    r_supply_amount.randomize();
-    golden_supply_black_tea = r_supply_amount.supply_amount;
-    inf.D  = golden_supply_black_tea;
-    @(negedge clk);
-    inf.box_sup_valid = 1'b0;
-    inf.D = 'bx;
-    delay_task;
-
-    inf.box_sup_valid = 1'b1; //green
-    r_supply_amount.randomize();
-    golden_supply_green_tea = r_supply_amount.supply_amount;
-    inf.D  = golden_supply_green_tea;
-    @(negedge clk);
-    inf.box_sup_valid = 1'b0;
-    inf.D = 'bx;
-    delay_task;
-    
-    inf.box_sup_valid = 1'b1; //milk
-    r_supply_amount.randomize();
-    golden_supply_milk = r_supply_amount.supply_amount;
-    inf.D  = golden_supply_milk;
-    @(negedge clk);
-    inf.box_sup_valid = 1'b0;
-    inf.D = 'bx;
-    delay_task;
-
-    inf.box_sup_valid = 1'b1; //pine
-    r_supply_amount.randomize();
-    golden_supply_pineapple_juice = r_supply_amount.supply_amount;
-    inf.D  = golden_supply_pineapple_juice;
-    @(negedge clk);
-    inf.box_sup_valid = 1'b0;
-    inf.D = 'bx;
-    delay_task;
-    
-    get_box_info_task;
-
-    golden_complete = 1'b1;
-    sum_out_black = golden_box_info.black_tea + golden_supply_black_tea;
-    sum_out_green = golden_box_info.green_tea + golden_supply_green_tea;
-    sum_out_milk  = golden_box_info.milk      + golden_supply_milk;
-    sum_out_pine  = golden_box_info.pineapple_juice + golden_supply_pineapple_juice;
-    if(overflow)begin
-        golden_err_msg  = Ing_OF;
-        golden_complete = 1'b0;
-    end
-    else
-    begin
-        golden_err_msg  = No_Err;
-        golden_complete = 1'b1;
-    end
-    golden_box_info.M = golden_date.M;
-    golden_box_info.D = golden_date.D;
-
-    golden_box_info = {((sum_out_black[12])?12'hFFF:sum_out_black[11:0]),
-            ((sum_out_green[12])?12'hFFF:sum_out_green[11:0]),
-            golden_date.M,
-            ((sum_out_milk[12])?12'hFFF:sum_out_milk[11:0]),
-            ((sum_out_pine[12])?12'hFFF:sum_out_pine[11:0]),
-            golden_date.D};
-
-end
-endtask
-task check_valid_date_task;
-begin
-    sel_action_valid_task;
-    date_valid_task;
-	box_no_valid_task;
-    get_box_info_task;
-    if(golden_box_info.M > golden_date.M)
-    begin
-        golden_complete = 1'b1;
-        golden_err_msg  = No_Err;
-    end
-    else if(golden_box_info.M == golden_date.M && golden_box_info.D >= golden_date.D)
-    begin
-        golden_complete = 1'b1;
-        golden_err_msg  = No_Err;
-    end
-    else
-    begin
-        golden_complete = 1'b0;
-        golden_err_msg  = No_Exp;
-    end
-end
-endtask
-task YOU_PASS_task;begin
-    $display("********************************************************************");
-    $display("                        \033[0;38;5;219mCongratulations!\033[m      ");
-    $display("                 \033[0;38;5;219mYou have passed all patterns!\033[m");
-    $display("                 \033[0;38;5;219mTotal time: %d \033[m",$time);
-    $display("********************************************************************");
-	repeat(2) @(negedge clk);
+//**************************************
+//      PASS Task
+//**************************************
+task pass_task; begin
+    $display("\033[1;33m                `oo+oy+`                            \033[1;35m Congratulation!!! \033[1;0m                                   ");
+    $display("\033[1;33m               /h/----+y        `+++++:             \033[1;35m PASS This Lab........Maybe \033[1;0m                          ");
+    $display("\033[1;33m             .y------:m/+ydoo+:y:---:+o             \033[1;35m Total Latency : %-10d\033[1;0m                                ", tot_lat);
+    $display("\033[1;33m              o+------/y--::::::+oso+:/y                                                                                     ");
+    $display("\033[1;33m              s/-----:/:----------:+ooy+-                                                                                    ");
+    $display("\033[1;33m             /o----------------/yhyo/::/o+/:-.`                                                                              ");
+    $display("\033[1;33m            `ys----------------:::--------:::+yyo+                                                                           ");
+    $display("\033[1;33m            .d/:-------------------:--------/--/hos/                                                                         ");
+    $display("\033[1;33m            y/-------------------::ds------:s:/-:sy-                                                                         ");
+    $display("\033[1;33m           +y--------------------::os:-----:ssm/o+`                                                                          ");
+    $display("\033[1;33m          `d:-----------------------:-----/+o++yNNmms                                                                        ");
+    $display("\033[1;33m           /y-----------------------------------hMMMMN.                                                                      ");
+    $display("\033[1;33m           o+---------------------://:----------:odmdy/+.                                                                    ");
+    $display("\033[1;33m           o+---------------------::y:------------::+o-/h                                                                    ");
+    $display("\033[1;33m           :y-----------------------+s:------------/h:-:d                                                                    ");
+    $display("\033[1;33m           `m/-----------------------+y/---------:oy:--/y                                                                    ");
+    $display("\033[1;33m            /h------------------------:os++/:::/+o/:--:h-                                                                    ");
+    $display("\033[1;33m         `:+ym--------------------------://++++o/:---:h/                                                                     ");
+    $display("\033[1;31m        `hhhhhoooo++oo+/:\033[1;33m--------------------:oo----\033[1;31m+dd+                                                 ");
+    $display("\033[1;31m         shyyyhhhhhhhhhhhso/:\033[1;33m---------------:+/---\033[1;31m/ydyyhs:`                                              ");
+    $display("\033[1;31m         .mhyyyyyyhhhdddhhhhhs+:\033[1;33m----------------\033[1;31m:sdmhyyyyyyo:                                            ");
+    $display("\033[1;31m        `hhdhhyyyyhhhhhddddhyyyyyo++/:\033[1;33m--------\033[1;31m:odmyhmhhyyyyhy                                            ");
+    $display("\033[1;31m        -dyyhhyyyyyyhdhyhhddhhyyyyyhhhs+/::\033[1;33m-\033[1;31m:ohdmhdhhhdmdhdmy:                                           ");
+    $display("\033[1;31m         hhdhyyyyyyyyyddyyyyhdddhhyyyyyhhhyyhdhdyyhyys+ossyhssy:-`                                                           ");
+    $display("\033[1;31m         `Ndyyyyyyyyyyymdyyyyyyyhddddhhhyhhhhhhhhy+/:\033[1;33m-------::/+o++++-`                                            ");
+    $display("\033[1;31m          dyyyyyyyyyyyyhNyydyyyyyyyyyyhhhhyyhhy+/\033[1;33m------------------:/ooo:`                                         ");
+    $display("\033[1;31m         :myyyyyyyyyyyyyNyhmhhhyyyyyhdhyyyhho/\033[1;33m-------------------------:+o/`                                       ");
+    $display("\033[1;31m        /dyyyyyyyyyyyyyyddmmhyyyyyyhhyyyhh+:\033[1;33m-----------------------------:+s-                                      ");
+    $display("\033[1;31m      +dyyyyyyyyyyyyyyydmyyyyyyyyyyyyyds:\033[1;33m---------------------------------:s+                                      ");
+    $display("\033[1;31m      -ddhhyyyyyyyyyyyyyddyyyyyyyyyyyhd+\033[1;33m------------------------------------:oo              `-++o+:.`             ");
+    $display("\033[1;31m       `/dhshdhyyyyyyyyyhdyyyyyyyyyydh:\033[1;33m---------------------------------------s/            -o/://:/+s             ");
+    $display("\033[1;31m         os-:/oyhhhhyyyydhyyyyyyyyyds:\033[1;33m----------------------------------------:h:--.`      `y:------+os            ");
+    $display("\033[1;33m         h+-----\033[1;31m:/+oosshdyyyyyyyyhds\033[1;33m-------------------------------------------+h//o+s+-.` :o-------s/y  ");
+    $display("\033[1;33m         m:------------\033[1;31mdyyyyyyyyymo\033[1;33m--------------------------------------------oh----:://++oo------:s/d  ");
+    $display("\033[1;33m        `N/-----------+\033[1;31mmyyyyyyyydo\033[1;33m---------------------------------------------sy---------:/s------+o/d  ");
+    $display("\033[1;33m        .m-----------:d\033[1;31mhhyyyyyyd+\033[1;33m----------------------------------------------y+-----------+:-----oo/h  ");
+    $display("\033[1;33m        +s-----------+N\033[1;31mhmyyyyhd/\033[1;33m----------------------------------------------:h:-----------::-----+o/m  ");
+    $display("\033[1;33m        h/----------:d/\033[1;31mmmhyyhh:\033[1;33m-----------------------------------------------oo-------------------+o/h  ");
+    $display("\033[1;33m       `y-----------so /\033[1;31mNhydh:\033[1;33m-----------------------------------------------/h:-------------------:soo  ");
+    $display("\033[1;33m    `.:+o:---------+h   \033[1;31mmddhhh/:\033[1;33m---------------:/osssssoo+/::---------------+d+//++///::+++//::::::/y+`  ");
+    $display("\033[1;33m   -s+/::/--------+d.   \033[1;31mohso+/+y/:\033[1;33m-----------:yo+/:-----:/oooo/:----------:+s//::-.....--:://////+/:`    ");
+    $display("\033[1;33m   s/------------/y`           `/oo:--------:y/-------------:/oo+:------:/s:                                                 ");
+    $display("\033[1;33m   o+:--------::++`              `:so/:-----s+-----------------:oy+:--:+s/``````                                             ");
+    $display("\033[1;33m    :+o++///+oo/.                   .+o+::--os-------------------:oy+oo:`/o+++++o-                                           ");
+    $display("\033[1;33m       .---.`                          -+oo/:yo:-------------------:oy-:h/:---:+oyo                                          ");
+    $display("\033[1;33m                                          `:+omy/---------------------+h:----:y+//so                                         ");
+    $display("\033[1;33m                                              `-ys:-------------------+s-----+s///om                                         ");
+    $display("\033[1;33m                                                 -os+::---------------/y-----ho///om                                         ");
+    $display("\033[1;33m                                                    -+oo//:-----------:h-----h+///+d                                         ");
+    $display("\033[1;33m                                                       `-oyy+:---------s:----s/////y                                         ");
+    $display("\033[1;33m                                                           `-/o+::-----:+----oo///+s                                         ");
+    $display("\033[1;33m                                                               ./+o+::-------:y///s:                                         ");
+    $display("\033[1;33m                                                                   ./+oo/-----oo/+h                                          ");
+    $display("\033[1;33m                                                                       `://++++syo`                                          ");
+    $display("\033[1;0m");
+    repeat(5) @(negedge clk);
     $finish;
 end endtask
 
