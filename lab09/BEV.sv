@@ -551,78 +551,59 @@ assign ing_ran_out_f = pineapple_juice_run_out_f || black_tea_run_out_f || milk_
 assign ing_of_f      = milk_of_f||black_tea_of_f||green_tea_of_f||pineapple_juice_of_f;
 
 // Error msg and complete
-// always_comb
-// begin
-//     if(make_drink_f)
-//     begin
-//         if(expired_f)
-//         begin
-//             complete_wr     = 1'b0;
-//             err_result      = No_Exp;
-//         end
-//         else if(ing_ran_out_f)
-//         begin
-//             complete_wr = 1'b0;
-//             err_result = No_Ing;
-//         end
-//         else
-//         begin
-//             complete_wr     = 1'b1;
-//             err_result = No_Err;
-//         end
-//     end
-//     else if(supply_f)
-//     begin
-//         if(ing_of_f)
-//         begin
-//             complete_wr  = 1'b0;
-//             err_result = Ing_OF;
-//         end
-//         else
-//         begin
-//             complete_wr     = 1'b1;
-//             err_result = No_Err;
-//         end
-//     end
-//     else if(check_valid_f)
-//     begin
-//         if(expired_f)
-//         begin
-//             complete_wr     = 1'b0;
-//             err_result      = No_Exp;
-//         end
-//         else
-//         begin
-//             complete_wr     = 1'b1;
-//             err_result = No_Err;
-//         end
-//     end
-//     else
-//     begin
-//         complete_wr = 1'b1;
-//         err_result  = No_Err;
-//     end
-// end
 always_comb
 begin
-    case(1'b1)
-        expired_f:
+    if(make_drink_f)
+    begin
+        if(expired_f)
         begin
-            complete_wr = 1'b0;
-            err_result = No_Exp;
+            complete_wr     = 1'b0;
+            err_result      = No_Exp;
         end
-        ing_ran_out_f:
+        else if(ing_ran_out_f)
         begin
             complete_wr = 1'b0;
             err_result = No_Ing;
         end
-        default:
+        else
         begin
-            complete_wr = 1'b1;
+            complete_wr     = 1'b1;
             err_result = No_Err;
         end
-    endcase
+    end
+    else if(supply_f)
+    begin
+        if(ing_of_f)
+        begin
+            complete_wr  = 1'b0;
+            err_result = Ing_OF;
+        end
+        else
+        begin
+            complete_wr     = 1'b1;
+            err_result = No_Err;
+        end
+    end
+    else if(check_valid_f)
+    begin
+        if(expired_f)
+        begin
+            complete_wr     = 1'b0;
+            err_result      = No_Exp;
+        end
+        else
+        begin
+            complete_wr     = 1'b1;
+            err_result = No_Err;
+        end
+    end
+    else
+    begin
+        complete_wr = 1'b1;
+        err_result  = No_Err;
+    end
 end
+
 
 //Dram data in
 always_ff @( posedge clk )
