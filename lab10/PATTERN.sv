@@ -1,5 +1,4 @@
 `include "Usertype_BEV.sv"
-`define CYCLE_TIME 10.0
 
 program automatic PATTERN(input clk, INF.PATTERN inf);
 import usertype::*;
@@ -174,7 +173,19 @@ initial begin
 	// reset
 	cycles_sum = 0 ;
 	inf.size_valid = 1'b0 ;
-	reset_task;
+
+    // Reseting
+    #(1.0);	inf.rst_n = 0 ;
+	#(`CYCLE_TIME*5);
+	if (inf.out_valid!==0 || inf.err_msg!==0 || inf.complete !== 0)
+    begin
+        $display ("                                                                SPEC 3 INCORRECT!                                                                ");
+        #(100);
+        $finish;
+	end
+	#(1.0);	inf.rst_n = 1 ;
+
+
 	inf.type_valid = 1'b0 ;
 	inf.box_sup_valid = 1'b0 ;
 	inf.date_valid = 1'b0 ;
@@ -213,7 +224,7 @@ initial begin
     // $display("======================================");
     // $display("Make drink counter: %d",make_drink_cnt);
     // $display("======================================");
-	#(10);
+	// #(10);
     YOU_PASS_task;
     // $finish;
 end
@@ -251,20 +262,6 @@ endtask
 //================================================================
 //  resets and wait out valid
 //================================================================
-task reset_task ;
-begin
-	#(1.0);	inf.rst_n = 0 ;
-	#(`CYCLE_TIME*5);
-	if (inf.out_valid!==0 || inf.err_msg!==0 || inf.complete !== 0)
-    begin
-        $display ("                                                                SPEC 3 FAIL!                                                                ");
-        #(100);
-        $finish;
-	end
-	#(1.0);	inf.rst_n = 1 ;
-end
-endtask
-
 task wait_outvalid_task;
 begin
 	cycles = 0 ;
@@ -273,7 +270,9 @@ begin
 		cycles = cycles + 1 ;
 		if (cycles==1000)
         begin
-            $display ("                                                                SPEC 4 FAIL!                                                                ");
+            $display ("============================================================================================================================");
+            $display ("                                                                SPEC 4 INCORRECT!                                                ");
+            $display ("============================================================================================================================");
         	#(100);
             $finish;
 		end
@@ -295,7 +294,7 @@ task output_task; begin
 		if (z >= 1)
         begin
 			$display ("--------------------------------------------------");
-			$display ("                        FAIL                      ");
+			$display ("                    INCORRECT                     ");
 			$display ("          Outvalid is more than 1 cycles          ");
 			$display ("--------------------------------------------------");
 	        #(100);
@@ -307,14 +306,14 @@ task output_task; begin
     		if ( (inf.complete!==complete_g) || (inf.err_msg!==err_msg_g))
             begin
 				$display("-----------------------------------------------------------");
-    	    	$display("                       FAIL Make drink                     ");
+    	    	$display("                      INCORRECT Make drink                     ");
     	    	$display("    Golden complete : %6d    your complete : %6d ", complete_g, inf.complete);
     			$display("    Golden err_msg  : %6d    your err_msg  : %6d ", err_msg_g, inf.err_msg);
     			$display("-----------------------------------------------------------");
                 $display("Expected box info: \n");
                 display_box_info;
                 display_current_golden_info;
-                fail;
+                incorrect_task;
 		        // #(100);
     			$finish;
     		end
@@ -325,14 +324,14 @@ task output_task; begin
     		if ( (inf.complete!==complete_g) || (inf.err_msg!==err_msg_g))
             begin
 				$display("-----------------------------------------------------------");
-    	    	$display("                           FAIL Supply                     ");
+    	    	$display("                           INCORRECT Supply                    ");
     	    	$display("    Golden complete : %6d    your complete : %6d ", complete_g, inf.complete);
     			$display("    Golden err_msg  : %6d    your err_msg  : %6d ", err_msg_g, inf.err_msg);
     			$display("-----------------------------------------------------------");
                 $display("Expected box info: \n");
                 display_box_info;
                 display_current_golden_info;
-                fail;
+                incorrect_task;
 		        // #(100);
     			$finish;
     		end
@@ -343,14 +342,14 @@ task output_task; begin
             if ( (inf.complete!==complete_g) || (inf.err_msg!==err_msg_g))
             begin
 				$display("-----------------------------------------------------------");
-    	    	$display("                           FAIL Check Valid date                     ");
+    	    	$display("                     INCORRECT Check Valid date            ");
     	    	$display("    Golden complete : %6d    your complete : %6d ", complete_g, inf.complete);
     			$display("    Golden err_msg  : %6d    your err_msg  : %6d ", err_msg_g, inf.err_msg);
     			$display("-----------------------------------------------------------");
                 $display("Expected box info: \n");
                 display_box_info;
                 display_current_golden_info;
-                fail;
+                incorrect_task;
 		        // #(100);
     			$finish;
     		end
@@ -554,9 +553,6 @@ begin
             L:begin
                 temp_black_tea -= L_size;
             end
-            default:begin
-               $display("Size error!");
-            end
             endcase
 
             if(temp_black_tea < 0)
@@ -596,9 +592,6 @@ begin
 
                 temp_black_tea -= black_tea_need;
                 temp_milk      -= milk_need;
-            end
-            default:begin
-               $display("Size error!");
             end
             endcase
 
@@ -640,9 +633,6 @@ begin
                 temp_black_tea -= black_tea_need;
                 temp_milk      -= milk_need;
             end
-            default:begin
-               $display("Size error!");
-            end
             endcase
 
             if(temp_black_tea < 0 || temp_milk < 0)
@@ -669,9 +659,6 @@ begin
             end
             L:begin
                 temp_green_tea -= L_size;
-            end
-            default:begin
-               $display("Size error!");
             end
             endcase
 
@@ -712,9 +699,6 @@ begin
                 temp_green_tea -= green_tea_need;
                 temp_milk      -= milk_need;
             end
-            default:begin
-               $display("Size error!");
-            end
             endcase
 
             if(temp_green_tea < 0 || temp_milk < 0)
@@ -741,9 +725,6 @@ begin
             end
             L:begin
                 temp_pineapple_juice -= L_size;
-            end
-            default:begin
-               $display("Size error!");
             end
             endcase
 
@@ -784,9 +765,6 @@ begin
 
                 temp_pineapple_juice -= pineapple_juice_need;
                 temp_black_tea       -= black_tea_need;
-            end
-            default:begin
-               $display("Size error!");
             end
             endcase
 
@@ -836,9 +814,6 @@ begin
                 temp_black_tea       -= black_tea_need;
                 temp_milk            -= milk_need;
             end
-            default:begin
-               $display("Size error!");
-            end
             endcase
 
             if(temp_pineapple_juice < 0 || temp_black_tea < 0 || temp_milk < 0)
@@ -853,12 +828,6 @@ begin
                 box_info_g.black_tea            = temp_black_tea;
                 box_info_g.milk                 = temp_milk;
             end
-        end
-        default:
-        begin
-            $display("===================================");
-            $display("Type Error!!!");
-            $display("===================================");
         end
         endcase
     end
@@ -1082,7 +1051,6 @@ end
 endtask
 
 
-
 task update_dram_info_task;
 begin
     golden_DRAM[BASE_Addr+no_box_g*8 + 7]      = box_info_g.black_tea[11:4];
@@ -1100,7 +1068,7 @@ endtask
 
 task YOU_PASS_task;begin
 $display ("----------------------------------------------------------------------------------------------------------------------");
-$display ("                                                  Congratulations!                                                    ");
+$display ("                                                  Congratulations                                                     ");
 $display ("                                           You have passed all patterns!                                              ");
 $display ("                                                                                                                      ");
 $display ("                                        Your execution cycles   = %5d cycles                                          ", cycles_sum);
@@ -1110,7 +1078,7 @@ $display ("---------------------------------------------------------------------
 $finish;
 end endtask
 
-task fail; begin
+task incorrect_task; begin
 $display("====================================================================================");
 $display("                                      Wrong Answer                                  ");
 $display("====================================================================================");
