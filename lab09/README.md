@@ -1,0 +1,3 @@
+# Lab09
+1. SystemVerilog is a great tool for large system integration, useful sytax and classes for useful data mapping, Union and struct helps redefining the same data block or register which definitely improve productivity, this lab is a great reference for future design using SV.
+2. After creating the baseline, if you have time, recreate the whole system control, sub controllers are very useful in this lab to reduce the overall latency!
