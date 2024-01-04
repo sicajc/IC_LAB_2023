@@ -123,16 +123,6 @@ reg signed [15:0] core_r12, core_r13, core_r14, core_r15;
 //================================================================
 //  AXI 4
 //================================================================
-// constant AXI 4 signals
-assign arid_m_inf = 0 ;
-assign arlen_m_inf = 7'b111_1111 ;
-assign arsize_m_inf = 3'b001 ;
-assign arburst_m_inf = 2'b01 ;
-
-assign awid_m_inf = 0 ;
-assign awlen_m_inf = 7'd0 ;
-assign awsize_m_inf = 3'b001 ;
-assign awburst_m_inf = 2'b01 ;
 
 //####################################################
 //               STATES
@@ -222,8 +212,11 @@ wire st_DC_WRITE_SRAM                               = data_cache_cur_st[10];
 //======================
 reg[7:0] axi_burst_cnt;
 // instruction read and data read
-wire axi_rd_addr_done_f = arvalid_m_inf && arready_m_inf;
-wire axi_rd_data_done_f = rvalid_m_inf  && rready_m_inf && rlast_m_inf;
+wire axi_inst_rd_addr_done_f = arvalid_m_inf[1] && arready_m_inf[1];
+wire axi_data_rd_addr_done_f = arvalid_m_inf[0] && arready_m_inf[0];
+
+wire axi_inst_rd_data_done_f = rvalid_m_inf[1]  && rready_m_inf[1] && rlast_m_inf[1];
+wire axi_data_rd_data_done_f = rvalid_m_inf[0]  && rready_m_inf[0] && rlast_m_inf[0];
 
 //======================
 //   AXI WR
@@ -884,11 +877,11 @@ begin
     end
     IC_AXI_RD_ADDR:
     begin
-        inst_cache_nxt_st = axi_rd_addr_done_f ? IC_AXI_RD_DATA_UPDATE_CASH : IC_AXI_RD_ADDR;
+        inst_cache_nxt_st = axi_inst_rd_addr_done_f ? IC_AXI_RD_DATA_UPDATE_CASH : IC_AXI_RD_ADDR;
     end
     IC_AXI_RD_DATA_UPDATE_CASH:
     begin
-        inst_cache_nxt_st = axi_rd_data_done_f ? IC_CHECK : IC_AXI_RD_DATA_UPDATE_CASH;
+        inst_cache_nxt_st = axi_data_rd_data_done_f ? IC_CHECK : IC_AXI_RD_DATA_UPDATE_CASH;
     end
     endcase
 end
@@ -1104,7 +1097,7 @@ begin
     end
     DC_AXI_RD_DATA_UPDATE_CASH:
     begin
-        data_cache_nxt_st = axi_rd_data_done_f ? DC_CHECK : DC_AXI_RD_DATA_UPDATE_CASH;
+        data_cache_nxt_st = axi_data_rd_data_done_f ? DC_CHECK : DC_AXI_RD_DATA_UPDATE_CASH;
     end
     DC_WRITE_SRAM:
     begin
@@ -1195,10 +1188,139 @@ end
 //================================================================
 //   AXI Interfaces
 //================================================================
+// constant AXI 4 signals
+// Same for both instr and data
+//inst
+//read address
+assign arid_m_inf[DRAM_NUMBER * ID_WIDTH-1:ID_WIDTH] = 0;
+assign arlen_m_inf[DRAM_NUMBER * 7 -1:7] = 7'b111_1111 ;
+assign arsize_m_inf[DRAM_NUMBER * 3 -1:3] = 3'b001 ;
+assign arburst_m_inf[DRAM_NUMBER * 2 -1:2] = 2'b01 ;
 
+//data
+//read address
+assign arid_m_inf[ID_WIDTH-1:0] = 0;
+assign arlen_m_inf[7 -1:0]  = 7'b111_1111 ;
+assign arsize_m_inf[3 -1:0] = 3'b001 ;
+assign arburst_m_inf[2 -1:0] = 2'b01 ;
 
+//write address
+assign awid_m_inf = 0 ;
+assign awlen_m_inf = 7'd0 ;
+assign awsize_m_inf = 3'b001 ;
+assign awburst_m_inf = 2'b01 ;
 
+//========================
+//   Instruction read
+//========================
+wire axi_inst_rd_data_tran_f = rvalid_m_inf[1] && rready_m_inf[1];
+wire axi_data_rd_data_tran_f = rvalid_m_inf[0] && rready_m_inf[0];
 
+wire axi_wr_data_tran_f = wvalid_m_inf && wready_m_inf;
+
+//Write address channel
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        awaddr_m_inf  <= 0;
+        awvalid_m_inf <= 0;
+    end
+    else if(st_DC_AXI_WR_ADDR)
+    begin
+        awaddr_m_inf  <= alu_out_wr;
+        awvalid_m_inf <= 1'b1;
+    end
+end
+
+// Write data channel
+assign wlast_m_inf = axi_burst_cnt == 127;
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        wdata_m_inf  <= 0;
+        wvalid_m_inf <= 0;
+    end
+    else if(st_DC_AXI_WR_DATA)
+    begin
+        wdata_m_inf  <= dc_in_data_ff;
+        wvalid_m_inf <= 1'b1;
+    end
+    else
+    begin
+        wdata_m_inf  <= 0;
+        wvalid_m_inf <= 1'b0;
+    end
+end
+
+//Write Response channel
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+        bready_m_inf <= 0;
+    else if(st_DC_AXI_WR_RESP)
+        bready_m_inf <= 1'b1;
+    else
+        bready_m_inf <= 1'b0;
+end
+
+// Read address
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        arvalid_m_inf <= 0;
+        araddr_m_inf  <= 0;
+    end
+    else if(st_IC_AXI_RD_ADDR)
+    begin
+        arvalid_m_inf[1] <= 1;
+        araddr_m_inf[DRAM_NUMBER * ADDR_WIDTH-1:ADDR_WIDTH]  <= {16'b0,4'b0001,ic_in_addr_ff,1'b0};
+    end
+    else if(st_DC_AXI_RD_ADDR)
+    begin
+        arvalid_m_inf[0] <= 1;
+        araddr_m_inf[ADDR_WIDTH-1:0]  <=  {16'b0,4'b0001,dc_in_addr_ff,1'b0};
+    end
+    else
+    begin
+        arvalid_m_inf <= 0;
+        araddr_m_inf  <= 0;
+    end
+end
+
+// read data
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        rready_m_inf <= 0;
+    end
+    else if(st_DC_AXI_RD_DATA_UPDATE_CASH)
+    begin
+        rready_m_inf[0] <= 1'b1;
+    end
+    else if(st_IC_AXI_RD_DATA_UPDATE_CASH)
+    begin
+        rready_m_inf[1] <= 1'b1;
+    end
+    else
+    begin
+        rready_m_inf <= 0;
+    end
+end
+
+// axi burst cnt
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+        axi_burst_cnt <= 0;
+    else if(axi_wr_data_done_f || axi_rd_data_done_f)
+        axi_burst_cnt <= 0;
+    else if(axi_rd_data_tran_f || axi_wr_data_tran_f)
+        axi_burst_cnt <= axi_burst_cnt + 1;
+end
 
 
 
