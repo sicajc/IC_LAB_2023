@@ -66,36 +66,36 @@ parameter ID_WIDTH = 4 , ADDR_WIDTH = 32, DATA_WIDTH = 16, DRAM_NUMBER=2, WRIT_N
 
 // AXI Interface wire connecttion for pseudo DRAM read/write
 /* Hint:
-  your AXI-4 interface could be designed as convertor in submodule(which used reg for output signal),
+  your AXI-4 interface could be designed as convertor in submodule(which used reg for output signal)(),
   therefore I declared output of AXI as wire in CPU
 */
 
 // axi write address channel
 output  wire [WRIT_NUMBER * ID_WIDTH-1:0]        awid_m_inf;
-output  wire [WRIT_NUMBER * ADDR_WIDTH-1:0]    awaddr_m_inf;
+output  reg  [WRIT_NUMBER * ADDR_WIDTH-1:0]    awaddr_m_inf;
 output  wire [WRIT_NUMBER * 3 -1:0]            awsize_m_inf;
 output  wire [WRIT_NUMBER * 2 -1:0]           awburst_m_inf;
 output  wire [WRIT_NUMBER * 7 -1:0]             awlen_m_inf;
-output  wire [WRIT_NUMBER-1:0]                awvalid_m_inf;
+output  reg [WRIT_NUMBER-1:0]                 awvalid_m_inf;
 input   wire [WRIT_NUMBER-1:0]                awready_m_inf;
 // axi write data channel
-output  wire [WRIT_NUMBER * DATA_WIDTH-1:0]     wdata_m_inf;
+output  reg  [WRIT_NUMBER * DATA_WIDTH-1:0]     wdata_m_inf;
 output  wire [WRIT_NUMBER-1:0]                  wlast_m_inf;
-output  wire [WRIT_NUMBER-1:0]                 wvalid_m_inf;
+output  reg  [WRIT_NUMBER-1:0]                 wvalid_m_inf;
 input   wire [WRIT_NUMBER-1:0]                 wready_m_inf;
 // axi write response channel
 input   wire [WRIT_NUMBER * ID_WIDTH-1:0]         bid_m_inf;
 input   wire [WRIT_NUMBER * 2 -1:0]             bresp_m_inf;
 input   wire [WRIT_NUMBER-1:0]             	   bvalid_m_inf;
-output  wire [WRIT_NUMBER-1:0]                 bready_m_inf;
+output  reg [WRIT_NUMBER-1:0]                 bready_m_inf;
 // -----------------------------
 // axi read address channel
 output  wire [DRAM_NUMBER * ID_WIDTH-1:0]       arid_m_inf;
-output  wire [DRAM_NUMBER * ADDR_WIDTH-1:0]   araddr_m_inf;
+output  reg [DRAM_NUMBER * ADDR_WIDTH-1:0]   araddr_m_inf;
 output  wire [DRAM_NUMBER * 7 -1:0]            arlen_m_inf;
 output  wire [DRAM_NUMBER * 3 -1:0]           arsize_m_inf;
 output  wire [DRAM_NUMBER * 2 -1:0]          arburst_m_inf;
-output  wire [DRAM_NUMBER-1:0]               arvalid_m_inf;
+output  reg [DRAM_NUMBER-1:0]               arvalid_m_inf;
 input   wire [DRAM_NUMBER-1:0]               arready_m_inf;
 // -----------------------------
 // axi read data channel
@@ -104,14 +104,14 @@ input   wire [DRAM_NUMBER * DATA_WIDTH-1:0]     rdata_m_inf;
 input   wire [DRAM_NUMBER * 2 -1:0]             rresp_m_inf;
 input   wire [DRAM_NUMBER-1:0]                  rlast_m_inf;
 input   wire [DRAM_NUMBER-1:0]                 rvalid_m_inf;
-output  wire [DRAM_NUMBER-1:0]                 rready_m_inf;
+output  reg [DRAM_NUMBER-1:0]                 rready_m_inf;
 // -----------------------------
 
 //
 /* Register in each core:
   There are sixteen registers in your CPU. You should not change the name of those registers.
   TA will check the value in each register when your core is not busy.
-  If you change the name of registers below, you must get the fail in this lab.
+  If you change the name of registers below(), you must get the fail in this lab.
 */
 
 reg signed [15:0] core_r0 , core_r1 , core_r2 , core_r3 ;
@@ -120,11 +120,19 @@ reg signed [15:0] core_r8 , core_r9 , core_r10, core_r11;
 reg signed [15:0] core_r12, core_r13, core_r14, core_r15;
 
 
-//###########################################
-//
-// Wrtie down your design below
-//
-//###########################################
+//================================================================
+//  AXI 4
+//================================================================
+// constant AXI 4 signals
+assign arid_m_inf = 0 ;
+assign arlen_m_inf = 7'b111_1111 ;
+assign arsize_m_inf = 3'b001 ;
+assign arburst_m_inf = 2'b01 ;
+
+assign awid_m_inf = 0 ;
+assign awlen_m_inf = 7'd0 ;
+assign awsize_m_inf = 3'b001 ;
+assign awburst_m_inf = 2'b01 ;
 
 //####################################################
 //               STATES
@@ -206,11 +214,24 @@ wire st_DC_AXI_WR_RESP                              = data_cache_cur_st[8];
 wire st_DC_OUTPUT                                   = data_cache_cur_st[9];
 wire st_DC_WRITE_SRAM                               = data_cache_cur_st[10];
 
-//####################################################
-//               OP CODES
-//####################################################
+//================================================================
+//   AXI interfaces
+//================================================================
+//======================
+//   AXI RD
+//======================
+reg[7:0] axi_burst_cnt;
+// instruction read and data read
+wire axi_rd_addr_done_f = arvalid_m_inf && arready_m_inf;
+wire axi_rd_data_done_f = rvalid_m_inf  && rready_m_inf && rlast_m_inf;
 
-
+//======================
+//   AXI WR
+//======================
+// data write only
+wire axi_wr_addr_done_f = awvalid_m_inf && awready_m_inf;
+wire axi_wr_data_done_f = wlast_m_inf   && wvalid_m_inf && wready_m_inf;
+wire axi_wr_responed_f  = bvalid_m_inf  && bready_m_inf;
 
 //####################################################
 //               reg & wire
@@ -800,14 +821,310 @@ end
 //================================================================
 //   Instruction Memory
 //================================================================
+//======================
+//   Inputs/Outputs
+//======================
+reg       ic_in_valid;
+reg[10:0] ic_in_addr_ff;
+reg       ic_out_valid_ff;
+reg[15:0] ic_out_inst_ff;
+
+//======================
+//   inner reg/wire
+//======================
+reg[6:0]  i_cache_addr;
+wire signed[15:0] i_cache_d_out;
+reg signed[15:0] i_cache_d_in;
+reg i_cache_we;
+
+reg[3:0] i_cache_tag_ff;
+reg i_cache_valid_ff;
 
 
+wire ic_hit_f = (i_cache_valid_ff == 1'b1) && (i_cache_tag_ff == ic_in_addr_ff[10:7]);
+
+//======================
+//   MAIN IC Control
+//======================
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        inst_cache_cur_st <= IC_IDLE;
+    end
+    else
+    begin
+        inst_cache_cur_st <= inst_cache_nxt_st;
+    end
+end
+
+always @(*)
+begin
+    inst_cache_nxt_st = inst_cache_cur_st;
+    case(inst_cache_cur_st)
+    IC_IDLE:
+    begin
+        inst_cache_nxt_st = ic_in_valid ? IC_CHECK : IC_IDLE;
+    end
+    IC_CHECK:
+    begin
+        inst_cache_nxt_st = ic_hit_f ? IC_HIT : IC_AXI_RD_ADDR;
+    end
+    IC_HIT:
+    begin
+        inst_cache_nxt_st = IC_HOLD_DATA;
+    end
+    IC_HOLD_DATA:
+    begin
+        inst_cache_nxt_st = IC_OUTPUT;
+    end
+    IC_OUTPUT:
+    begin
+        inst_cache_nxt_st = IC_IDLE;
+    end
+    IC_AXI_RD_ADDR:
+    begin
+        inst_cache_nxt_st = axi_rd_addr_done_f ? IC_AXI_RD_DATA_UPDATE_CASH : IC_AXI_RD_ADDR;
+    end
+    IC_AXI_RD_DATA_UPDATE_CASH:
+    begin
+        inst_cache_nxt_st = axi_rd_data_done_f ? IC_CHECK : IC_AXI_RD_DATA_UPDATE_CASH;
+    end
+    endcase
+end
+
+//======================
+//   Valid and tags
+//======================
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        i_cache_valid_ff <= 1'b0;
+    end
+    else if(st_IC_AXI_RD_ADDR)
+    begin
+        i_cache_valid_ff <= 1'b1;
+    end
+end
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        i_cache_tag_ff <= 4'd0;
+    end
+    else if(st_IC_AXI_RD_ADDR)
+    begin
+        i_cache_tag_ff <= ic_in_addr_ff[10:7];
+    end
+end
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        ic_in_addr_ff <= 0;
+    end
+    else if(ic_in_valid)
+    begin
+        ic_in_addr_ff <= pc_ff[11:1];
+    end
+end
 
 
+SRAM_128x16 I_CACHE(A0(i_cache_addr[0]),.A1(i_cache_addr[1]),.A2(i_cache_addr[2]),.A3(i_cache_addr[3]),
+                    .A4(i_cache_addr[4]),.A5(i_cache_addr[5]),.A6(i_cache_addr[6]),
+                    .DO0(i_cache_d_out[0]),.DO1(i_cache_d_out[1]),.DO2(i_cache_d_out[2]),.DO3(i_cache_d_out[3]),
+                    .DO4(i_cache_d_out[4]),.DO5(i_cache_d_out[5]),.DO6(i_cache_d_out[6]),
+                    .DO7(i_cache_d_out[7]),.DO8(i_cache_d_out[8]),.DO9(i_cache_d_out[9]),
+                    .DO10(i_cache_d_out[10]),.DO11(i_cache_d_out[11]),
+                    .DO12(i_cache_d_out[12]),.DO13(i_cache_d_out[13]),.DO14(i_cache_d_out[14]),.DO15(i_cache_d_out[15]),
+                    .DI0(i_cache_d_in[0]),.DI1(i_cache_d_in[1]),.DI2(i_cache_d_in[2]),
+                    .DI3(i_cache_d_in[3]),.DI4(i_cache_d_in[4]),.DI5(i_cache_d_in[5]),
+                    .DI6(i_cache_d_in[6]),.DI7(i_cache_d_in[7]),.DI8(i_cache_d_in[8]),.DI9(i_cache_d_in[9]),
+                    .DI10(i_cache_d_in[10]),.DI11(i_cache_d_in[11]),.DI12(i_cache_d_in[12]),.DI13(i_cache_d_in[13]),
+                    .DI14(i_cache_d_in[14]),.DI15(i_cache_d_in[15]),
+                    .CK(clk),.WEB(i_cache_we),.OE(1'b1),.CS(1'b1));
+
+// I-Cache i/o controlls
+always @(*)
+begin
+    if(st_DC_AXI_RD_DATA_UPDATE_CASH)
+    begin
+        // Write data
+        i_cache_we   = 1'b0;
+        i_cache_addr = axi_burst_cnt; // 0~127
+        i_cache_d_in = rdata_m_inf[DRAM_NUMBER * DATA_WIDTH-1:DATA_WIDTH];
+    end
+    else
+    begin
+        i_cache_addr = ic_in_addr_ff[6:0];
+        i_cache_we   = 1'b1;
+        i_cache_d_in = 0;
+    end
+end
 
 //================================================================
 //   Data Memory
 //================================================================
+//======================
+//   Input/Output
+//======================
+reg       dc_in_valid;
+reg[10:0] dc_in_addr_ff;
+reg[15:0] dc_in_data_ff;
+reg       dc_in_write;
+reg       dc_out_valid_ff;
+reg[15:0] dc_out_inst_ff;
+//======================
+//   flags
+//======================
+reg d_cache_valid_ff;
+reg[3:0] d_cache_tag_ff;
+wire dc_hit_f = (d_cache_valid_ff == 1'b1) && (d_cache_tag_ff == dc_in_addr_ff[10:7]);
+//======================
+//   Valid & tags
+//======================
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        d_cache_valid_ff <= 1'b0;
+    end
+    else if(st_DC_AXI_RD_ADDR)
+    begin
+        d_cache_valid_ff <= 1'b1;
+    end
+end
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        d_cache_tag_ff <= 0;
+    end
+    else if(st_DC_AXI_RD_ADDR)
+    begin
+        d_cache_tag_ff <= dc_in_addr_ff[10:7];
+    end
+end
+
+//======================
+//   address
+//======================
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        dc_in_addr_ff  <= 0;
+    end
+    else if(dc_in_valid)
+    begin
+        dc_in_addr_ff <= alu_out_ff[11:1];
+    end
+end
+
+//======================
+//   Control
+//======================
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        data_cache_cur_st <= DC_IDLE;
+    end
+    else
+    begin
+        data_cache_cur_st <= data_cache_nxt_st;
+    end
+end
+
+always @(*)
+begin
+    data_cache_nxt_st = data_cache_cur_st;
+    case(data_cache_cur_st)
+    DC_IDLE:
+    begin
+        if(dc_in_valid)
+        begin
+            if(dc_in_write == 1'b0)
+            begin
+                data_cache_nxt_st = DC_CHECK;
+            end
+            else
+            begin
+                data_cache_nxt_st = DC_WRITE_SRAM;
+            end
+        end
+    end
+    DC_CHECK:
+    begin
+        data_cache_nxt_st = dc_hit_f ? DC_HIT : DC_AXI_RD_ADDR;
+    end
+    DC_HIT:
+    begin
+        data_cache_nxt_st = DC_HOLD_DATA;
+    end
+    DC_OUTPUT:
+    begin
+        data_cache_nxt_st = DC_IDLE;
+    end
+    DC_AXI_RD_ADDR:
+    begin
+        data_cache_nxt_st = axi_rd_addr_done_f ? DC_AXI_RD_DATA_UPDATE_CASH : DC_AXI_RD_ADDR;
+    end
+    DC_AXI_RD_DATA_UPDATE_CASH:
+    begin
+        data_cache_nxt_st = axi_rd_data_done_f ? DC_CHECK : DC_AXI_RD_DATA_UPDATE_CASH;
+    end
+    DC_WRITE_SRAM:
+    begin
+        data_cache_nxt_st = DC_AXI_WR_ADDR;
+    end
+    DC_AXI_WR_ADDR:
+    begin
+        data_cache_nxt_st = axi_wr_addr_done_f ? DC_AXI_WR_DATA : DC_AXI_WR_ADDR;
+    end
+    DC_AXI_WR_DATA:
+    begin
+        data_cache_nxt_st = axi_wr_data_done_f ? DC_AXI_WR_RESP : DC_AXI_WR_DATA;
+    end
+    DC_AXI_WR_RESP:
+    begin
+        data_cache_nxt_st = axi_wr_responed_f  ? DC_IDLE : DC_AXI_WR_RESP;
+    end
+    endcase
+end
+
+wire[6:0]  d_cache_addr;
+wire signed[15:0] d_cache_d_out;
+reg signed[15:0] d_cache_d_in;
+reg d_cache_we;
+
+reg[3:0] d_cache_tag_ff;
+reg d_cache_valid_ff;
+
+SRAM_128x16 D_CACHE( A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
+                    .A5(d_cache_addr[5]),.A6(d_cache_addr[6]),
+                    .DO0(d_cache_d_out[0]),.DO1(d_cache_d_out[1]),.DO2(d_cache_d_out[2]),.DO3(d_cache_d_out[3]),
+                    .DO4(d_cache_d_out[4]),.DO5(d_cache_d_out[5]),.DO6(d_cache_d_out[6]),
+                    .DO7(d_cache_d_out[7]),.DO8(d_cache_d_out[8]),.DO9(d_cache_d_out[9]),
+                    .DO10(d_cache_d_out[10]),.DO11(d_cache_d_out[11]),
+                    .DO12(d_cache_d_out[12]),.DO13(d_cache_d_out[13]),.DO14(d_cache_d_out[14]),
+                    .DO15(d_cache_d_out[15]),
+                    .DI0(d_cache_d_in[0]),.DI1(d_cache_d_in[1]),.DI2(d_cache_d_in[2]),
+                    .DI3(d_cache_d_in[3]),.DI4(d_cache_d_in[4]),.DI5(d_cache_d_in[5]),
+                    .DI6(d_cache_d_in[6]),.DI7(d_cache_d_in[7]),.DI8(d_cache_d_in[8]),.DI9(d_cache_d_in[9]),
+                    .DI10(d_cache_d_in[10]),.DI11(d_cache_d_in[11]),.DI12(d_cache_d_in[12]),
+                    .DI13(d_cache_d_in[13]),.DI14(d_cache_d_in[14]),.DI15(d_cache_d_in[15]),
+                    .CK(clk),.WEB(d_cache_we),.OE(1'b1),.CS(1'b1));
+
+//================================================================
+//   AXI Interfaces
+//================================================================
+
+
 
 
 
