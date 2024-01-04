@@ -833,7 +833,7 @@ reg[15:0] ic_out_inst_ff;
 //   inner reg/wire
 //======================
 reg[6:0]  i_cache_addr;
-wire signed[15:0] i_cache_d_out;
+wire [15:0] i_cache_d_out;
 reg signed[15:0] i_cache_d_in;
 reg i_cache_we;
 
@@ -965,6 +965,28 @@ begin
     end
 end
 
+//======================
+//   Output
+//======================
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        ic_out_inst_ff  <= 0;
+        ic_out_valid_ff <= 0;
+    end
+    else if(st_IC_HOLD_DATA)
+    begin
+        ic_out_inst_ff  <= i_cache_d_out;
+        ic_out_valid_ff <= 0;
+    end
+    else
+    begin
+        ic_out_inst_ff  <= i_cache_d_out;
+        ic_out_valid_ff <= 0;
+    end
+end
+
 //================================================================
 //   Data Memory
 //================================================================
@@ -976,7 +998,26 @@ reg[10:0] dc_in_addr_ff;
 reg[15:0] dc_in_data_ff;
 reg       dc_in_write;
 reg       dc_out_valid_ff;
-reg[15:0] dc_out_inst_ff;
+reg[15:0] dc_out_data_ff;
+
+//======================
+//   address & data in
+//======================
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        dc_in_addr_ff  <= 0;
+        dc_in_data_ff  <= alu_out_ff;
+    end
+    else if(dc_in_valid)
+    begin
+        dc_in_addr_ff  <= alu_out_ff[11:1];
+        if(dc_in_write == 1'b1)
+            dc_in_data_ff  <= alu_out_ff;
+    end
+end
+
 //======================
 //   flags
 //======================
@@ -1010,23 +1051,10 @@ begin
     end
 end
 
-//======================
-//   address
-//======================
-always @(posedge clk or negedge rst_n)
-begin
-    if(~rst_n)
-    begin
-        dc_in_addr_ff  <= 0;
-    end
-    else if(dc_in_valid)
-    begin
-        dc_in_addr_ff <= alu_out_ff[11:1];
-    end
-end
+
 
 //======================
-//   Control
+//   MAIN D-Cache Control
 //======================
 always @(posedge clk or negedge rst_n)
 begin
@@ -1119,6 +1147,50 @@ SRAM_128x16 D_CACHE( A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2
                     .DI10(d_cache_d_in[10]),.DI11(d_cache_d_in[11]),.DI12(d_cache_d_in[12]),
                     .DI13(d_cache_d_in[13]),.DI14(d_cache_d_in[14]),.DI15(d_cache_d_in[15]),
                     .CK(clk),.WEB(d_cache_we),.OE(1'b1),.CS(1'b1));
+//=============================
+//   D-Cache i/o controlls
+//=============================
+always @(*)
+begin
+    if(st_DC_AXI_RD_DATA_UPDATE_CASH)
+    begin
+        //Writes
+        d_cache_addr = axi_burst_cnt;
+        d_cache_we   = 1'b0;
+        d_cache_d_in = rdata_m_inf[DATA_WIDTH-1:0];
+    end
+    else if(st_DC_WRITE_SRAM)
+    begin
+        //Writes
+        d_cache_addr = dc_in_addr_ff[6:0];
+        d_cache_we   = 1'b0;
+        d_cache_d_in = dc_in_data_ff;
+    end
+    else
+    begin
+        // Reads
+        d_cache_addr = dc_in_addr_ff[6:0];
+        d_cache_we   = 1'b1;
+        d_cache_d_in = 0;
+    end
+end
+
+//======================
+//   Outputs
+//======================
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        dc_out_valid_ff <= 0;
+        dc_out_data_ff  <= 0;
+    end
+    else if(st_DC_OUTPUT)
+    begin
+        dc_out_valid_ff <= 1;
+        dc_out_data_ff  <= d_cache_d_out;
+    end
+end
 
 //================================================================
 //   AXI Interfaces
