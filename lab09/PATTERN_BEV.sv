@@ -52,6 +52,15 @@ class rand_delay;
 	constraint limit { delay inside {[1:4]}; } // Generates a delay between 1~4
 endclass
 
+class random_obj;
+	randc logic[7:0] mem;
+    function new (int seed);
+	    this.srandom(seed);
+	endfunction
+	constraint limit{ mem inside {7,8,9,10,11,12,31,35,37}; }
+endclass
+
+
 class rand_bev_type;
 	rand Bev_Type bev_type;
 	function new (int seed);
