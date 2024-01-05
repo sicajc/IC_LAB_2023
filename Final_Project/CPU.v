@@ -80,7 +80,7 @@ output  reg [WRIT_NUMBER-1:0]                 awvalid_m_inf;
 input   wire [WRIT_NUMBER-1:0]                awready_m_inf;
 // axi write data channel
 output  reg  [WRIT_NUMBER * DATA_WIDTH-1:0]     wdata_m_inf;
-output  wire [WRIT_NUMBER-1:0]                  wlast_m_inf;
+output  reg  [WRIT_NUMBER-1:0]                  wlast_m_inf;
 output  reg  [WRIT_NUMBER-1:0]                 wvalid_m_inf;
 input   wire [WRIT_NUMBER-1:0]                 wready_m_inf;
 // axi write response channel
@@ -119,12 +119,11 @@ reg signed [15:0] core_r4 , core_r5 , core_r6 , core_r7 ;
 reg signed [15:0] core_r8 , core_r9 , core_r10, core_r11;
 reg signed [15:0] core_r12, core_r13, core_r14, core_r15;
 
+
+
 reg[10:0] ic_in_addr_ff;
 reg       ic_out_valid;
 reg[15:0] ic_out_inst_wr;
-
-
-
 
 reg       dc_in_valid;
 reg[10:0] dc_in_addr_ff;
@@ -287,6 +286,9 @@ wire inst_LOAD      = opcode == 3'b010;
 wire inst_STORE     = opcode == 3'b011;
 wire inst_BEQ       = opcode == 3'b100;
 wire inst_J         = opcode == 3'b101;
+
+
+wire branch_equal_f = reg_data1_ff == reg_data2_ff;
 //####################################################
 //               MAIN PROCESSOR
 //####################################################
@@ -307,7 +309,7 @@ end
 
 wire inst_out_valid_f  = ic_out_valid;
 wire data_read_done_f  = st_DC_OUTPUT;
-wire data_write_done_f ;
+wire data_write_done_f = axi_wr_responed_f ;
 
 always @(*)
 begin
@@ -372,7 +374,7 @@ begin
         end
         SW_MEM_WAIT:
         begin
-            main_next_st = data_write_done_f ?  MEM_WB : SW_MEM_WAIT;
+            main_next_st = data_write_done_f ?  IF_1 : SW_MEM_WAIT;
         end
         MEM_WB:
         begin
@@ -380,6 +382,7 @@ begin
         end
     endcase
 end
+
 //####################################################
 //               I/O stall
 //####################################################
@@ -389,7 +392,7 @@ begin
     begin
         IO_stall <= 1;
     end
-    else if(st_R_WB || st_MEM_WB || st_BEQ_EX || (st_ID&&opcode == 3'b101))
+    else if(st_R_WB || st_MEM_WB || st_BEQ_EX || (st_ID&&opcode == 3'b101) || (st_SW_MEM_WAIT && data_write_done_f))
     begin
         IO_stall <= 0;
     end
@@ -398,6 +401,7 @@ begin
         IO_stall <= 1;
     end
 end
+
 // ic invalid
 always @(posedge clk or negedge rst_n)
 begin
@@ -423,9 +427,10 @@ begin
     end
     else if(main_next_st == LW_MEM_WAIT || main_next_st == SW_MEM_WAIT || st_LW_MEM_WAIT || st_SW_MEM_WAIT)
     begin
-        dc_in_valid <= st_DC_OUTPUT ? 0 : 1;
+        dc_in_valid <= st_DC_OUTPUT || data_write_done_f ? 0 : 1;
     end
 end
+
 // dc in write
 always @(posedge clk or negedge rst_n)
 begin
@@ -455,13 +460,13 @@ begin
     begin
         pc_ff <= OFFSET;
     end
-    else if(st_ID || st_BEQ_EX)
-    begin
-        pc_ff <= alu_out_wr;
-    end
     else if(st_ID && inst_J)
     begin
-        pc_ff <= address;
+        pc_ff <= address >> 1;
+    end
+    else if(st_ID || (st_BEQ_EX&&branch_equal_f))
+    begin
+        pc_ff <= alu_out_wr;
     end
 end
 
@@ -561,6 +566,7 @@ begin
         alu_out_ff <= alu_out_wr;
     end
 end
+
 
 always @(*)
 begin
@@ -1092,7 +1098,13 @@ begin
     begin
         dc_in_addr_ff  <= alu_out_wr[11:1];
         if(dc_in_write == 1'b1)
+        begin
+            dc_in_data_ff  <= reg_data2_ff;
+        end
+        else
+        begin
             dc_in_data_ff  <= alu_out_ff;
+        end
     end
 end
 
@@ -1308,13 +1320,30 @@ begin
     end
     else if(st_DC_AXI_WR_ADDR)
     begin
-        awaddr_m_inf  <= alu_out_wr;
-        awvalid_m_inf <= 1'b1;
+        awaddr_m_inf  <=  axi_wr_addr_done_f ? 0: alu_out_wr;
+        awvalid_m_inf <=  axi_wr_addr_done_f ? 0: 1'b1;
     end
 end
 
+
+
 // Write data channel
-assign wlast_m_inf = axi_burst_cnt == 127;
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        wlast_m_inf <= 0;
+    end
+    else if(st_DC_AXI_WR_DATA)
+    begin
+        wlast_m_inf <= 1;
+    end
+    else
+    begin
+        wlast_m_inf <= 0;
+    end
+end
+
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
