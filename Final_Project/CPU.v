@@ -1374,6 +1374,9 @@ begin
         bready_m_inf <= 1'b0;
 end
 
+wire[10:0] ic_block_start_addr = ic_in_addr_ff - ic_in_addr_ff[6:0];
+wire[10:0] dc_block_start_addr = dc_in_addr_ff - dc_in_addr_ff[6:0];
+
 // Read address
 always @(posedge clk or negedge rst_n)
 begin
@@ -1386,13 +1389,13 @@ begin
     begin
         arvalid_m_inf[1] <= axi_inst_rd_addr_done_f ? 0 : 1;
         araddr_m_inf[DRAM_NUMBER * ADDR_WIDTH-1:ADDR_WIDTH] <= axi_inst_rd_addr_done_f ? 0 :
-        {16'b0,4'b0001,ic_in_addr_ff,1'b0};
+        {16'b0,4'b0001,ic_block_start_addr,1'b0};
     end
     else if(st_DC_AXI_RD_ADDR)
     begin
         arvalid_m_inf[0] <= axi_data_rd_addr_done_f ? 0 : 1;
         araddr_m_inf[ADDR_WIDTH-1:0]  <= axi_data_rd_addr_done_f ? 0 :
-         {16'b0,4'b0001,dc_in_addr_ff,1'b0};
+         {16'b0,4'b0001,dc_block_start_addr,1'b0};
     end
     else
     begin
@@ -1431,7 +1434,6 @@ begin
         axi_burst_cnt <= 0;
     else if(axi_data_rd_data_tran_f || axi_inst_rd_data_tran_f || axi_wr_data_tran_f)
         axi_burst_cnt <= axi_burst_cnt + 1;
-
 end
 
 
