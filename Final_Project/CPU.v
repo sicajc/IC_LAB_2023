@@ -1431,6 +1431,7 @@ begin
         axi_burst_cnt <= 0;
     else if(axi_data_rd_data_tran_f || axi_inst_rd_data_tran_f || axi_wr_data_tran_f)
         axi_burst_cnt <= axi_burst_cnt + 1;
+
 end
 
 
