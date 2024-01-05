@@ -1111,7 +1111,7 @@ end
 //======================
 //   flags
 //======================
-reg d_cache_valid_ff;
+// reg d_cache_valid_ff;
 reg[3:0] d_cache_tag_ff;
 wire dc_hit_f = (d_cache_valid_ff == 1'b1) && (d_cache_tag_ff == dc_in_addr_ff[10:7]);
 //======================
@@ -1435,7 +1435,5 @@ begin
     else if(axi_data_rd_data_tran_f || axi_inst_rd_data_tran_f || axi_wr_data_tran_f)
         axi_burst_cnt <= axi_burst_cnt + 1;
 end
-
-
 
 endmodule
