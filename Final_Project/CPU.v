@@ -1093,7 +1093,7 @@ begin
     end
     DC_AXI_RD_ADDR:
     begin
-        data_cache_nxt_st = axi_rd_addr_done_f ? DC_AXI_RD_DATA_UPDATE_CASH : DC_AXI_RD_ADDR;
+        data_cache_nxt_st = axi_data_rd_addr_done_f ? DC_AXI_RD_DATA_UPDATE_CASH : DC_AXI_RD_ADDR;
     end
     DC_AXI_RD_DATA_UPDATE_CASH:
     begin
@@ -1118,12 +1118,12 @@ begin
     endcase
 end
 
-wire[6:0]  d_cache_addr;
+reg[6:0]  d_cache_addr;
 wire signed[15:0] d_cache_d_out;
 reg signed[15:0] d_cache_d_in;
 reg d_cache_we;
 
-reg[3:0] d_cache_tag_ff;
+// reg[3:0] d_cache_tag_ff;
 reg d_cache_valid_ff;
 
 SRAM_128x16 D_CACHE( A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
@@ -1316,9 +1316,9 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
         axi_burst_cnt <= 0;
-    else if(axi_wr_data_done_f || axi_rd_data_done_f)
+    else if(axi_data_rd_data_done_f || axi_inst_rd_data_done_f || axi_wr_data_done_f)
         axi_burst_cnt <= 0;
-    else if(axi_rd_data_tran_f || axi_wr_data_tran_f)
+    else if(axi_data_rd_data_tran_f || axi_inst_rd_data_tran_f || axi_wr_data_tran_f)
         axi_burst_cnt <= axi_burst_cnt + 1;
 end
 
