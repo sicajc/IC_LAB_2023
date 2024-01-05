@@ -123,7 +123,6 @@ reg signed [15:0] core_r12, core_r13, core_r14, core_r15;
 //================================================================
 //  AXI 4
 //================================================================
-
 //####################################################
 //               STATES
 //####################################################
@@ -218,6 +217,12 @@ wire axi_data_rd_addr_done_f = arvalid_m_inf[0] && arready_m_inf[0];
 wire axi_inst_rd_data_done_f = rvalid_m_inf[1]  && rready_m_inf[1] && rlast_m_inf[1];
 wire axi_data_rd_data_done_f = rvalid_m_inf[0]  && rready_m_inf[0] && rlast_m_inf[0];
 
+wire axi_inst_rd_data_tran_f = rvalid_m_inf[1] && rready_m_inf[1];
+wire axi_data_rd_data_tran_f = rvalid_m_inf[0] && rready_m_inf[0];
+
+wire axi_wr_data_tran_f = wvalid_m_inf && wready_m_inf;
+
+
 //======================
 //   AXI WR
 //======================
@@ -245,6 +250,8 @@ wire[4:0] imm    = ir_ff[ 4: 0] ;
 wire[15:0] address = { 3'b000 , ir_ff[12:0] } ;
 wire signed[15:0] sign_ex_imm  = $signed(imm);
 
+// instruction cache
+reg       ic_in_valid;
 
 //####################################################
 //               current_instruction
@@ -368,8 +375,22 @@ begin
         IO_stall <= 1;
     end
 end
-
-
+// ic invalid
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        ic_in_valid <= 0;
+    end
+    else if(main_next_st == IF_WAIT_MEM || st_IF_WAIT_MEM)
+    begin
+        ic_in_valid <= st_IC_OUTPUT ? 0 : 1;
+    end
+    else
+    begin
+        ic_in_valid <= 0;
+    end
+end
 
 //####################################################
 //               DATAPATH
@@ -838,7 +859,6 @@ end
 //======================
 //   Inputs/Outputs
 //======================
-reg       ic_in_valid;
 reg[10:0] ic_in_addr_ff;
 reg       ic_out_valid_ff;
 reg[15:0] ic_out_inst_ff;
@@ -902,7 +922,7 @@ begin
     end
     IC_AXI_RD_DATA_UPDATE_CASH:
     begin
-        inst_cache_nxt_st = axi_data_rd_data_done_f ? IC_CHECK : IC_AXI_RD_DATA_UPDATE_CASH;
+        inst_cache_nxt_st = axi_inst_rd_data_done_f ? IC_CHECK : IC_AXI_RD_DATA_UPDATE_CASH;
     end
     endcase
 end
@@ -947,7 +967,7 @@ begin
 end
 
 
-SRAM_128x16 I_CACHE(A0(i_cache_addr[0]),.A1(i_cache_addr[1]),.A2(i_cache_addr[2]),.A3(i_cache_addr[3]),
+SRAM_128x16 I_CACHE(.A0(i_cache_addr[0]),.A1(i_cache_addr[1]),.A2(i_cache_addr[2]),.A3(i_cache_addr[3]),
                     .A4(i_cache_addr[4]),.A5(i_cache_addr[5]),.A6(i_cache_addr[6]),
                     .DO0(i_cache_d_out[0]),.DO1(i_cache_d_out[1]),.DO2(i_cache_d_out[2]),.DO3(i_cache_d_out[3]),
                     .DO4(i_cache_d_out[4]),.DO5(i_cache_d_out[5]),.DO6(i_cache_d_out[6]),
@@ -964,7 +984,7 @@ SRAM_128x16 I_CACHE(A0(i_cache_addr[0]),.A1(i_cache_addr[1]),.A2(i_cache_addr[2]
 // I-Cache i/o controlls
 always @(*)
 begin
-    if(st_DC_AXI_RD_DATA_UPDATE_CASH)
+    if(st_IC_AXI_RD_DATA_UPDATE_CASH && axi_inst_rd_data_tran_f)
     begin
         // Write data
         i_cache_we   = 1'b0;
@@ -1147,7 +1167,7 @@ reg d_cache_we;
 // reg[3:0] d_cache_tag_ff;
 reg d_cache_valid_ff;
 
-SRAM_128x16 D_CACHE( A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
+SRAM_128x16 D_CACHE( .A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
                     .A5(d_cache_addr[5]),.A6(d_cache_addr[6]),
                     .DO0(d_cache_d_out[0]),.DO1(d_cache_d_out[1]),.DO2(d_cache_d_out[2]),.DO3(d_cache_d_out[3]),
                     .DO4(d_cache_d_out[4]),.DO5(d_cache_d_out[5]),.DO6(d_cache_d_out[6]),
@@ -1234,10 +1254,6 @@ assign awburst_m_inf = 2'b01 ;
 //========================
 //   Instruction read
 //========================
-wire axi_inst_rd_data_tran_f = rvalid_m_inf[1] && rready_m_inf[1];
-wire axi_data_rd_data_tran_f = rvalid_m_inf[0] && rready_m_inf[0];
-
-wire axi_wr_data_tran_f = wvalid_m_inf && wready_m_inf;
 
 //Write address channel
 always @(posedge clk or negedge rst_n)
@@ -1296,13 +1312,15 @@ begin
     end
     else if(st_IC_AXI_RD_ADDR)
     begin
-        arvalid_m_inf[1] <= 1;
-        araddr_m_inf[DRAM_NUMBER * ADDR_WIDTH-1:ADDR_WIDTH]  <= {16'b0,4'b0001,ic_in_addr_ff,1'b0};
+        arvalid_m_inf[1] <= axi_inst_rd_addr_done_f ? 0 : 1;
+        araddr_m_inf[DRAM_NUMBER * ADDR_WIDTH-1:ADDR_WIDTH] <= axi_inst_rd_addr_done_f ? 0 :
+        {16'b0,4'b0001,ic_in_addr_ff,1'b0};
     end
     else if(st_DC_AXI_RD_ADDR)
     begin
-        arvalid_m_inf[0] <= 1;
-        araddr_m_inf[ADDR_WIDTH-1:0]  <=  {16'b0,4'b0001,dc_in_addr_ff,1'b0};
+        arvalid_m_inf[0] <= axi_data_rd_addr_done_f ? 0 : 1;
+        araddr_m_inf[ADDR_WIDTH-1:0]  <= axi_data_rd_addr_done_f ? 0 :
+         {16'b0,4'b0001,dc_in_addr_ff,1'b0};
     end
     else
     begin
@@ -1320,11 +1338,11 @@ begin
     end
     else if(st_DC_AXI_RD_DATA_UPDATE_CASH)
     begin
-        rready_m_inf[0] <= 1'b1;
+        rready_m_inf[0] <= axi_data_rd_data_done_f ? 1'b0 : 1'b1;
     end
     else if(st_IC_AXI_RD_DATA_UPDATE_CASH)
     begin
-        rready_m_inf[1] <= 1'b1;
+        rready_m_inf[1] <= axi_inst_rd_data_done_f ? 1'b0 : 1'b1;
     end
     else
     begin
