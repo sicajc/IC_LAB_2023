@@ -522,7 +522,7 @@ begin
     end
     else
     begin
-        case(rs)
+        case(rt)
             4'b0000: reg_data2_ff <= core_r0;
             4'b0001: reg_data2_ff <= core_r1;
             4'b0010: reg_data2_ff <= core_r2;
@@ -556,7 +556,7 @@ begin
     begin
         alu_out_ff <= 0;
     end
-    else if(EX_ST)
+    else if(EX_ST || st_ID)
     begin
         alu_out_ff <= alu_out_wr;
     end
@@ -640,7 +640,7 @@ begin
     end
     else if(st_R_WB && rd==0)
     begin
-        core_r0 <= alu_out_wr;
+        core_r0 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==0)
     begin
@@ -657,7 +657,7 @@ begin
     end
     else if(st_R_WB && rd==1)
     begin
-        core_r1 <= alu_out_wr;
+        core_r1 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==1)
     begin
@@ -674,7 +674,7 @@ begin
     end
     else if(st_R_WB && rd==2)
     begin
-        core_r2 <= alu_out_wr;
+        core_r2 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==2)
     begin
@@ -691,7 +691,7 @@ begin
     end
     else if(st_R_WB && rd==3)
     begin
-        core_r3 <= alu_out_wr;
+        core_r3 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==3)
     begin
@@ -708,7 +708,7 @@ begin
     end
     else if(st_R_WB && rd==4)
     begin
-        core_r4 <= alu_out_wr;
+        core_r4 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==4)
     begin
@@ -725,7 +725,7 @@ begin
     end
     else if(st_R_WB && rd==5)
     begin
-        core_r5 <= alu_out_wr;
+        core_r5 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==5)
     begin
@@ -742,7 +742,7 @@ begin
     end
     else if(st_R_WB && rd==6)
     begin
-        core_r6 <= alu_out_wr;
+        core_r6 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==6)
     begin
@@ -759,7 +759,7 @@ begin
     end
     else if(st_R_WB && rd==7)
     begin
-        core_r7 <= alu_out_wr;
+        core_r7 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==7)
     begin
@@ -776,7 +776,7 @@ begin
     end
     else if(st_R_WB && rd==8)
     begin
-        core_r8 <= alu_out_wr;
+        core_r8 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==8)
     begin
@@ -793,7 +793,7 @@ begin
     end
     else if(st_R_WB && rd==9)
     begin
-        core_r9 <= alu_out_wr;
+        core_r9 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==9)
     begin
@@ -810,7 +810,7 @@ begin
     end
     else if(st_R_WB && rd==10)
     begin
-        core_r10 <= alu_out_wr;
+        core_r10 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==10)
     begin
@@ -827,7 +827,7 @@ begin
     end
     else if(st_R_WB && rd==11)
     begin
-        core_r11 <= alu_out_wr;
+        core_r11 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==11)
     begin
@@ -844,7 +844,7 @@ begin
     end
     else if(st_R_WB && rd==12)
     begin
-        core_r12 <= alu_out_wr;
+        core_r12 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==12)
     begin
@@ -862,7 +862,7 @@ begin
     end
     else if(st_R_WB && rd==13)
     begin
-        core_r13 <= alu_out_wr;
+        core_r13 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==13)
     begin
@@ -880,7 +880,7 @@ begin
     end
     else if(st_R_WB && rd==14)
     begin
-        core_r14 <= alu_out_wr;
+        core_r14 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==14)
     begin
@@ -896,7 +896,7 @@ begin
     end
     else if(st_R_WB && rd==15)
     begin
-        core_r15 <= alu_out_wr;
+        core_r15 <= alu_out_ff;
     end
     else if(st_MEM_WB && rt==15)
     begin
