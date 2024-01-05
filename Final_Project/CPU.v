@@ -119,6 +119,29 @@ reg signed [15:0] core_r4 , core_r5 , core_r6 , core_r7 ;
 reg signed [15:0] core_r8 , core_r9 , core_r10, core_r11;
 reg signed [15:0] core_r12, core_r13, core_r14, core_r15;
 
+reg[10:0] ic_in_addr_ff;
+reg       ic_out_valid;
+reg[15:0] ic_out_inst_wr;
+
+
+
+
+reg       dc_in_valid;
+reg[10:0] dc_in_addr_ff;
+reg[15:0] dc_in_data_ff;
+reg       dc_in_write;
+reg       dc_out_valid_ff;
+reg[15:0] dc_out_data_ff;
+
+
+
+reg[6:0]  d_cache_addr;
+wire signed[15:0] d_cache_d_out;
+reg signed[15:0] d_cache_d_in;
+reg d_cache_we;
+
+reg d_cache_valid_ff;
+
 
 //================================================================
 //  AXI 4
@@ -282,7 +305,7 @@ begin
     end
 end
 
-wire inst_out_valid_f  = st_IC_OUTPUT;
+wire inst_out_valid_f  = ic_out_valid;
 wire data_read_done_f  = st_DC_OUTPUT;
 wire data_write_done_f ;
 
@@ -391,6 +414,34 @@ begin
         ic_in_valid <= 0;
     end
 end
+// dc invalid
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        dc_in_valid <= 0;
+    end
+    else if(main_next_st == LW_MEM_WAIT || main_next_st == SW_MEM_WAIT || st_LW_MEM_WAIT || st_SW_MEM_WAIT)
+    begin
+        dc_in_valid <= st_DC_OUTPUT ? 0 : 1;
+    end
+end
+// dc in write
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        dc_in_write <= 0;
+    end
+    else if(st_IF_1)
+    begin
+        dc_in_write <= 0;
+    end
+    else if(st_SW_EX)
+    begin
+        dc_in_write <= 1;
+    end
+end
 
 //####################################################
 //               DATAPATH
@@ -404,7 +455,7 @@ begin
     begin
         pc_ff <= OFFSET;
     end
-    else if(st_IF_1 || st_BEQ_EX)
+    else if(st_ID || st_BEQ_EX)
     begin
         pc_ff <= alu_out_wr;
     end
@@ -417,7 +468,7 @@ end
 //================================================================
 //   IR_FF
 //================================================================
-reg[15:0] inst_out_ff;
+// reg[15:0] inst_out_ff;
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -427,7 +478,7 @@ begin
     end
     else if(st_IC_OUTPUT)
     begin
-        ir_ff <= inst_out_ff;
+        ir_ff <= ic_out_inst_wr;
     end
 end
 
@@ -515,7 +566,7 @@ always @(*)
 begin
     alu_out_wr = 0;
     case(main_cur_st)
-        IF_1:
+        ID:
         begin
             alu_out_wr = pc_ff + 16'd1;
         end
@@ -574,7 +625,7 @@ begin
     end
     else if(st_DC_OUTPUT)
     begin
-        dmem_data_ff <= mem_data_out_ff;
+        dmem_data_ff <= d_cache_d_out;
     end
 end
 
@@ -859,9 +910,6 @@ end
 //======================
 //   Inputs/Outputs
 //======================
-reg[10:0] ic_in_addr_ff;
-reg       ic_out_valid_ff;
-reg[15:0] ic_out_inst_ff;
 
 //======================
 //   inner reg/wire
@@ -954,6 +1002,8 @@ begin
     end
 end
 
+wire[15:0] pc_to_mem_addr = pc_ff << 1;
+
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
@@ -962,7 +1012,7 @@ begin
     end
     else if(ic_in_valid)
     begin
-        ic_in_addr_ff <= pc_ff[11:1];
+        ic_in_addr_ff <= pc_to_mem_addr[11:1];
     end
 end
 
@@ -1002,22 +1052,22 @@ end
 //======================
 //   Output
 //======================
-always @(posedge clk or negedge rst_n)
+always @(*)
 begin
-    if(~rst_n)
+    if(st_IC_HOLD_DATA)
     begin
-        ic_out_inst_ff  <= 0;
-        ic_out_valid_ff <= 0;
+        ic_out_inst_wr  = i_cache_d_out;
+        ic_out_valid    = 0;
     end
-    else if(st_IC_HOLD_DATA)
+    else if(st_IC_OUTPUT)
     begin
-        ic_out_inst_ff  <= i_cache_d_out;
-        ic_out_valid_ff <= 0;
+        ic_out_inst_wr  = ic_out_inst_wr;
+        ic_out_valid = 1;
     end
     else
     begin
-        ic_out_inst_ff  <= i_cache_d_out;
-        ic_out_valid_ff <= 0;
+        ic_out_inst_wr  = ic_out_inst_wr;
+        ic_out_valid = 0;
     end
 end
 
@@ -1027,12 +1077,6 @@ end
 //======================
 //   Input/Output
 //======================
-reg       dc_in_valid;
-reg[10:0] dc_in_addr_ff;
-reg[15:0] dc_in_data_ff;
-reg       dc_in_write;
-reg       dc_out_valid_ff;
-reg[15:0] dc_out_data_ff;
 
 //======================
 //   address & data in
@@ -1046,7 +1090,7 @@ begin
     end
     else if(dc_in_valid)
     begin
-        dc_in_addr_ff  <= alu_out_ff[11:1];
+        dc_in_addr_ff  <= alu_out_wr[11:1];
         if(dc_in_write == 1'b1)
             dc_in_data_ff  <= alu_out_ff;
     end
@@ -1128,6 +1172,10 @@ begin
     begin
         data_cache_nxt_st = DC_HOLD_DATA;
     end
+    DC_HOLD_DATA:
+    begin
+        data_cache_nxt_st = DC_OUTPUT;
+    end
     DC_OUTPUT:
     begin
         data_cache_nxt_st = DC_IDLE;
@@ -1159,13 +1207,7 @@ begin
     endcase
 end
 
-reg[6:0]  d_cache_addr;
-wire signed[15:0] d_cache_d_out;
-reg signed[15:0] d_cache_d_in;
-reg d_cache_we;
 
-// reg[3:0] d_cache_tag_ff;
-reg d_cache_valid_ff;
 
 SRAM_128x16 D_CACHE( .A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
                     .A5(d_cache_addr[5]),.A6(d_cache_addr[6]),
@@ -1181,12 +1223,13 @@ SRAM_128x16 D_CACHE( .A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[
                     .DI10(d_cache_d_in[10]),.DI11(d_cache_d_in[11]),.DI12(d_cache_d_in[12]),
                     .DI13(d_cache_d_in[13]),.DI14(d_cache_d_in[14]),.DI15(d_cache_d_in[15]),
                     .CK(clk),.WEB(d_cache_we),.OE(1'b1),.CS(1'b1));
+
 //=============================
 //   D-Cache i/o controlls
 //=============================
 always @(*)
 begin
-    if(st_DC_AXI_RD_DATA_UPDATE_CASH)
+    if(st_DC_AXI_RD_DATA_UPDATE_CASH && axi_data_rd_data_tran_f)
     begin
         //Writes
         d_cache_addr = axi_burst_cnt;
