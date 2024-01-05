@@ -351,6 +351,27 @@ begin
     endcase
 end
 //####################################################
+//               I/O stall
+//####################################################
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        IO_stall <= 1;
+    end
+    else if(st_R_WB || st_MEM_WB || st_BEQ_EX || (st_ID&&opcode == 3'b101))
+    begin
+        IO_stall <= 0;
+    end
+    else
+    begin
+        IO_stall <= 1;
+    end
+end
+
+
+
+//####################################################
 //               DATAPATH
 //####################################################
 // pc
