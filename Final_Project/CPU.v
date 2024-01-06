@@ -200,18 +200,20 @@ wire st_IC_AXI_RD_DATA_UPDATE_CASH      = inst_cache_cur_st[5];
 wire st_IC_OUTPUT                       = inst_cache_cur_st[6];
 
 
-reg[10:0] data_cache_cur_st,data_cache_nxt_st;
-localparam DC_IDLE                               = 11'b000_0000_0001;
-localparam DC_CHECK                              = 11'b000_0000_0010;
-localparam DC_HIT                                = 11'b000_0000_0100;
-localparam DC_HOLD_DATA                          = 11'b000_0000_1000;
-localparam DC_AXI_RD_ADDR                        = 11'b000_0001_0000;
-localparam DC_AXI_RD_DATA_UPDATE_CASH            = 11'b000_0010_0000;
-localparam DC_AXI_WR_ADDR                        = 11'b000_0100_0000;
-localparam DC_AXI_WR_DATA                        = 11'b000_1000_0000;
-localparam DC_AXI_WR_RESP                        = 11'b001_0000_0000;
-localparam DC_OUTPUT                             = 11'b010_0000_0000;
-localparam DC_WRITE_SRAM                         = 11'b100_0000_0000;
+reg[11:0] data_cache_cur_st,data_cache_nxt_st;
+localparam DC_IDLE                               = 12'b0000_0000_0001;
+localparam DC_CHECK                              = 12'b0000_0000_0010;
+localparam DC_HIT                                = 12'b0000_0000_0100;
+localparam DC_HOLD_DATA                          = 12'b0000_0000_1000;
+localparam DC_AXI_RD_ADDR                        = 12'b0000_0001_0000;
+localparam DC_AXI_RD_DATA_UPDATE_CASH            = 12'b0000_0010_0000;
+localparam DC_AXI_WR_ADDR                        = 12'b0000_0100_0000;
+localparam DC_AXI_WR_DATA                        = 12'b0000_1000_0000;
+localparam DC_AXI_WR_RESP                        = 12'b0001_0000_0000;
+localparam DC_OUTPUT                             = 12'b0010_0000_0000;
+localparam DC_WRITE_SRAM                         = 12'b0100_0000_0000;
+localparam DC_CHECK_WR                           = 12'b1000_0000_0000;
+
 
 wire st_DC_IDLE                                     = data_cache_cur_st[0];
 wire st_DC_CHECK                                    = data_cache_cur_st[1];
@@ -224,6 +226,7 @@ wire st_DC_AXI_WR_DATA                              = data_cache_cur_st[7];
 wire st_DC_AXI_WR_RESP                              = data_cache_cur_st[8];
 wire st_DC_OUTPUT                                   = data_cache_cur_st[9];
 wire st_DC_WRITE_SRAM                               = data_cache_cur_st[10];
+wire st_DC_CHECK_WR                                 = data_cache_cur_st[11];
 
 //================================================================
 //   AXI interfaces
@@ -616,7 +619,7 @@ begin
     endcase
 end
 
-wire[15:0]        data_mem_in_addr = alu_out_wr;
+wire signed[15:0] data_mem_in_addr = alu_out_wr;
 wire signed[15:0] data_mem_in_data = alu_out_ff;
 
 //================================================================
@@ -1096,7 +1099,9 @@ begin
     end
     else if(dc_in_valid)
     begin
+        //Probably incorrect here
         dc_in_addr_ff  <= alu_out_wr[11:1];
+
         if(dc_in_write == 1'b1)
         begin
             dc_in_data_ff  <= reg_data2_ff;
@@ -1113,6 +1118,8 @@ end
 //======================
 // reg d_cache_valid_ff;
 reg[3:0] d_cache_tag_ff;
+
+wire[3:0] curr_tag = dc_in_addr_ff[10:7];
 wire dc_hit_f = (d_cache_valid_ff == 1'b1) && (d_cache_tag_ff == dc_in_addr_ff[10:7]);
 //======================
 //   Valid & tags
@@ -1140,8 +1147,6 @@ begin
         d_cache_tag_ff <= dc_in_addr_ff[10:7];
     end
 end
-
-
 
 //======================
 //   MAIN D-Cache Control
@@ -1172,9 +1177,13 @@ begin
             end
             else
             begin
-                data_cache_nxt_st = DC_WRITE_SRAM;
+                data_cache_nxt_st = DC_CHECK_WR;
             end
         end
+    end
+    DC_CHECK_WR:
+    begin
+        data_cache_nxt_st = dc_hit_f ? DC_WRITE_SRAM : DC_AXI_WR_ADDR;
     end
     DC_CHECK:
     begin
@@ -1248,7 +1257,7 @@ begin
         d_cache_we   = 1'b0;
         d_cache_d_in = rdata_m_inf[DATA_WIDTH-1:0];
     end
-    else if(st_DC_WRITE_SRAM)
+    else if(st_DC_WRITE_SRAM) // Something goes wrong here?
     begin
         //Writes
         d_cache_addr = dc_in_addr_ff[6:0];
