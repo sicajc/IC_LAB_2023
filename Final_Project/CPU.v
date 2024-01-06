@@ -619,6 +619,13 @@ begin
     endcase
 end
 
+reg signed[15:0] alu_out_wr_d1;
+always @(posedge clk)
+begin
+    alu_out_wr_d1 <= alu_out_wr;
+end
+
+
 wire signed[15:0] data_mem_in_addr = alu_out_wr;
 wire signed[15:0] data_mem_in_data = alu_out_ff;
 
@@ -1084,10 +1091,6 @@ end
 //   Data Memory
 //================================================================
 //======================
-//   Input/Output
-//======================
-
-//======================
 //   address & data in
 //======================
 always @(posedge clk or negedge rst_n)
@@ -1229,7 +1232,6 @@ begin
 end
 
 
-
 SRAM_128x16 D_CACHE( .A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
                     .A5(d_cache_addr[5]),.A6(d_cache_addr[6]),
                     .DO0(d_cache_d_out[0]),.DO1(d_cache_d_out[1]),.DO2(d_cache_d_out[2]),.DO3(d_cache_d_out[3]),
@@ -1331,7 +1333,7 @@ begin
     end
     else if(st_DC_AXI_WR_ADDR)
     begin
-        awaddr_m_inf  <=  axi_wr_addr_done_f ? 0: alu_out_wr;
+        awaddr_m_inf  <=  axi_wr_addr_done_f ? 0: alu_out_wr_d1;
         awvalid_m_inf <=  axi_wr_addr_done_f ? 0: 1'b1;
     end
 end
