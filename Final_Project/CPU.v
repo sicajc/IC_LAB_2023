@@ -960,22 +960,26 @@ end
 //   Instruction Memory
 //================================================================
 //======================
-//   Inputs/Outputs
-//======================
-
-//======================
 //   inner reg/wire
 //======================
 reg[6:0]  i_cache_addr;
-wire [15:0] i_cache_d_out;
+wire [15:0] i_cache_d_out0,i_cache_d_out1;
 reg signed[15:0] i_cache_d_in;
-reg i_cache_we;
+reg i_cache_we0,i_cache_we1;
 
-reg[3:0] i_cache_tag_ff;
-reg i_cache_valid_ff;
+reg[3:0] i_cache_tag_ff[0:1];
+reg[1:0] i_cache_valid_ff;
+reg recently_used_ff;
 
 
-wire ic_hit_f = (i_cache_valid_ff == 1'b1) && (i_cache_tag_ff == ic_in_addr_ff[10:7]);
+// wire ic_hit_f  = (i_cache_valid_ff == 1'b1) && (i_cache_tag_ff == ic_in_addr_ff[10:7]);
+
+wire ic0_hit_f = (i_cache_valid_ff[0] == 1'b1) && (i_cache_tag_ff[0] == ic_in_addr_ff[10:7]);
+wire ic1_hit_f = (i_cache_valid_ff[1] == 1'b1) && (i_cache_tag_ff[1] == ic_in_addr_ff[10:7]);
+
+wire ic_hit_f = ic0_hit_f || ic1_hit_f;
+
+wire block_to_replace = ~recently_used_ff;
 
 //======================
 //   MAIN IC Control
@@ -1034,11 +1038,15 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        i_cache_valid_ff <= 1'b0;
+        i_cache_valid_ff[0] <= 1'b0;
+        i_cache_valid_ff[1] <= 1'b0;
     end
     else if(st_IC_AXI_RD_ADDR)
     begin
-        i_cache_valid_ff <= 1'b1;
+        if(block_to_replace == 1'b1)
+            i_cache_valid_ff[1] <= 1'b1;
+        else
+            i_cache_valid_ff[0] <= 1'b1;
     end
 end
 
@@ -1046,11 +1054,15 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        i_cache_tag_ff <= 4'd0;
+        i_cache_tag_ff[0] <= 4'd0;
+        i_cache_tag_ff[1] <= 4'd0;
     end
     else if(st_IC_AXI_RD_ADDR)
     begin
-        i_cache_tag_ff <= ic_in_addr_ff[10:7];
+        if(block_to_replace == 1'b1)
+            i_cache_tag_ff[1] <= ic_in_addr_ff[10:7];
+        else
+            i_cache_tag_ff[0] <= ic_in_addr_ff[10:7];
     end
 end
 
@@ -1068,20 +1080,51 @@ begin
     end
 end
 
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        recently_used_ff <= 0;
+    end
+    else if(st_IC_CHECK)
+    begin
+        if(ic0_hit_f)
+            recently_used_ff <= 1'b0;
+        else if(ic1_hit_f)
+            recently_used_ff <= 1'b1;
+    end
+end
 
-SRAM_128x16 I_CACHE(.A0(i_cache_addr[0]),.A1(i_cache_addr[1]),.A2(i_cache_addr[2]),.A3(i_cache_addr[3]),
+
+SRAM_128x16 I_0CACHE(.A0(i_cache_addr[0]),.A1(i_cache_addr[1]),.A2(i_cache_addr[2]),.A3(i_cache_addr[3]),
                     .A4(i_cache_addr[4]),.A5(i_cache_addr[5]),.A6(i_cache_addr[6]),
-                    .DO0(i_cache_d_out[0]),.DO1(i_cache_d_out[1]),.DO2(i_cache_d_out[2]),.DO3(i_cache_d_out[3]),
-                    .DO4(i_cache_d_out[4]),.DO5(i_cache_d_out[5]),.DO6(i_cache_d_out[6]),
-                    .DO7(i_cache_d_out[7]),.DO8(i_cache_d_out[8]),.DO9(i_cache_d_out[9]),
-                    .DO10(i_cache_d_out[10]),.DO11(i_cache_d_out[11]),
-                    .DO12(i_cache_d_out[12]),.DO13(i_cache_d_out[13]),.DO14(i_cache_d_out[14]),.DO15(i_cache_d_out[15]),
+                    .DO0(i_cache_d_out0[0]),.DO1(i_cache_d_out0[1]),.DO2(i_cache_d_out0[2]),.DO3(i_cache_d_out0[3]),
+                    .DO4(i_cache_d_out0[4]),.DO5(i_cache_d_out0[5]),.DO6(i_cache_d_out0[6]),
+                    .DO7(i_cache_d_out0[7]),.DO8(i_cache_d_out0[8]),.DO9(i_cache_d_out0[9]),
+                    .DO10(i_cache_d_out0[10]),.DO11(i_cache_d_out0[11]),
+                    .DO12(i_cache_d_out0[12]),.DO13(i_cache_d_out0[13]),.DO14(i_cache_d_out0[14]),.DO15(i_cache_d_out0[15]),
                     .DI0(i_cache_d_in[0]),.DI1(i_cache_d_in[1]),.DI2(i_cache_d_in[2]),
                     .DI3(i_cache_d_in[3]),.DI4(i_cache_d_in[4]),.DI5(i_cache_d_in[5]),
                     .DI6(i_cache_d_in[6]),.DI7(i_cache_d_in[7]),.DI8(i_cache_d_in[8]),.DI9(i_cache_d_in[9]),
                     .DI10(i_cache_d_in[10]),.DI11(i_cache_d_in[11]),.DI12(i_cache_d_in[12]),.DI13(i_cache_d_in[13]),
                     .DI14(i_cache_d_in[14]),.DI15(i_cache_d_in[15]),
-                    .CK(clk),.WEB(i_cache_we),.OE(1'b1),.CS(1'b1));
+                    .CK(clk),.WEB(i_cache_we0),.OE(1'b1),.CS(1'b1));
+
+SRAM_128x16 I_1CACHE(.A0(i_cache_addr[0]),.A1(i_cache_addr[1]),.A2(i_cache_addr[2]),.A3(i_cache_addr[3]),
+                    .A4(i_cache_addr[4]),.A5(i_cache_addr[5]),.A6(i_cache_addr[6]),
+                    .DO0(i_cache_d_out1[0]),.DO1(i_cache_d_out1[1]),.DO2(i_cache_d_out1[2]),.DO3(i_cache_d_out1[3]),
+                    .DO4(i_cache_d_out1[4]),.DO5(i_cache_d_out1[5]),.DO6(i_cache_d_out1[6]),
+                    .DO7(i_cache_d_out1[7]),.DO8(i_cache_d_out1[8]),.DO9(i_cache_d_out1[9]),
+                    .DO10(i_cache_d_out1[10]),.DO11(i_cache_d_out1[11]),
+                    .DO12(i_cache_d_out1[12]),.DO13(i_cache_d_out1[13]),.DO14(i_cache_d_out1[14]),.DO15(i_cache_d_out1[15]),
+                    .DI0(i_cache_d_in[0]),.DI1(i_cache_d_in[1]),.DI2(i_cache_d_in[2]),
+                    .DI3(i_cache_d_in[3]),.DI4(i_cache_d_in[4]),.DI5(i_cache_d_in[5]),
+                    .DI6(i_cache_d_in[6]),.DI7(i_cache_d_in[7]),.DI8(i_cache_d_in[8]),.DI9(i_cache_d_in[9]),
+                    .DI10(i_cache_d_in[10]),.DI11(i_cache_d_in[11]),.DI12(i_cache_d_in[12]),.DI13(i_cache_d_in[13]),
+                    .DI14(i_cache_d_in[14]),.DI15(i_cache_d_in[15]),
+                    .CK(clk),.WEB(i_cache_we1),.OE(1'b1),.CS(1'b1));
+
+wire[15:0] i_cache_d_out = ic0_hit_f ? i_cache_d_out0 : i_cache_d_out1;
 
 // I-Cache i/o controlls
 always @(*)
@@ -1089,14 +1132,35 @@ begin
     if(st_IC_AXI_RD_DATA_UPDATE_CASH && axi_inst_rd_data_tran_f)
     begin
         // Write data
-        i_cache_we   = 1'b0;
+        if(ic0_hit_f)
+        begin
+            i_cache_we0 = 1'b0;
+            i_cache_we1 = 1'b1;
+        end
+        else
+        begin
+            i_cache_we0 = 1'b1;
+            i_cache_we1 = 1'b0;
+        end
+    end
+    else
+    begin
+        i_cache_we0 = 1'b1;
+        i_cache_we1 = 1'b1;
+    end
+end
+
+always @(*)
+begin
+    if(st_IC_AXI_RD_DATA_UPDATE_CASH && axi_inst_rd_data_tran_f)
+    begin
+        // Write data
         i_cache_addr = axi_burst_cnt; // 0~127
         i_cache_d_in = rdata_m_inf[DRAM_NUMBER * DATA_WIDTH-1:DATA_WIDTH];
     end
     else
     begin
         i_cache_addr = ic_in_addr_ff[6:0];
-        i_cache_we   = 1'b1;
         i_cache_d_in = 0;
     end
 end
@@ -1113,12 +1177,12 @@ begin
     end
     else if(st_IC_OUTPUT)
     begin
-        ic_out_inst_wr  = ic_out_inst_wr;
+        ic_out_inst_wr  = i_cache_d_out;
         ic_out_valid = 1;
     end
     else
     begin
-        ic_out_inst_wr  = ic_out_inst_wr;
+        ic_out_inst_wr  = i_cache_d_out;
         ic_out_valid = 0;
     end
 end
