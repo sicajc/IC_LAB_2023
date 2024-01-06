@@ -278,6 +278,11 @@ wire signed[15:0] sign_ex_imm  = $signed(imm);
 // instruction cache
 reg       ic_in_valid;
 
+wire instr_mult_next_f = main_next_st == MULT_EX;
+wire seq_mult_done_f;
+
+wire signed[15:0] seq_mult_in1,seq_mult_in2,seq_mult_product;
+
 //####################################################
 //               current_instruction
 //####################################################
@@ -351,7 +356,11 @@ begin
                 main_next_st = SLT_EX;
             endcase
         end
-        SLT_EX,ADD_EX,SUB_EX,MULT_EX:
+        MULT_EX:
+        begin
+            main_next_st = seq_mult_done_f ? R_WB : MULT_EX;
+        end
+        SLT_EX,ADD_EX,SUB_EX:
         begin
             main_next_st = R_WB;
         end
@@ -557,18 +566,49 @@ end
 //================================================================
 //   ALU
 //================================================================
-wire EX_ST = st_ADD_EX || st_SUB_EX || st_SLT_EX || st_MULT_EX || st_LW_EX || st_SW_EX || st_BEQ_EX;
+wire EX_ST = st_ADD_EX || st_SUB_EX || st_SLT_EX  || st_LW_EX || st_SW_EX || st_BEQ_EX;
+
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
         alu_out_ff <= 0;
     end
+    else if(st_MULT_EX && seq_mult_done_f)
+    begin
+        alu_out_ff <= seq_mult_product;
+    end
     else if(EX_ST || st_ID)
     begin
         alu_out_ff <= alu_out_wr;
     end
 end
+
+
+assign seq_mult_in1 = reg_data1_ff;
+assign seq_mult_in2 = reg_data2_ff;
+
+
+reg st_MULT_EX_d1;
+
+wire multstart;
+assign multstart = st_MULT_EX & ~st_MULT_EX_d1;
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        st_MULT_EX_d1 <= 1'b0;
+    end
+    else
+    begin
+        st_MULT_EX_d1 <= st_MULT_EX;
+    end
+end
+
+DW_mult_seq_inst seq_mult(.inst_clk(clk), .inst_rst_n(rst_n), .inst_hold(1'b0),
+.inst_start(multstart), .inst_a(seq_mult_in1),
+.inst_b(seq_mult_in2), .complete_inst(seq_mult_done_f), .product_inst(seq_mult_product) );
 
 
 always @(*)
@@ -590,10 +630,6 @@ begin
         SLT_EX:
         begin
             alu_out_wr = (reg_data1_ff < reg_data2_ff) ? $signed(16'd1) : $signed(16'd0);
-        end
-        MULT_EX:
-        begin
-            alu_out_wr = reg_data1_ff * reg_data2_ff;
         end
         LW_EX:
         begin
@@ -1451,4 +1487,38 @@ end
 
 
 
+endmodule
+
+
+module DW_mult_seq_inst(inst_clk, inst_rst_n, inst_hold, inst_start, inst_a,
+inst_b, complete_inst, product_inst );
+parameter inst_a_width = 16;
+parameter inst_b_width = 16;
+parameter inst_tc_mode = 1;
+parameter inst_num_cyc = 5;
+parameter inst_rst_mode = 1;
+parameter inst_input_mode = 0;
+parameter inst_output_mode = 1;
+parameter inst_early_start = 0;
+// Please add +incdir+$SYNOPSYS/dw/sim_ver+ to your verilog simulator
+// command line (for simulation).
+input inst_clk;
+input inst_rst_n;
+input inst_hold;
+input inst_start;
+input [inst_a_width-1 : 0] inst_a;
+input [inst_b_width-1 : 0] inst_b;
+output complete_inst;
+output [inst_a_width+inst_b_width-1 : 0] product_inst;
+// Instance of DW_mult_seq
+DW_mult_seq #(inst_a_width,inst_b_width,inst_tc_mode,inst_num_cyc,
+inst_rst_mode,inst_input_mode,inst_output_mode,inst_early_start)
+U1 (.clk(inst_clk),
+.rst_n(inst_rst_n),
+.hold(inst_hold),
+.start(inst_start),
+.a(inst_a),
+.b(inst_b),
+.complete(complete_inst),
+.product(product_inst) );
 endmodule
