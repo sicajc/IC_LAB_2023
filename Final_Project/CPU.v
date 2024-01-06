@@ -605,11 +605,12 @@ begin
         st_MULT_EX_d1 <= st_MULT_EX;
     end
 end
+wire signed[31:0] mult_product_inst;
 
+assign seq_mult_product = mult_product_inst[15:0];
 DW_mult_seq_inst seq_mult(.inst_clk(clk), .inst_rst_n(rst_n), .inst_hold(1'b0),
 .inst_start(multstart), .inst_a(seq_mult_in1),
-.inst_b(seq_mult_in2), .complete_inst(seq_mult_done_f), .product_inst(seq_mult_product) );
-
+.inst_b(seq_mult_in2), .complete_inst(seq_mult_done_f), .product_inst(mult_product_inst));
 
 always @(*)
 begin
