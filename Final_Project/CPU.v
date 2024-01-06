@@ -1289,19 +1289,21 @@ end
 //inst
 //read address
 assign arid_m_inf[DRAM_NUMBER * ID_WIDTH-1:ID_WIDTH] = 0;
-assign arlen_m_inf[DRAM_NUMBER * 7 -1:7] = 7'b111_1111 ;
-assign arsize_m_inf[DRAM_NUMBER * 3 -1:3] = 3'b001 ;
+assign arlen_m_inf[DRAM_NUMBER * 7 -1:7]   = 7'b111_1111 ;
+assign arsize_m_inf[DRAM_NUMBER * 3 -1:3]  = 3'b001 ;
 assign arburst_m_inf[DRAM_NUMBER * 2 -1:2] = 2'b01 ;
+
+assign rid_m_inf = 0;
 
 //data
 //read address
 assign arid_m_inf[ID_WIDTH-1:0] = 0;
-assign arlen_m_inf[7 -1:0]  = 7'b111_1111 ;
-assign arsize_m_inf[3 -1:0] = 3'b001 ;
+assign arlen_m_inf[7 -1:0]   = 7'b111_1111 ;
+assign arsize_m_inf[3 -1:0]  = 3'b001 ;
 assign arburst_m_inf[2 -1:0] = 2'b01 ;
 
 //write address
-assign awid_m_inf = 0 ;
+assign awid_m_inf  = 0 ;
 assign awlen_m_inf = 7'd0 ;
 assign awsize_m_inf = 3'b001 ;
 assign awburst_m_inf = 2'b01 ;
@@ -1435,5 +1437,7 @@ begin
     else if(axi_data_rd_data_tran_f || axi_inst_rd_data_tran_f || axi_wr_data_tran_f)
         axi_burst_cnt <= axi_burst_cnt + 1;
 end
+
+
 
 endmodule
