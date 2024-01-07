@@ -289,6 +289,10 @@ wire inst_STORE     = opcode == 3'b011;
 wire inst_BEQ       = opcode == 3'b100;
 wire inst_J         = opcode == 3'b101;
 
+reg axi_data_rd_data_done_d1;
+reg axi_inst_rd_data_done_d1;
+
+reg axi_inst_rd_data_tran_d1;
 
 wire branch_equal_f = reg_data1_ff == reg_data2_ff;
 //####################################################
@@ -547,6 +551,10 @@ begin
         endcase
     end
 end
+
+reg[7:0] axi_burst_cnt_d1;
+reg axi_data_rd_data_tran_d1;
+reg[DRAM_NUMBER * DATA_WIDTH-1:0] rdata_m_inf_d1;
 
 //================================================================
 //   ALU
@@ -1007,10 +1015,11 @@ begin
     end
     IC_AXI_RD_DATA_UPDATE_CASH:
     begin
-        inst_cache_nxt_st = axi_inst_rd_data_done_f ? IC_CHECK : IC_AXI_RD_DATA_UPDATE_CASH;
+        inst_cache_nxt_st = axi_inst_rd_data_done_d1 ? IC_CHECK : IC_AXI_RD_DATA_UPDATE_CASH;
     end
     endcase
 end
+
 
 //======================
 //   Valid and tags
@@ -1099,7 +1108,7 @@ assign i_cache_d_out = ic0_hit_f ? i_cache_d_out0 : i_cache_d_out1;
 // I-Cache i/o controlls
 always @(*)
 begin
-    if(st_IC_AXI_RD_DATA_UPDATE_CASH)
+    if(axi_inst_rd_data_tran_d1)
     begin
         // Write data
         if(ic0_hit_f)
@@ -1120,13 +1129,15 @@ begin
     end
 end
 
+
+
 always @(*)
 begin
     if(st_IC_AXI_RD_DATA_UPDATE_CASH)
     begin
         // Write data
-        i_cache_addr = axi_burst_cnt; // 0~127
-        i_cache_d_in = rdata_m_inf[DRAM_NUMBER * DATA_WIDTH-1:DATA_WIDTH];
+        i_cache_addr = axi_burst_cnt_d1; // 0~127
+        i_cache_d_in = rdata_m_inf_d1[DRAM_NUMBER * DATA_WIDTH-1:DATA_WIDTH];
     end
     else
     begin
@@ -1294,7 +1305,7 @@ begin
     end
     DC_AXI_RD_DATA_UPDATE_CASH:
     begin
-        data_cache_nxt_st = axi_data_rd_data_done_f ? DC_CHECK : DC_AXI_RD_DATA_UPDATE_CASH;
+        data_cache_nxt_st = axi_data_rd_data_done_d1 ? DC_CHECK : DC_AXI_RD_DATA_UPDATE_CASH;
     end
     DC_WRITE_SRAM:
     begin
@@ -1349,9 +1360,11 @@ assign d_cache_d_out = dc0_hit_f ? d_cache_d_out0 : d_cache_d_out1;
 //=============================
 //   D-Cache i/o controlls
 //=============================
+
+
 always @(*)
 begin
-    if(st_DC_AXI_RD_DATA_UPDATE_CASH||st_DC_WRITE_SRAM)
+    if(axi_data_rd_data_tran_d1||st_DC_WRITE_SRAM)
     begin
         // Write data
         if(dc0_hit_f)
@@ -1372,13 +1385,22 @@ begin
     end
 end
 
+
+always @(posedge clk)
+begin
+    axi_burst_cnt_d1 <= axi_burst_cnt;
+    rdata_m_inf_d1   <= rdata_m_inf;
+    axi_data_rd_data_tran_d1 <= axi_data_rd_data_tran_f;
+    axi_inst_rd_data_tran_d1 <= axi_inst_rd_data_tran_f;
+end
+
 always @(*)
 begin
-    if(st_DC_AXI_RD_DATA_UPDATE_CASH)
+    if(axi_data_rd_data_tran_d1)
     begin
         //Writes
-        d_cache_addr = axi_burst_cnt;
-        d_cache_d_in = rdata_m_inf[DATA_WIDTH-1:0];
+        d_cache_addr = axi_burst_cnt_d1;
+        d_cache_d_in = rdata_m_inf_d1[DATA_WIDTH-1:0];
     end
     else if(st_DC_WRITE_SRAM) // Something goes wrong here?
     begin
@@ -1406,7 +1428,6 @@ assign arlen_m_inf[DRAM_NUMBER * 7 -1:7]   = 7'b111_1111 ;
 assign arsize_m_inf[DRAM_NUMBER * 3 -1:3]  = 3'b001 ;
 assign arburst_m_inf[DRAM_NUMBER * 2 -1:2] = 2'b01 ;
 
-assign rid_m_inf = 0;
 
 //data
 //read address
@@ -1540,15 +1561,23 @@ begin
     end
 end
 
+
+
+always @(posedge clk )
+begin
+    axi_inst_rd_data_done_d1 <= axi_inst_rd_data_done_f;
+    axi_data_rd_data_done_d1 <= axi_data_rd_data_done_f;
+end
+
 // axi burst cnt
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
         axi_burst_cnt <= 0;
-    else if(axi_data_rd_data_done_f || axi_inst_rd_data_done_f || axi_wr_data_done_f)
+    else if(axi_data_rd_data_done_d1 || axi_inst_rd_data_done_d1 || axi_wr_data_done_f)
         axi_burst_cnt <= 0;
     else if(axi_data_rd_data_tran_f || axi_inst_rd_data_tran_f || axi_wr_data_tran_f)
-        axi_burst_cnt <= axi_burst_cnt + 1;
+        axi_burst_cnt <= axi_burst_cnt == 127 ? 127 : axi_burst_cnt + 1;
 end
 
 endmodule
