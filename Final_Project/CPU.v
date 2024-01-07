@@ -133,13 +133,13 @@ reg       dc_out_valid_ff;
 reg[15:0] dc_out_data_ff;
 
 
-
+wire signed[15:0] d_cache_d_out,d_cache_d_out0,d_cache_d_out1;
 reg[6:0]  d_cache_addr;
-wire signed[15:0] d_cache_d_out;
 reg signed[15:0] d_cache_d_in;
-reg d_cache_we;
+reg d_cache_we0,d_cache_we1;
 
-reg d_cache_valid_ff;
+
+reg[1:0] d_cache_valid_ff;
 
 
 //================================================================
@@ -970,7 +970,7 @@ reg i_cache_we0,i_cache_we1;
 
 reg[3:0] i_cache_tag_ff[0:1];
 reg[1:0] i_cache_valid_ff;
-reg recently_used_ff;
+reg ic_recently_used_ff;
 
 
 // wire ic_hit_f  = (i_cache_valid_ff == 1'b1) && (i_cache_tag_ff == ic_in_addr_ff[10:7]);
@@ -980,7 +980,7 @@ wire ic1_hit_f = (i_cache_valid_ff[1] == 1'b1) && (i_cache_tag_ff[1] == ic_in_ad
 
 wire ic_hit_f = ic0_hit_f || ic1_hit_f;
 
-wire block_to_replace = ~recently_used_ff;
+wire ic_block_to_replace = ~ic_recently_used_ff;
 
 //======================
 //   MAIN IC Control
@@ -1044,7 +1044,7 @@ begin
     end
     else if(st_IC_AXI_RD_ADDR)
     begin
-        if(block_to_replace == 1'b1)
+        if(ic_block_to_replace == 1'b1)
             i_cache_valid_ff[1] <= 1'b1;
         else
             i_cache_valid_ff[0] <= 1'b1;
@@ -1060,7 +1060,7 @@ begin
     end
     else if(st_IC_AXI_RD_ADDR)
     begin
-        if(block_to_replace == 1'b1)
+        if(ic_block_to_replace == 1'b1)
             i_cache_tag_ff[1] <= ic_in_addr_ff[10:7];
         else
             i_cache_tag_ff[0] <= ic_in_addr_ff[10:7];
@@ -1085,14 +1085,14 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        recently_used_ff <= 0;
+        ic_recently_used_ff <= 0;
     end
     else if(st_IC_CHECK)
     begin
         if(ic0_hit_f)
-            recently_used_ff <= 1'b0;
+            ic_recently_used_ff <= 1'b0;
         else if(ic1_hit_f)
-            recently_used_ff <= 1'b1;
+            ic_recently_used_ff <= 1'b1;
     end
 end
 
@@ -1222,9 +1222,15 @@ end
 //======================
 // reg d_cache_valid_ff;
 reg[3:0] d_cache_tag_ff;
+reg dc_recently_used_ff;
 
-wire[3:0] curr_tag = dc_in_addr_ff[10:7];
-wire dc_hit_f = (d_cache_valid_ff == 1'b1) && (d_cache_tag_ff == dc_in_addr_ff[10:7]);
+wire[3:0] dc_curr_tag = dc_in_addr_ff[10:7];
+
+wire dc0_hit_f = (d_cache_valid_ff[0] == 1'b1) && (d_cache_tag_ff[0] == dc_curr_tag);
+wire dc1_hit_f = (d_cache_valid_ff[1] == 1'b1) && (d_cache_tag_ff[1] == dc_curr_tag);
+
+wire dc_hit_f  = dc0_hit_f || dc1_hit_f;
+wire dc_block_to_replace = ~dc_recently_used_ff;
 //======================
 //   Valid & tags
 //======================
@@ -1232,11 +1238,15 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        d_cache_valid_ff <= 1'b0;
+        d_cache_valid_ff[0] <= 1'b0;
+        d_cache_valid_ff[1] <= 1'b0;
     end
     else if(st_DC_AXI_RD_ADDR)
     begin
-        d_cache_valid_ff <= 1'b1;
+        if(dc_block_to_replace == 1'b1)
+            d_cache_valid_ff[1] <= 1'b1;
+        else
+            d_cache_valid_ff[0] <= 1'b1;
     end
 end
 
@@ -1244,11 +1254,30 @@ always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        d_cache_tag_ff <= 0;
+        d_cache_tag_ff[0] <= 0;
+        d_cache_tag_ff[1] <= 0;
     end
     else if(st_DC_AXI_RD_ADDR)
     begin
-        d_cache_tag_ff <= dc_in_addr_ff[10:7];
+        if(dc_block_to_replace == 1'b1)
+            d_cache_tag_ff[1] <= dc_curr_tag;
+        else
+            d_cache_tag_ff[0] <= dc_curr_tag;
+    end
+end
+
+always @(posedge clk or negedge rst_n)
+begin
+    if(~rst_n)
+    begin
+        dc_recently_used_ff <= 0;
+    end
+    else if(st_DC_CHECK)
+    begin
+        if(dc0_hit_f)
+            dc_recently_used_ff <= 1'b0;
+        else if(dc1_hit_f)
+            dc_recently_used_ff <= 1'b1;
     end
 end
 
@@ -1333,21 +1362,38 @@ begin
 end
 
 
-SRAM_128x16 D_CACHE( .A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
+
+SRAM_128x16 D_0CACHE( .A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
                     .A5(d_cache_addr[5]),.A6(d_cache_addr[6]),
-                    .DO0(d_cache_d_out[0]),.DO1(d_cache_d_out[1]),.DO2(d_cache_d_out[2]),.DO3(d_cache_d_out[3]),
-                    .DO4(d_cache_d_out[4]),.DO5(d_cache_d_out[5]),.DO6(d_cache_d_out[6]),
-                    .DO7(d_cache_d_out[7]),.DO8(d_cache_d_out[8]),.DO9(d_cache_d_out[9]),
-                    .DO10(d_cache_d_out[10]),.DO11(d_cache_d_out[11]),
-                    .DO12(d_cache_d_out[12]),.DO13(d_cache_d_out[13]),.DO14(d_cache_d_out[14]),
-                    .DO15(d_cache_d_out[15]),
+                    .DO0(d_cache_d_out0[0]),.DO1(d_cache_d_out0[1]),.DO2(d_cache_d_out0[2]),.DO3(d_cache_d_out0[3]),
+                    .DO4(d_cache_d_out0[4]),.DO5(d_cache_d_out0[5]),.DO6(d_cache_d_out0[6]),
+                    .DO7(d_cache_d_out0[7]),.DO8(d_cache_d_out0[8]),.DO9(d_cache_d_out0[9]),
+                    .DO10(d_cache_d_out0[10]),.DO11(d_cache_d_out0[11]),
+                    .DO12(d_cache_d_out0[12]),.DO13(d_cache_d_out0[13]),.DO14(d_cache_d_out0[14]),
+                    .DO15(d_cache_d_out0[15]),
                     .DI0(d_cache_d_in[0]),.DI1(d_cache_d_in[1]),.DI2(d_cache_d_in[2]),
                     .DI3(d_cache_d_in[3]),.DI4(d_cache_d_in[4]),.DI5(d_cache_d_in[5]),
                     .DI6(d_cache_d_in[6]),.DI7(d_cache_d_in[7]),.DI8(d_cache_d_in[8]),.DI9(d_cache_d_in[9]),
                     .DI10(d_cache_d_in[10]),.DI11(d_cache_d_in[11]),.DI12(d_cache_d_in[12]),
                     .DI13(d_cache_d_in[13]),.DI14(d_cache_d_in[14]),.DI15(d_cache_d_in[15]),
-                    .CK(clk),.WEB(d_cache_we),.OE(1'b1),.CS(1'b1));
+                    .CK(clk),.WEB(d_cache_we0),.OE(1'b1),.CS(1'b1));
 
+SRAM_128x16 D_1CACHE( .A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
+                    .A5(d_cache_addr[5]),.A6(d_cache_addr[6]),
+                    .DO0(d_cache_d_out1[0]),.DO1(d_cache_d_out1[1]),.DO2(d_cache_d_out1[2]),.DO3(d_cache_d_out1[3]),
+                    .DO4(d_cache_d_out1[4]),.DO5(d_cache_d_out1[5]),.DO6(d_cache_d_out1[6]),
+                    .DO7(d_cache_d_out1[7]),.DO8(d_cache_d_out1[8]),.DO9(d_cache_d_out1[9]),
+                    .DO10(d_cache_d_out1[10]),.DO11(d_cache_d_out1[11]),
+                    .DO12(d_cache_d_out1[12]),.DO13(d_cache_d_out1[13]),.DO14(d_cache_d_out1[14]),
+                    .DO15(d_cache_d_out1[15]),
+                    .DI0(d_cache_d_in[0]),.DI1(d_cache_d_in[1]),.DI2(d_cache_d_in[2]),
+                    .DI3(d_cache_d_in[3]),.DI4(d_cache_d_in[4]),.DI5(d_cache_d_in[5]),
+                    .DI6(d_cache_d_in[6]),.DI7(d_cache_d_in[7]),.DI8(d_cache_d_in[8]),.DI9(d_cache_d_in[9]),
+                    .DI10(d_cache_d_in[10]),.DI11(d_cache_d_in[11]),.DI12(d_cache_d_in[12]),
+                    .DI13(d_cache_d_in[13]),.DI14(d_cache_d_in[14]),.DI15(d_cache_d_in[15]),
+                    .CK(clk),.WEB(d_cache_we1),.OE(1'b1),.CS(1'b1));
+
+assign d_cache_d_out = dc0_hit_f ? d_cache_d_out0 : d_cache_d_out1;
 //=============================
 //   D-Cache i/o controlls
 //=============================
@@ -1355,23 +1401,43 @@ always @(*)
 begin
     if(st_DC_AXI_RD_DATA_UPDATE_CASH && axi_data_rd_data_tran_f)
     begin
+        // Write data
+        if(dc0_hit_f)
+        begin
+            d_cache_we0 = 1'b0;
+            d_cache_we1 = 1'b1;
+        end
+        else
+        begin
+            d_cache_we0 = 1'b1;
+            d_cache_we1 = 1'b0;
+        end
+    end
+    else
+    begin
+        d_cache_we0 = 1'b1;
+        d_cache_we1 = 1'b1;
+    end
+end
+
+always @(*)
+begin
+    if(st_DC_AXI_RD_DATA_UPDATE_CASH && axi_data_rd_data_tran_f)
+    begin
         //Writes
         d_cache_addr = axi_burst_cnt;
-        d_cache_we   = 1'b0;
         d_cache_d_in = rdata_m_inf[DATA_WIDTH-1:0];
     end
     else if(st_DC_WRITE_SRAM) // Something goes wrong here?
     begin
         //Writes
         d_cache_addr = dc_in_addr_ff[6:0];
-        d_cache_we   = 1'b0;
         d_cache_d_in = dc_in_data_ff;
     end
     else
     begin
         // Reads
         d_cache_addr = dc_in_addr_ff[6:0];
-        d_cache_we   = 1'b1;
         d_cache_d_in = 0;
     end
 end
