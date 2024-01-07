@@ -295,11 +295,12 @@ wire branch_equal_f = reg_data1_ff == reg_data2_ff;
 //####################################################
 //               MAIN Control
 //####################################################
+
 always @(posedge clk or negedge rst_n)
 begin
     if(~rst_n)
     begin
-        main_cur_st <= IF_1;
+        main_cur_st <= IF_WAIT_MEM;
     end
     else
     begin
@@ -315,10 +316,6 @@ always @(*)
 begin
     main_next_st = main_cur_st;
     case(main_cur_st)
-        IF_1:
-        begin
-            main_next_st = IF_WAIT_MEM;
-        end
         IF_WAIT_MEM:
         begin
             main_next_st = inst_out_valid_f ? ID : IF_WAIT_MEM;
@@ -343,10 +340,11 @@ begin
             3'b100: //BEQ
                 main_next_st = BEQ_EX;
             3'b101: //J
-                main_next_st = IF_1;
+                main_next_st = IF_WAIT_MEM;
             default:
                 main_next_st = SLT_EX;
             endcase
+
         end
         MULT_EX:
         begin
@@ -358,7 +356,7 @@ begin
         end
         R_WB:
         begin
-            main_next_st = IF_1;
+            main_next_st = IF_WAIT_MEM;
         end
         LW_EX:
         begin
@@ -370,7 +368,7 @@ begin
         end
         BEQ_EX:
         begin
-            main_next_st = IF_1;
+            main_next_st = IF_WAIT_MEM;
         end
         LW_MEM_WAIT:
         begin
@@ -378,11 +376,11 @@ begin
         end
         SW_MEM_WAIT:
         begin
-            main_next_st = data_write_done_f ?  IF_1 : SW_MEM_WAIT;
+            main_next_st = data_write_done_f ?  IF_WAIT_MEM : SW_MEM_WAIT;
         end
         MEM_WB:
         begin
-            main_next_st = IF_1;
+            main_next_st = IF_WAIT_MEM;
         end
     endcase
 end
@@ -442,7 +440,7 @@ begin
     begin
         dc_in_write <= 0;
     end
-    else if(st_IF_1)
+    else if(st_IF_WAIT_MEM)
     begin
         dc_in_write <= 0;
     end
@@ -1597,7 +1595,7 @@ parameter inst_b_width = 16;
 parameter inst_tc_mode = 1;
 parameter inst_num_cyc = 5;
 parameter inst_rst_mode = 1;
-parameter inst_input_mode = 0;
+parameter inst_input_mode = 1;
 parameter inst_output_mode = 1;
 parameter inst_early_start = 0;
 // Please add +incdir+$SYNOPSYS/dw/sim_ver+ to your verilog simulator
