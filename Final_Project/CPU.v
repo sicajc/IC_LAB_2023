@@ -181,52 +181,44 @@ wire st_SW_MEM_WAIT = main_cur_st[12];
 wire st_MEM_WB = main_cur_st[13];
 
 
-reg[6:0] inst_cache_cur_st,inst_cache_nxt_st;
-localparam IC_IDLE                               = 7'b000_0001;
-localparam IC_CHECK                              = 7'b000_0010;
-localparam IC_HIT                                = 7'b000_0100;
-localparam IC_HOLD_DATA                          = 7'b000_1000;
-localparam IC_AXI_RD_ADDR                        = 7'b001_0000;
-localparam IC_AXI_RD_DATA_UPDATE_CASH            = 7'b010_0000;
-localparam IC_OUTPUT                             = 7'b100_0000;
+reg[4:0] inst_cache_cur_st,inst_cache_nxt_st;
+localparam IC_IDLE                               = 5'b0_0001;
+localparam IC_CHECK                              = 5'b0_0010;
+localparam IC_AXI_RD_ADDR                        = 5'b0_0100;
+localparam IC_AXI_RD_DATA_UPDATE_CASH            = 5'b0_1000;
+localparam IC_OUTPUT                             = 5'b1_0000;
 
 
 wire st_IC_IDLE                         = inst_cache_cur_st[0];
 wire st_IC_CHECK                        = inst_cache_cur_st[1];
-wire st_IC_HIT                          = inst_cache_cur_st[2];
-wire st_IC_HOLD_DATA                    = inst_cache_cur_st[3];
-wire st_IC_AXI_RD_ADDR                  = inst_cache_cur_st[4];
-wire st_IC_AXI_RD_DATA_UPDATE_CASH      = inst_cache_cur_st[5];
-wire st_IC_OUTPUT                       = inst_cache_cur_st[6];
+wire st_IC_AXI_RD_ADDR                  = inst_cache_cur_st[2];
+wire st_IC_AXI_RD_DATA_UPDATE_CASH      = inst_cache_cur_st[3];
+wire st_IC_OUTPUT                       = inst_cache_cur_st[4];
 
 
-reg[11:0] data_cache_cur_st,data_cache_nxt_st;
-localparam DC_IDLE                               = 12'b0000_0000_0001;
-localparam DC_CHECK                              = 12'b0000_0000_0010;
-localparam DC_HIT                                = 12'b0000_0000_0100;
-localparam DC_HOLD_DATA                          = 12'b0000_0000_1000;
-localparam DC_AXI_RD_ADDR                        = 12'b0000_0001_0000;
-localparam DC_AXI_RD_DATA_UPDATE_CASH            = 12'b0000_0010_0000;
-localparam DC_AXI_WR_ADDR                        = 12'b0000_0100_0000;
-localparam DC_AXI_WR_DATA                        = 12'b0000_1000_0000;
-localparam DC_AXI_WR_RESP                        = 12'b0001_0000_0000;
-localparam DC_OUTPUT                             = 12'b0010_0000_0000;
-localparam DC_WRITE_SRAM                         = 12'b0100_0000_0000;
-localparam DC_CHECK_WR                           = 12'b1000_0000_0000;
+reg[9:0] data_cache_cur_st,data_cache_nxt_st;
+localparam DC_IDLE                               = 10'b00_0000_0001;
+localparam DC_CHECK                              = 10'b00_0000_0010;
+localparam DC_AXI_RD_ADDR                        = 10'b00_0000_0100;
+localparam DC_AXI_RD_DATA_UPDATE_CASH            = 10'b00_0000_1000;
+localparam DC_AXI_WR_ADDR                        = 10'b00_0001_0000;
+localparam DC_AXI_WR_DATA                        = 10'b00_0010_0000;
+localparam DC_AXI_WR_RESP                        = 10'b00_0100_0000;
+localparam DC_OUTPUT                             = 10'b00_1000_0000;
+localparam DC_WRITE_SRAM                         = 10'b01_0000_0000;
+localparam DC_CHECK_WR                           = 10'b10_0000_0000;
 
 
 wire st_DC_IDLE                                     = data_cache_cur_st[0];
 wire st_DC_CHECK                                    = data_cache_cur_st[1];
-wire st_DC_HIT                                      = data_cache_cur_st[2];
-wire st_DC_HOLD_DATA                                = data_cache_cur_st[3];
-wire st_DC_AXI_RD_ADDR                              = data_cache_cur_st[4];
-wire st_DC_AXI_RD_DATA_UPDATE_CASH                  = data_cache_cur_st[5];
-wire st_DC_AXI_WR_ADDR                              = data_cache_cur_st[6];
-wire st_DC_AXI_WR_DATA                              = data_cache_cur_st[7];
-wire st_DC_AXI_WR_RESP                              = data_cache_cur_st[8];
-wire st_DC_OUTPUT                                   = data_cache_cur_st[9];
-wire st_DC_WRITE_SRAM                               = data_cache_cur_st[10];
-wire st_DC_CHECK_WR                                 = data_cache_cur_st[11];
+wire st_DC_AXI_RD_ADDR                              = data_cache_cur_st[2];
+wire st_DC_AXI_RD_DATA_UPDATE_CASH                  = data_cache_cur_st[3];
+wire st_DC_AXI_WR_ADDR                              = data_cache_cur_st[4];
+wire st_DC_AXI_WR_DATA                              = data_cache_cur_st[5];
+wire st_DC_AXI_WR_RESP                              = data_cache_cur_st[6];
+wire st_DC_OUTPUT                                   = data_cache_cur_st[7];
+wire st_DC_WRITE_SRAM                               = data_cache_cur_st[8];
+wire st_DC_CHECK_WR                                 = data_cache_cur_st[9];
 
 //================================================================
 //   AXI interfaces
@@ -560,8 +552,6 @@ begin
         endcase
     end
 end
-
-
 
 //================================================================
 //   ALU
@@ -1007,15 +997,7 @@ begin
     end
     IC_CHECK:
     begin
-        inst_cache_nxt_st = ic_hit_f ? IC_HIT : IC_AXI_RD_ADDR;
-    end
-    IC_HIT:
-    begin
-        inst_cache_nxt_st = IC_HOLD_DATA;
-    end
-    IC_HOLD_DATA:
-    begin
-        inst_cache_nxt_st = IC_OUTPUT;
+        inst_cache_nxt_st = ic_hit_f ? IC_OUTPUT : IC_AXI_RD_ADDR;
     end
     IC_OUTPUT:
     begin
@@ -1171,12 +1153,7 @@ end
 //======================
 always @(*)
 begin
-    if(st_IC_HOLD_DATA)
-    begin
-        ic_out_inst_wr  = i_cache_d_out;
-        ic_out_valid    = 0;
-    end
-    else if(st_IC_OUTPUT)
+    if(st_IC_OUTPUT)
     begin
         ic_out_inst_wr  = i_cache_d_out;
         ic_out_valid = 1;
@@ -1320,15 +1297,7 @@ begin
     end
     DC_CHECK:
     begin
-        data_cache_nxt_st = dc_hit_f ? DC_HIT : DC_AXI_RD_ADDR;
-    end
-    DC_HIT:
-    begin
-        data_cache_nxt_st = DC_HOLD_DATA;
-    end
-    DC_HOLD_DATA:
-    begin
-        data_cache_nxt_st = DC_OUTPUT;
+        data_cache_nxt_st = dc_hit_f ? DC_OUTPUT : DC_AXI_RD_ADDR;
     end
     DC_OUTPUT:
     begin
