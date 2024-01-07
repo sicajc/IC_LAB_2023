@@ -275,6 +275,7 @@ wire instr_mult_next_f = main_next_st == MULT_EX;
 wire seq_mult_done_f;
 
 wire signed[15:0] seq_mult_in1,seq_mult_in2,seq_mult_product;
+wire[15:0] pc_to_mem_addr = pc_ff << 1;
 
 //####################################################
 //               current_instruction
@@ -309,7 +310,6 @@ begin
     end
 end
 
-wire inst_out_valid_f  = ic_out_valid;
 wire data_read_done_f  = st_DC_OUTPUT;
 wire data_write_done_f = axi_wr_responed_f ;
 
@@ -319,7 +319,7 @@ begin
     case(main_cur_st)
         IF_WAIT_MEM:
         begin
-            main_next_st = inst_out_valid_f ? ID : IF_WAIT_MEM;
+            main_next_st = st_IC_OUTPUT ? ID : IF_WAIT_MEM;
         end
         ID:
         begin
@@ -404,22 +404,26 @@ begin
     end
 end
 
+// These can be removed to save 1 CPI, data cache being the same
 // ic invalid
-always @(posedge clk or negedge rst_n)
+always @(*)
 begin
-    if(~rst_n)
+    if(st_IF_WAIT_MEM && ~st_IC_OUTPUT)
     begin
-        ic_in_valid <= 0;
-    end
-    else if(main_next_st == IF_WAIT_MEM || st_IF_WAIT_MEM)
-    begin
-        ic_in_valid <= st_IC_OUTPUT ? 0 : 1;
+        ic_in_valid = 1;
     end
     else
     begin
-        ic_in_valid <= 0;
+        ic_in_valid = 0;
     end
 end
+
+// ic_in_addr_ff
+always @(*)
+begin
+    ic_in_addr_ff = pc_to_mem_addr[11:1];
+end
+
 
 // dc invalid
 always @(posedge clk or negedge rst_n)
@@ -476,12 +480,11 @@ end
 //================================================================
 //   IR_FF
 //================================================================
-// reg[15:0] inst_out_ff;
-
 always @(posedge clk)
 begin
-    ir_ff <= i_cache_d_out;
+    ir_ff <= st_IC_OUTPUT ? i_cache_d_out : ir_ff;
 end
+
 
 // regdata1
 always @(posedge clk or negedge rst_n)
@@ -948,11 +951,12 @@ reg[3:0] i_cache_tag_ff[0:1];
 reg[1:0] i_cache_valid_ff;
 reg ic_recently_used_ff;
 
+wire[3:0] ic_curr_tag = ic_in_addr_ff[10:7];
 
 // wire ic_hit_f  = (i_cache_valid_ff == 1'b1) && (i_cache_tag_ff == ic_in_addr_ff[10:7]);
 
-wire ic0_hit_f = (i_cache_valid_ff[0] == 1'b1) && (i_cache_tag_ff[0] == ic_in_addr_ff[10:7]);
-wire ic1_hit_f = (i_cache_valid_ff[1] == 1'b1) && (i_cache_tag_ff[1] == ic_in_addr_ff[10:7]);
+wire ic0_hit_f = (i_cache_valid_ff[0] == 1'b1) && (i_cache_tag_ff[0] == ic_curr_tag);
+wire ic1_hit_f = (i_cache_valid_ff[1] == 1'b1) && (i_cache_tag_ff[1] == ic_curr_tag);
 
 wire ic_hit_f = ic0_hit_f || ic1_hit_f;
 
@@ -979,7 +983,15 @@ begin
     case(inst_cache_cur_st)
     IC_IDLE:
     begin
-        inst_cache_nxt_st = ic_in_valid ? IC_CHECK : IC_IDLE;
+        if(ic_in_valid)
+        begin
+            if(ic_hit_f)
+                inst_cache_nxt_st = IC_OUTPUT;
+            else
+                inst_cache_nxt_st = IC_AXI_RD_ADDR;
+        end
+
+        // inst_cache_nxt_st = (ic_in_valid) ? IC_CHECK : IC_IDLE;
     end
     IC_CHECK:
     begin
@@ -1029,25 +1041,14 @@ begin
     else if(st_IC_AXI_RD_ADDR)
     begin
         if(ic_block_to_replace == 1'b1)
-            i_cache_tag_ff[1] <= ic_in_addr_ff[10:7];
+            i_cache_tag_ff[1] <= ic_curr_tag;
         else
-            i_cache_tag_ff[0] <= ic_in_addr_ff[10:7];
+            i_cache_tag_ff[0] <= ic_curr_tag;
     end
 end
 
-wire[15:0] pc_to_mem_addr = pc_ff << 1;
 
-always @(posedge clk or negedge rst_n)
-begin
-    if(~rst_n)
-    begin
-        ic_in_addr_ff <= 0;
-    end
-    else if(ic_in_valid)
-    begin
-        ic_in_addr_ff <= pc_to_mem_addr[11:1];
-    end
-end
+
 
 always @(posedge clk or negedge rst_n)
 begin
@@ -1055,7 +1056,7 @@ begin
     begin
         ic_recently_used_ff <= 0;
     end
-    else if(st_IC_CHECK)
+    else if(st_IC_IDLE && ic_in_valid)
     begin
         if(ic0_hit_f)
             ic_recently_used_ff <= 1'b0;
@@ -1393,23 +1394,6 @@ begin
     end
 end
 
-//======================
-//   Outputs
-//======================
-always @(posedge clk or negedge rst_n)
-begin
-    if(~rst_n)
-    begin
-        dc_out_valid_ff <= 0;
-        dc_out_data_ff  <= 0;
-    end
-    else if(st_DC_OUTPUT)
-    begin
-        dc_out_valid_ff <= 1;
-        dc_out_data_ff  <= d_cache_d_out;
-    end
-end
-
 //================================================================
 //   AXI Interfaces
 //================================================================
@@ -1516,13 +1500,13 @@ begin
         arvalid_m_inf <= 0;
         araddr_m_inf  <= 0;
     end
-    else if(st_IC_AXI_RD_ADDR)
+    else if( inst_cache_nxt_st == IC_AXI_RD_ADDR || st_IC_AXI_RD_ADDR)
     begin
         arvalid_m_inf[1] <= axi_inst_rd_addr_done_f ? 0 : 1;
         araddr_m_inf[DRAM_NUMBER * ADDR_WIDTH-1:ADDR_WIDTH] <= axi_inst_rd_addr_done_f ? 0 :
         {16'b0,4'b0001,ic_block_start_addr,1'b0};
     end
-    else if(st_DC_AXI_RD_ADDR)
+    else if(data_cache_nxt_st == DC_AXI_RD_ADDR  || st_DC_AXI_RD_ADDR)
     begin
         arvalid_m_inf[0] <= axi_data_rd_addr_done_f ? 0 : 1;
         araddr_m_inf[ADDR_WIDTH-1:0]  <= axi_data_rd_addr_done_f ? 0 :
