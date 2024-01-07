@@ -140,7 +140,7 @@ reg d_cache_we0,d_cache_we1;
 
 
 reg[1:0] d_cache_valid_ff;
-
+wire[15:0] i_cache_d_out;
 
 //================================================================
 //  AXI 4
@@ -227,6 +227,7 @@ wire st_DC_CHECK_WR                                 = data_cache_cur_st[9];
 //   AXI RD
 //======================
 reg[7:0] axi_burst_cnt;
+
 // instruction read and data read
 wire axi_inst_rd_addr_done_f = arvalid_m_inf[1] && arready_m_inf[1];
 wire axi_data_rd_addr_done_f = arvalid_m_inf[0] && arready_m_inf[0];
@@ -344,7 +345,6 @@ begin
             default:
                 main_next_st = SLT_EX;
             endcase
-
         end
         MULT_EX:
         begin
@@ -420,6 +420,7 @@ begin
         ic_in_valid <= 0;
     end
 end
+
 // dc invalid
 always @(posedge clk or negedge rst_n)
 begin
@@ -477,16 +478,9 @@ end
 //================================================================
 // reg[15:0] inst_out_ff;
 
-always @(posedge clk or negedge rst_n)
+always @(posedge clk)
 begin
-    if(~rst_n)
-    begin
-        ir_ff <= 0;
-    end
-    else if(st_IC_OUTPUT)
-    begin
-        ir_ff <= ic_out_inst_wr;
-    end
+    ir_ff <= i_cache_d_out;
 end
 
 // regdata1
@@ -593,6 +587,7 @@ begin
         st_MULT_EX_d1 <= st_MULT_EX;
     end
 end
+
 wire signed[31:0] mult_product_inst;
 
 assign seq_mult_product = mult_product_inst[15:0];
@@ -658,16 +653,9 @@ wire signed[15:0] data_mem_in_data = alu_out_ff;
 //   dmem data ff
 //================================================================
 reg signed[15:0] mem_data_out_ff;
-always @(posedge clk or negedge rst_n)
+always @(posedge clk)
 begin
-    if(~rst_n)
-    begin
-        dmem_data_ff <= 0;
-    end
-    else if(st_DC_OUTPUT)
-    begin
-        dmem_data_ff <= d_cache_d_out;
-    end
+    dmem_data_ff <= d_cache_d_out;
 end
 
 //================================================================
@@ -1105,12 +1093,12 @@ SRAM_128x16 I_1CACHE(.A0(i_cache_addr[0]),.A1(i_cache_addr[1]),.A2(i_cache_addr[
                     .DI14(i_cache_d_in[14]),.DI15(i_cache_d_in[15]),
                     .CK(clk),.WEB(i_cache_we1),.OE(1'b1),.CS(1'b1));
 
-wire[15:0] i_cache_d_out = ic0_hit_f ? i_cache_d_out0 : i_cache_d_out1;
+assign i_cache_d_out = ic0_hit_f ? i_cache_d_out0 : i_cache_d_out1;
 
 // I-Cache i/o controlls
 always @(*)
 begin
-    if(st_IC_AXI_RD_DATA_UPDATE_CASH && axi_inst_rd_data_tran_f)
+    if(st_IC_AXI_RD_DATA_UPDATE_CASH)
     begin
         // Write data
         if(ic0_hit_f)
@@ -1133,7 +1121,7 @@ end
 
 always @(*)
 begin
-    if(st_IC_AXI_RD_DATA_UPDATE_CASH && axi_inst_rd_data_tran_f)
+    if(st_IC_AXI_RD_DATA_UPDATE_CASH)
     begin
         // Write data
         i_cache_addr = axi_burst_cnt; // 0~127
@@ -1153,12 +1141,10 @@ always @(*)
 begin
     if(st_IC_OUTPUT)
     begin
-        ic_out_inst_wr  = i_cache_d_out;
         ic_out_valid = 1;
     end
     else
     begin
-        ic_out_inst_wr  = i_cache_d_out;
         ic_out_valid = 0;
     end
 end
@@ -1328,8 +1314,6 @@ begin
     endcase
 end
 
-
-
 SRAM_128x16 D_0CACHE( .A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
                     .A5(d_cache_addr[5]),.A6(d_cache_addr[6]),
                     .DO0(d_cache_d_out0[0]),.DO1(d_cache_d_out0[1]),.DO2(d_cache_d_out0[2]),.DO3(d_cache_d_out0[3]),
@@ -1345,7 +1329,7 @@ SRAM_128x16 D_0CACHE( .A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr
                     .DI13(d_cache_d_in[13]),.DI14(d_cache_d_in[14]),.DI15(d_cache_d_in[15]),
                     .CK(clk),.WEB(d_cache_we0),.OE(1'b1),.CS(1'b1));
 
-SRAM_128x16 D_1CACHE( .A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
+SRAM_128x16 D_1CACHE(.A0(d_cache_addr[0]),.A1(d_cache_addr[1]),.A2(d_cache_addr[2]),.A3(d_cache_addr[3]),.A4(d_cache_addr[4]),
                     .A5(d_cache_addr[5]),.A6(d_cache_addr[6]),
                     .DO0(d_cache_d_out1[0]),.DO1(d_cache_d_out1[1]),.DO2(d_cache_d_out1[2]),.DO3(d_cache_d_out1[3]),
                     .DO4(d_cache_d_out1[4]),.DO5(d_cache_d_out1[5]),.DO6(d_cache_d_out1[6]),
@@ -1366,7 +1350,7 @@ assign d_cache_d_out = dc0_hit_f ? d_cache_d_out0 : d_cache_d_out1;
 //=============================
 always @(*)
 begin
-    if((st_DC_AXI_RD_DATA_UPDATE_CASH && axi_data_rd_data_tran_f)||st_DC_WRITE_SRAM)
+    if(st_DC_AXI_RD_DATA_UPDATE_CASH||st_DC_WRITE_SRAM)
     begin
         // Write data
         if(dc0_hit_f)
@@ -1389,7 +1373,7 @@ end
 
 always @(*)
 begin
-    if(st_DC_AXI_RD_DATA_UPDATE_CASH && axi_data_rd_data_tran_f)
+    if(st_DC_AXI_RD_DATA_UPDATE_CASH)
     begin
         //Writes
         d_cache_addr = axi_burst_cnt;
@@ -1583,8 +1567,6 @@ begin
         axi_burst_cnt <= axi_burst_cnt + 1;
 end
 
-
-
 endmodule
 
 
@@ -1593,7 +1575,7 @@ inst_b, complete_inst, product_inst );
 parameter inst_a_width = 16;
 parameter inst_b_width = 16;
 parameter inst_tc_mode = 1;
-parameter inst_num_cyc = 5;
+parameter inst_num_cyc = 7;
 parameter inst_rst_mode = 1;
 parameter inst_input_mode = 1;
 parameter inst_output_mode = 1;
