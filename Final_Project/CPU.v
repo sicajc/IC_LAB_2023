@@ -1221,7 +1221,7 @@ end
 //   flags
 //======================
 // reg d_cache_valid_ff;
-reg[3:0] d_cache_tag_ff;
+reg[3:0] d_cache_tag_ff[0:1];
 reg dc_recently_used_ff;
 
 wire[3:0] dc_curr_tag = dc_in_addr_ff[10:7];
@@ -1399,7 +1399,7 @@ assign d_cache_d_out = dc0_hit_f ? d_cache_d_out0 : d_cache_d_out1;
 //=============================
 always @(*)
 begin
-    if(st_DC_AXI_RD_DATA_UPDATE_CASH && axi_data_rd_data_tran_f)
+    if((st_DC_AXI_RD_DATA_UPDATE_CASH && axi_data_rd_data_tran_f)||st_DC_WRITE_SRAM)
     begin
         // Write data
         if(dc0_hit_f)
