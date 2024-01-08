@@ -127,7 +127,7 @@ reg[15:0] ic_out_inst_wr;
 
 reg       dc_in_valid;
 reg[10:0] dc_in_addr_ff;
-reg[15:0] dc_in_data_ff;
+// reg[15:0] dc_in_data_ff;
 reg       dc_in_write;
 reg       dc_out_valid_ff;
 reg[15:0] dc_out_data_ff;
@@ -428,7 +428,7 @@ begin
     ic_in_addr_ff = pc_to_mem_addr[11:1];
 end
 
-
+// Potential cycle reduction
 // dc invalid
 always @(posedge clk or negedge rst_n)
 begin
@@ -998,8 +998,6 @@ begin
             else
                 inst_cache_nxt_st = IC_AXI_RD_ADDR;
         end
-
-        // inst_cache_nxt_st = (ic_in_valid) ? IC_CHECK : IC_IDLE;
     end
     IC_CHECK:
     begin
@@ -1172,21 +1170,21 @@ begin
     if(~rst_n)
     begin
         dc_in_addr_ff  <= 0;
-        dc_in_data_ff  <= alu_out_ff;
+        // dc_in_data_ff  <= alu_out_ff;
     end
     else if(dc_in_valid)
     begin
         //Probably incorrect here
         dc_in_addr_ff  <= alu_out_wr[11:1];
 
-        if(dc_in_write == 1'b1)
-        begin
-            dc_in_data_ff  <= reg_data2_ff;
-        end
-        else
-        begin
-            dc_in_data_ff  <= alu_out_ff;
-        end
+        // if(dc_in_write == 1'b1)
+        // begin
+        //     dc_in_data_ff  <= reg_data2_ff;
+        // end
+        // else
+        // begin
+        //     dc_in_data_ff  <= alu_out_ff;
+        // end
     end
 end
 
@@ -1386,13 +1384,25 @@ begin
 end
 
 
-always @(posedge clk)
+always @(posedge clk or negedge rst_n)
 begin
-    axi_burst_cnt_d1 <= axi_burst_cnt;
-    rdata_m_inf_d1   <= rdata_m_inf;
-    axi_data_rd_data_tran_d1 <= axi_data_rd_data_tran_f;
-    axi_inst_rd_data_tran_d1 <= axi_inst_rd_data_tran_f;
+    if(~rst_n)
+    begin
+        axi_burst_cnt_d1 <= 0;
+        rdata_m_inf_d1   <= 0;
+        axi_data_rd_data_tran_d1 <= 0;
+        axi_inst_rd_data_tran_d1 <= 0;
+    end
+    else
+    begin
+        axi_burst_cnt_d1 <= axi_burst_cnt;
+        rdata_m_inf_d1   <= rdata_m_inf;
+        axi_data_rd_data_tran_d1 <= axi_data_rd_data_tran_f;
+        axi_inst_rd_data_tran_d1 <= axi_inst_rd_data_tran_f;
+    end
 end
+
+wire[15:0] memory_data_in = dc_in_write == 1'b1 ? reg_data2_ff : alu_out_ff;
 
 always @(*)
 begin
@@ -1406,7 +1416,7 @@ begin
     begin
         //Writes
         d_cache_addr = dc_in_addr_ff[6:0];
-        d_cache_d_in = dc_in_data_ff;
+        d_cache_d_in = memory_data_in;
     end
     else
     begin
@@ -1489,7 +1499,7 @@ begin
     end
     else if(st_DC_AXI_WR_DATA)
     begin
-        wdata_m_inf  <= dc_in_data_ff;
+        wdata_m_inf  <= reg_data2_ff;
         wvalid_m_inf <= 1'b1;
     end
     else
