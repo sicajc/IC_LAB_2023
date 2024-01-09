@@ -484,9 +484,16 @@ end
 //================================================================
 //   IR_FF
 //================================================================
-always @(posedge clk)
+always @(posedge clk or negedge rst_n)
 begin
-    ir_ff <= st_IC_OUTPUT ? i_cache_d_out : ir_ff;
+    if(~rst_n)
+    begin
+       ir_ff <= 0;
+    end
+    else
+    begin
+        ir_ff <= st_IC_OUTPUT ? i_cache_d_out : ir_ff;
+    end
 end
 
 
@@ -650,10 +657,17 @@ begin
     endcase
 end
 
-reg signed[15:0] alu_out_wr_d1;
-always @(posedge clk)
+reg[15:0] alu_out_wr_d1;
+always @(posedge clk or negedge rst_n)
 begin
-    alu_out_wr_d1 <= alu_out_wr;
+    if(~rst_n)
+    begin
+        alu_out_wr_d1 <= 0;
+    end
+    else
+    begin
+        alu_out_wr_d1 <= alu_out_wr;
+    end
 end
 
 
@@ -664,9 +678,16 @@ wire signed[15:0] data_mem_in_data = alu_out_ff;
 //   dmem data ff
 //================================================================
 reg signed[15:0] mem_data_out_ff;
-always @(posedge clk)
+always @(posedge clk or negedge rst_n)
 begin
-    dmem_data_ff <= d_cache_d_out;
+    if(~rst_n)
+    begin
+        dmem_data_ff <= 0;
+    end
+    else
+    begin
+        dmem_data_ff <= d_cache_d_out;
+    end
 end
 
 //================================================================
@@ -1456,6 +1477,8 @@ assign awburst_m_inf = 2'b01 ;
 //   Instruction read
 //========================
 
+wire[11:0] wr_in_addr = alu_out_wr_d1[11:0];
+
 //Write address channel
 always @(posedge clk or negedge rst_n)
 begin
@@ -1466,7 +1489,7 @@ begin
     end
     else if(st_DC_AXI_WR_ADDR)
     begin
-        awaddr_m_inf  <=  axi_wr_addr_done_f ? 0: alu_out_wr_d1;
+        awaddr_m_inf  <=  axi_wr_addr_done_f ? 0:{ 16'd0 , 4'b0001 , wr_in_addr};
         awvalid_m_inf <=  axi_wr_addr_done_f ? 0: 1'b1;
     end
 end
@@ -1573,10 +1596,18 @@ end
 
 
 
-always @(posedge clk )
+always @(posedge clk or negedge rst_n)
 begin
-    axi_inst_rd_data_done_d1 <= axi_inst_rd_data_done_f;
-    axi_data_rd_data_done_d1 <= axi_data_rd_data_done_f;
+    if(~rst_n)
+    begin
+        axi_inst_rd_data_done_d1 <= 0;
+        axi_data_rd_data_done_d1 <= 0;
+    end
+    else
+    begin
+        axi_inst_rd_data_done_d1 <= axi_inst_rd_data_done_f;
+        axi_data_rd_data_done_d1 <= axi_data_rd_data_done_f;
+    end
 end
 
 // axi burst cnt
