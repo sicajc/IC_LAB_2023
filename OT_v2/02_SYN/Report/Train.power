@@ -1,0 +1,54 @@
+ 
+****************************************
+Report : power
+        -analysis_effort low
+Design : Train
+Version: T-2022.03
+Date   : Sat Nov  4 15:27:19 2023
+****************************************
+
+
+Library(s) Used:
+
+    slow (File: /RAID2/COURSE/BackUp/2023_Spring/iclab/iclabta01/umc018/Synthesis/slow.db)
+
+
+Operating Conditions: slow   Library: slow
+Wire Load Model Mode: top
+
+
+Global Operating Voltage = 1.62 
+Power-specific unit information :
+    Voltage Units = 1V
+    Capacitance Units = 1.000000pf
+    Time Units = 1ns
+    Dynamic Power Units = 1mW    (derived from V,C,T units)
+    Leakage Power Units = 1pW
+
+
+Attributes
+----------
+i - Including register clock pin internal power
+
+
+  Cell Internal Power  = 995.1492 uW   (97%)
+  Net Switching Power  =  31.9852 uW    (3%)
+                         ---------
+Total Dynamic Power    =   1.0271 mW  (100%)
+
+Cell Leakage Power     =   1.0413 uW
+
+
+                 Internal         Switching           Leakage            Total
+Power Group      Power            Power               Power              Power   (   %    )  Attrs
+--------------------------------------------------------------------------------------------------
+io_pad             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+memory             0.0000            0.0000            0.0000            0.0000  (   0.00%)
+black_box          0.0000            0.0000            0.0000            0.0000  (   0.00%)
+clock_network      0.9453            0.0000            0.0000            0.0000  (   0.00%)  i
+register       3.3484e-02        4.3003e-03        6.1814e+05            0.9837  (  95.67%)
+sequential         0.0000            0.0000            0.0000            0.0000  (   0.00%)
+combinational  1.6390e-02        2.7685e-02        4.2321e+05        4.4498e-02  (   4.33%)
+--------------------------------------------------------------------------------------------------
+Total              0.9951 mW     3.1985e-02 mW     1.0413e+06 pW         1.0282 mW
+1

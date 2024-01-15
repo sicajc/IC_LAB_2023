@@ -1,0 +1,23 @@
+ 
+****************************************
+check_design summary:
+Version:     T-2022.03
+Date:        Sat Nov  4 15:26:22 2023
+****************************************
+
+                   Name                                            Total
+--------------------------------------------------------------------------------
+Cells                                                               1
+    Cells do not drive (LINT-1)                                     1
+
+Nets                                                                5
+    Unloaded nets (LINT-2)                                          5
+--------------------------------------------------------------------------------
+
+Warning: In design 'Train', cell 'B_40' does not drive any nets. (LINT-1)
+Warning: In design 'Train', net 'net135' driven by pin 'C1620/Z' has no loads. (LINT-2)
+Warning: In design 'Train', net 'net134' driven by pin 'C1615/Z' has no loads. (LINT-2)
+Warning: In design 'Train', net 'net133' driven by pin 'C1614/Z' has no loads. (LINT-2)
+Warning: In design 'Train', net 'net132' driven by pin 'C1610/Z' has no loads. (LINT-2)
+Warning: In design 'Train', net 'net131' driven by pin 'C1605/Z' has no loads. (LINT-2)
+1

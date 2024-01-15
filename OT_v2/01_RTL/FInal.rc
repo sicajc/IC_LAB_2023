@@ -1,0 +1,90 @@
+Magic 271485
+Revision Verdi_P-2019.06
+
+; Window Layout <x> <y> <width> <height> <signalwidth> <valuewidth>
+viewPort 0 23 1280 729 308 161
+
+; File list:
+; openDirFile [-d delimiter] [-s time_offset] [-rf auto_bus_rule_file] path_name file_name
+openDirFile -d / "" "/RAID2/COURSE/iclab/iclab126/OT_v2/01_RTL/Train.fsdb"
+
+; file time scale:
+; fileTimeScale ### s|ms|us|ns|ps
+
+; signal spacing:
+signalSpacing 5
+
+; windowTimeUnit is used for zoom, cursor & marker
+; waveform viewport range
+zoom 225810065.359902 226871475.857682
+cursor 2830000.000000
+marker 0.000000
+
+; user define markers
+; userMarker time_pos marker_name color linestyle
+; visible top row signal index
+top 2
+; marker line index
+markerPos 12
+
+; event list
+; addEvent event_name event_expression
+; curEvent event_name
+
+
+
+COMPLEX_EVENT_BEGIN
+
+
+COMPLEX_EVENT_END
+
+
+
+; toolbar current search type
+; curSTATUS search_type
+curSTATUS ByChange
+
+
+addGroup "G1"
+activeDirFile "" "/RAID2/COURSE/iclab/iclab126/OT_v2/01_RTL/Train.fsdb"
+addSignal -h 21 /TESTBED/clk
+addSignal -h 21 -holdScope data[3:0]
+addSignal -h 21 -holdScope in_valid
+addSignal -h 21 -holdScope out_valid
+addSignal -h 21 -holdScope result
+addSignal -h 21 -holdScope rst_n
+addSignal -h 21 /TESTBED/u_train/ST_IDLE
+addSignal -h 21 -holdScope ST_INSERT_TRAIN
+addSignal -h 21 -holdScope ST_COMPARE
+addSignal -h 21 -holdScope ST_LOAD_NEW_CURRENT
+addSignal -h 21 -holdScope train_inserted_f
+addSignal -h 21 -holdScope wrong_top_value_f
+addSignal -h 21 -holdScope current_target_ff[4:0]
+addSignal -h 21 -holdScope stack_top[4:0]
+addSignal -h 21 -holdScope in_train_cnt[4:0]
+addSignal -h 21 -holdScope stack[0:10]
+addSignal -h 21 -holdScope completed_order_f
+addSignal -h 21 -holdScope order_ptr[4:0]
+addSignal -h 21 -holdScope number_of_carriages_ff[4:0]
+addSignal -h 21 -holdScope cnt[4:0]
+addSignal -h 21 -holdScope desired_order_rf[0:10]
+addSignal -h 21 -holdScope stack_ptr[4:0]
+addGroup "G2"
+
+; getSignalForm Scope Hierarchy Status
+; active file of getSignalForm
+activeDirFile "" "/RAID2/COURSE/iclab/iclab126/OT_v2/01_RTL/Train.fsdb"
+
+GETSIGNALFORM_SCOPE_HIERARCHY_BEGIN
+getSignalForm close
+
+"/TESTBED"
+
+SCOPE_LIST_BEGIN
+"/TESTBED"
+"/TESTBED/u_train"
+SCOPE_LIST_END
+
+GETSIGNALFORM_SCOPE_HIERARCHY_END
+
+
